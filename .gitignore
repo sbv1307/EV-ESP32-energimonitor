@@ -1,0 +1,10 @@
+# temporary excludes
+*.pdf
+*.dat
+*.dpl
+*.kicad_pcb
+*.png
+*.sch
+fp-lib-table
+jlcpcb/*
+sym-lib-table
