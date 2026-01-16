@@ -18,6 +18,6 @@ const String MQTT_SUFFIX_TOTAL              = "/set_total";
 
 
 void mqttInit( TaskParams_t* params );
-void mqttLoop();
+void mqttLoop( TaskParams_t* params );
 bool mqttIsConnected();
 bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain);

@@ -2,5 +2,5 @@
 
 #include "../globals/globals.h"
 
-void startNetworkTask(TaskParams_t* params);
+bool startNetworkTask(TaskParams_t* params);
 void stopNetworkTask();

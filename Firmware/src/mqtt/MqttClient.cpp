@@ -20,10 +20,29 @@ static QueueHandle_t mqttQueue = nullptr;
 static String mqttBrokerIP;
 static uint16_t mqttBrokerPort;
 
-void publish_sketch_version();
+/*
+ * ##################################################################################################
+ * ##################################################################################################
+ * ##################################################################################################
+ * ##########################   f u n c t i o n    d e c l a r a t i o n s  #########################
+ * ##################################################################################################
+ * ##################################################################################################
+ * ##################################################################################################
+ */
+
+void publish_sketch_version(TaskParams_t* params);
 void initializeMQTTGlobals();
 
-static void reconnect() {
+/*
+  * ###################################################################################################
+  *                  R E C O N N E C T
+  * A clean, idiomatic ESP32 + FreeRTOS module layout that keeps OTA + MQTT in one network task, 
+  * while staying Arduino-friendly.
+  * ###################################################################################################
+  *  
+  */  
+
+static void reconnect(TaskParams_t* params) {
   while (!mqttClient.connected()) {
     String will = String ( MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_ONLINE);
 
@@ -31,18 +50,18 @@ static void reconnect() {
                                                              Serial.print("Attempting MQTT connection...");
                                                              #endif
 
-    if (mqttClient.connect(mqttClientWithMac.c_str(), PRIVATE_Default_MQTT_USER.c_str(), 
-                               PRIVATE_Default_MQTT_PASS.c_str(), will.c_str(), 1, RETAINED, "False")) {
-                                                             #ifdef DEBUG
-                                                             Serial.println("connected");
-                                                             #endif
-                                                             
+    if (mqttClient.connect( mqttClientWithMac.c_str(),
+                            params->mqttUsername, 
+                            params->mqttPassword,
+                            will.c_str(),
+                            1,
+                            RETAINED, "False")) {
+
       // Once connected, publish will message and 
       mqttEnqueuePublish(will.c_str(), "True", RETAINED);
 
-      publish_sketch_version();
+      publish_sketch_version( params);
       
-
       String totalSetTopic = String(MQTT_PREFIX + "/+" + MQTT_SUFFIX_TOTAL);
       mqttClient.subscribe(totalSetTopic.c_str(), 1);
 
@@ -67,21 +86,16 @@ void mqttInit(TaskParams_t* params) {
   
   initializeMQTTGlobals();
 
-  Preferences pref;
-  pref.begin( params->nvsNamespace, false);
-  mqttBrokerIP = pref.getString(MQTTIPnameSpaceKey, PRIVATE_Default_MQTT_SERVER);
-  mqttBrokerPort = pref.getString(MQTTPortnameSpaceKey, String(PRIVATE_Default_MQTT_PORT).c_str()).toInt();
-  pref.end();
 
                                                           #ifdef DEBUG
-                                                          Serial.println("MQTT broker IP: " + mqttBrokerIP + ", port: " + String(mqttBrokerPort) );
+                                                          Serial.println("MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
                                                           #endif
 
-  mqttClient.setServer(mqttBrokerIP.c_str(), mqttBrokerPort);
+  mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort);
 
   mqttQueue = xQueueCreate(10, sizeof(MqttMessage));
   if (!mqttQueue) {
-    Serial.println("MQTT queue creation failed!: MQTT broker IP: " + mqttBrokerIP + ", port: " + String(mqttBrokerPort) );
+    Serial.println("MQTT queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
   }
 }
 
@@ -96,9 +110,9 @@ bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
   return xQueueSend(mqttQueue, &msg, 0) == pdTRUE;
 }
 
-void mqttLoop() {
+void mqttLoop(TaskParams_t* params) {
   if (!mqttClient.connected()) {
-    reconnect();
+    reconnect(params);
   }
 
   mqttClient.loop();
@@ -130,12 +144,12 @@ bool mqttIsConnected() {
  *
  *  This will return the value of (SKETCH_VERSION)
  */
-void publish_sketch_version()   // Publish only once at every reboot.
-{  
+void publish_sketch_version(TaskParams_t* params)   // Publish only once at every reboot.
+{
   IPAddress ip = WiFi.localIP();
   String versionTopic = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SKETCH_VERSION);
-  String versionMessage = String(SKETCH_VERSION + String("\nConnected to SSID: \'") +\
-                                  String("WIFI_SSID") + String("\' at: ") +\
+  String versionMessage = String(params->sketchVersion + String("\nConnected to SSID: \'") +\
+                                  String(params->wifiSSID) + String("\' at: ") +\
                                   String(ip[0]) + String(".") +\
                                   String(ip[1]) + String(".") +\
                                   String(ip[2]) + String(".") +\
@@ -143,7 +157,6 @@ void publish_sketch_version()   // Publish only once at every reboot.
 
   mqttEnqueuePublish(versionTopic.c_str(), versionMessage.c_str(), RETAINED);
 }
-
 
 void initializeMQTTGlobals()
 {

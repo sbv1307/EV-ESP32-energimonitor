@@ -1,5 +1,8 @@
+#define DEBUG
+
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Preferences.h>
 
 #include <wait_for_any_key.h>
 #include "config/config.h"
@@ -52,22 +55,40 @@ src/
  * ###################################################################################################
  */
 void setup() {
-  wait_for_any_key( SKETCH_VERSION);
+  wait_for_any_key( SKETCH_VERSION + String(". Build at: ") + String(BUILD_TIMESTAMP));
 
-  WiFi.begin("FIBERMEDIA-yb2f", "7cx3AdKg6N6LSA");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  delay(1000);  // Give some time to settle WiFi connection
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("\nWiFi connected. IP address: ");
-    Serial.println(WiFi.localIP());
-    static TaskParams_t networkParams = { .sketchVersion = SKETCH_VERSION, .nvsNamespace = NVS_NAMESPACE };
-    startNetworkTask( &networkParams );
+  // Include ESP32_NW_Setup library will setup and store WiFi credentials if not present
+  // for now, we will hardcode WiFi credentials for testing
 
+  Preferences prefs;
+  prefs.begin( NVS_NAMESPACE, false);
+  if ( !prefs.isKey("ssid") || prefs.getString("ssid", "").isEmpty()) {
+                                                                      #ifdef DEBUG
+                                                                        Serial.println("NVS NaMESPACE not found. Creating with default values.");
+                                                                      #endif
+
+    prefs.putString("ssid", "FIBERMEDIA-yb2f");
+    prefs.putString("pass", "7cx3AdKg6N6LSA");
+    prefs.putString("mqttIP", "192.168.100.201");
+    prefs.putString("mqttPort", "1883");
+    prefs.putString("mqttUser", "");
+    prefs.putString("mqttPass", "");  
   } else {
-    Serial.println("\nWiFi connection failed.");
+
+                                                                      #ifdef DEBUG
+                                                                        Serial.println("NVS NAMESPACE found. Using stored values.");
+                                                                      #endif
+
+  }
+  prefs.end();
+
+  static String versionString = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
+  static TaskParams_t networkParams = { .sketchVersion = versionString.c_str(), .nvsNamespace = NVS_NAMESPACE };
+  initializeGlobals( &networkParams );
+
+  if (!startNetworkTask( &networkParams )) {
+    Serial.println("Failed to start network task. Check WiFi credentials.");
+    // Could implement retry logic or error handling here
   } 
 }
 
