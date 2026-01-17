@@ -25,8 +25,10 @@ static void networkTask(void* pvParameters) {
   }
 }
 
-bool startNetworkTask(TaskParams_t* params) {
-  // Connect to WiFi first
+static void wifiConnectionTask(void* pvParameters) {
+  TaskParams_t* params = (TaskParams_t*)pvParameters;
+  
+  // Connect to WiFi
   WiFi.begin(params->wifiSSID, params->wifiPassword);
   
   int attempts = 0;
@@ -40,7 +42,8 @@ bool startNetworkTask(TaskParams_t* params) {
   
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("\nWiFi connection failed.");
-    return false;
+    vTaskDelete(NULL); // Delete this task
+    return;
   }
   
   delay(1000);  // Give some time to settle WiFi connection
@@ -55,6 +58,22 @@ bool startNetworkTask(TaskParams_t* params) {
     params,
     1,
     &networkTaskHandle,
+    0   // Core 0 (Wi-Fi)
+  );
+  
+  // Delete this initialization task as it's no longer needed
+  vTaskDelete(NULL);
+}
+
+bool startNetworkTask(TaskParams_t* params) {
+  // Create the WiFi connection task
+  xTaskCreatePinnedToCore(
+    wifiConnectionTask,
+    "WiFiConnTask",
+    4096,
+    params,
+    2,  // Higher priority to ensure WiFi connects first
+    NULL,  // Don't need to store the handle
     0   // Core 0 (Wi-Fi)
   );
   

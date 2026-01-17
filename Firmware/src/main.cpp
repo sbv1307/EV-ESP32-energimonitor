@@ -86,10 +86,7 @@ void setup() {
   static TaskParams_t networkParams = { .sketchVersion = versionString.c_str(), .nvsNamespace = NVS_NAMESPACE };
   initializeGlobals( &networkParams );
 
-  if (!startNetworkTask( &networkParams )) {
-    Serial.println("Failed to start network task. Check WiFi credentials.");
-    // Could implement retry logic or error handling here
-  } 
+  startNetworkTask( &networkParams );
 }
 
 /*
@@ -102,5 +99,21 @@ void setup() {
  * ###################################################################################################
  */
 void loop() {
-  // put your main code here, to run repeatedly:
+  static unsigned long lastWiFiCheck = 0;
+  const unsigned long wifiCheckInterval = 5000; // Check every 5 seconds
+  
+  unsigned long currentMillis = millis();
+  
+  if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
+    lastWiFiCheck = currentMillis;
+    
+    if (WiFi.status() != WL_CONNECTED) {
+                                                                      #ifdef DEBUG
+                                                                      Serial.println("WiFi disconnected. Attempting to reconnect...");
+                                                                      #endif
+      WiFi.reconnect();
+    }
+  }
+  
+  delay(100);
 }
