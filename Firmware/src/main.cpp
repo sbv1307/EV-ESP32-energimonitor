@@ -17,8 +17,8 @@
  * ######################################################################################################################################
  * ######################################################################################################################################
  */
-
-
+static String versionString = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
+static TaskParams_t networkParams = { .sketchVersion = versionString.c_str(), .nvsNamespace = NVS_NAMESPACE };
 
 /*
  * ##################################################################################################
@@ -82,8 +82,6 @@ void setup() {
   }
   prefs.end();
 
-  static String versionString = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
-  static TaskParams_t networkParams = { .sketchVersion = versionString.c_str(), .nvsNamespace = NVS_NAMESPACE };
   initializeGlobals( &networkParams );
 
   startNetworkTask( &networkParams );
@@ -111,9 +109,9 @@ void loop() {
                                                                       #ifdef DEBUG
                                                                       Serial.println("WiFi disconnected. Attempting to reconnect...");
                                                                       #endif
-      WiFi.reconnect();
+      startNetworkTask( &networkParams );
     }
   }
   
-  delay(100);
+  vTaskDelay(pdMS_TO_TICKS(100));
 }

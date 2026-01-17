@@ -16,8 +16,18 @@ const bool    RETAINED                      = true;                 // MQTT reta
 // MQTT Subscription topics
 const String MQTT_SUFFIX_TOTAL              = "/set_total";
 
+/*
+ * ##################################################################################################
+ * ##################################################################################################
+ * ##################################################################################################
+ * ##########################   f u n c t i o n    d e c l a r a t i o n s  #########################
+ * ##################################################################################################
+ * ##################################################################################################
+ * ##################################################################################################
+ */
 
+void publish_sketch_version(TaskParams_t* params);
+void initializeMQTTGlobals();
+bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain);
 void mqttInit( TaskParams_t* params );
 void mqttLoop( TaskParams_t* params );
-bool mqttIsConnected();
-bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain);

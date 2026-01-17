@@ -20,18 +20,6 @@ static QueueHandle_t mqttQueue = nullptr;
 static String mqttBrokerIP;
 static uint16_t mqttBrokerPort;
 
-/*
- * ##################################################################################################
- * ##################################################################################################
- * ##################################################################################################
- * ##########################   f u n c t i o n    d e c l a r a t i o n s  #########################
- * ##################################################################################################
- * ##################################################################################################
- * ##################################################################################################
- */
-
-void publish_sketch_version(TaskParams_t* params);
-void initializeMQTTGlobals();
 
 /*
   * ###################################################################################################
@@ -43,19 +31,32 @@ void initializeMQTTGlobals();
   */  
 
 static void reconnect(TaskParams_t* params) {
-  while (!mqttClient.connected()) {
+  // Try to connect only once per call to avoid blocking
+  if (!mqttClient.connected()) {
+    // Throttle connection attempts to prevent watchdog issues
+    static unsigned long lastAttempt = 0;
+    unsigned long now = millis();
+    if (now - lastAttempt < 5000) {  // Wait at least 5 seconds between attempts
+      return;
+    }
+    lastAttempt = now;
+    
     String will = String ( MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_ONLINE);
 
                                                              #ifdef DEBUG
                                                              Serial.print("Attempting MQTT connection...");
                                                              #endif
 
+    // Yield to watchdog before blocking connect call
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
     if (mqttClient.connect( mqttClientWithMac.c_str(),
                             params->mqttUsername, 
                             params->mqttPassword,
                             will.c_str(),
                             1,
-                            RETAINED, "False")) {
+                            RETAINED, "False")) 
+    {
 
       // Once connected, publish will message and 
       mqttEnqueuePublish(will.c_str(), "True", RETAINED);
@@ -74,10 +75,8 @@ static void reconnect(TaskParams_t* params) {
                                                               #ifdef DEBUG
                                                               Serial.print("MQTT failed, rc=");
                                                               Serial.print(mqttClient.state());
-                                                              Serial.println(" try again in 2 seconds");
+                                                              Serial.println(" retrying...");
                                                               #endif
-
-      vTaskDelay(pdMS_TO_TICKS(2000));
     }
   }
 }
@@ -92,6 +91,7 @@ void mqttInit(TaskParams_t* params) {
                                                           #endif
 
   mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort);
+  mqttClient.setSocketTimeout(3);  // Set 3 second timeout to prevent watchdog triggers
 
   mqttQueue = xQueueCreate(10, sizeof(MqttMessage));
   if (!mqttQueue) {

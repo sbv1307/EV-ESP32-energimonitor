@@ -8,6 +8,7 @@
 #include "../mqtt/MqttClient.h"
 
 static TaskHandle_t networkTaskHandle = nullptr;
+static TaskHandle_t wifiConnectionTaskHandle = nullptr;
 
 static void networkTask(void* pvParameters) {
   otaInit();
@@ -28,6 +29,15 @@ static void networkTask(void* pvParameters) {
 static void wifiConnectionTask(void* pvParameters) {
   TaskParams_t* params = (TaskParams_t*)pvParameters;
   
+  stopNetworkTask();  // Ensure any existing network task is stopped
+
+                                                    #ifdef DEBUG
+                                                    Serial.print("Connecting to WiFi SSID: ");
+                                                    Serial.println(params->wifiSSID);
+                                                    #endif 
+
+  // Disconnect if already connected
+  WiFi.disconnect();
   // Connect to WiFi
   WiFi.begin(params->wifiSSID, params->wifiPassword);
   
@@ -52,6 +62,7 @@ static void wifiConnectionTask(void* pvParameters) {
   
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("\nWiFi connection failed.");
+    wifiConnectionTaskHandle = nullptr;
     vTaskDelete(NULL); // Delete this task
     return;
   }
@@ -72,10 +83,15 @@ static void wifiConnectionTask(void* pvParameters) {
   );
   
   // Delete this initialization task as it's no longer needed
+  wifiConnectionTaskHandle = nullptr;
   vTaskDelete(NULL);
 }
 
 bool startNetworkTask(TaskParams_t* params) {
+  if (wifiConnectionTaskHandle != nullptr) {
+    // WiFi connection task is already running
+    return false;
+  }
   // Create the WiFi connection task
   xTaskCreatePinnedToCore(
     wifiConnectionTask,
@@ -83,10 +99,9 @@ bool startNetworkTask(TaskParams_t* params) {
     4096,
     params,
     2,  // Higher priority to ensure WiFi connects first
-    NULL,  // Don't need to store the handle
+    &wifiConnectionTaskHandle,  // Don't need to store the handle
     0   // Core 0 (Wi-Fi)
   );
-  
   return true;
 }
 
