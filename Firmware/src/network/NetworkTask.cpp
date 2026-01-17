@@ -34,8 +34,18 @@ static void wifiConnectionTask(void* pvParameters) {
   int attempts = 0;
   const int maxAttempts = 20; // 10 seconds timeout (20 * 500ms)
   
+  /*
+   * Key difference:
+   * WiFi.status()               - Returns the current WiFi status immediately (non-blocking)
+   * WiFi.waitForConnectResult() - Blocks and waits for the connection attempt to complete 
+   *                               before returning.
+   * The problem:
+   * Using WiFi.waitForConnectResult() in the loop defeats the purpose of your manual timeout mechanism.
+   * It will block for the entire connection attempt duration on each iteration, making your attempts
+   * counter and delay(500) ineffective.
+   */
   while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
-    delay(500);
+    vTaskDelay(pdMS_TO_TICKS(500));
     Serial.print(".");
     attempts++;
   }
@@ -46,7 +56,7 @@ static void wifiConnectionTask(void* pvParameters) {
     return;
   }
   
-  delay(1000);  // Give some time to settle WiFi connection
+  vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to settle WiFi connection
   Serial.print("\nWiFi connected. IP address: ");
   Serial.println(WiFi.localIP());
   
