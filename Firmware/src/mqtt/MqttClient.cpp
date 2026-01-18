@@ -1,12 +1,14 @@
-#define DEBUG
+//#define DEBUG
+#include <ArduinoJson.h>
+#include <Preferences.h>
+#include <PubSubClient.h>
+#include <WiFi.h>
 
+#include "MqttMessage.h"
 #include "MqttClient.h"
 #include "../config/config.h"
 #include "../config/privateConfig.h"
 
-#include <Preferences.h>
-#include <PubSubClient.h>
-#include <WiFi.h>
 
 #define RETAINED true                   // Used in MQTT publications. Can be changed during development and bugfixing.
 
@@ -62,9 +64,16 @@ static void reconnect(TaskParams_t* params) {
       mqttEnqueuePublish(will.c_str(), "True", RETAINED);
 
       publish_sketch_version( params);
+      /*************************************************************************************
+       *************************************************************************************
+       *************************************************************************************
+       * Subscriptions to topics for receiving set commands are done here
+       *************************************************************************************
+       *************************************************************************************
+       *************************************************************************************/
       
-      String totalSetTopic = String(MQTT_PREFIX + "/+" + MQTT_SUFFIX_TOTAL);
-      mqttClient.subscribe(totalSetTopic.c_str(), 1);
+      String topicString = String(MQTT_PREFIX + "/+" + MQTT_SUFFIX_TOTAL);
+      mqttClient.subscribe(topicString.c_str(), 1);
 
                                                               #ifdef DEBUG
                                                               Serial.println("MQTT connected");
@@ -85,13 +94,14 @@ void mqttInit(TaskParams_t* params) {
   
   initializeMQTTGlobals();
 
-
                                                           #ifdef DEBUG
                                                           Serial.println("MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
                                                           #endif
 
   mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort);
   mqttClient.setSocketTimeout(3);  // Set 3 second timeout to prevent watchdog triggers
+  mqttClient.setCallback(mqttCallback);
+
 
   mqttQueue = xQueueCreate(10, sizeof(MqttMessage));
   if (!mqttQueue) {
@@ -169,4 +179,12 @@ void initializeMQTTGlobals()
 
   mqttDeviceNameWithMac = String(MQTT_DEVICE_NAME + macStr);
   mqttClientWithMac = String(MQTT_CLIENT + macStr);
+}
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  JsonDocument doc;                         // 
+  byte IRQ_PIN_reference = 0;
+  String topicString = String(topic);
+
+
 }

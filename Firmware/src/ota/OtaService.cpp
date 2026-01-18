@@ -1,8 +1,8 @@
 #define DEBUG
+#include <ArduinoOTA.h>
 
 #include "OtaService.h"
 #include "../network/NetworkTask.h"
-#include <ArduinoOTA.h>
 
 void otaInit() {
   ArduinoOTA

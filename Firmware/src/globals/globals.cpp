@@ -1,7 +1,7 @@
 //# define DEBUG
+#include <Preferences.h>
 
 #include "globals.h"
-#include <Preferences.h>
 
 void initializeGlobals( TaskParams_t* params ) {
 

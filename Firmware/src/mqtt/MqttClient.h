@@ -1,9 +1,7 @@
-
 #pragma once
 
 #include <Arduino.h>
-#include <stdbool.h>
-#include "MqttMessage.h"
+
 #include "../globals/globals.h"
 
 const String MQTT_PREFIX                    = "ev-e-monitor/";      // include tailing '/' in prefix!
@@ -31,3 +29,4 @@ void initializeMQTTGlobals();
 bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain);
 void mqttInit( TaskParams_t* params );
 void mqttLoop( TaskParams_t* params );
+void mqttCallback(char*, byte*, unsigned int);
