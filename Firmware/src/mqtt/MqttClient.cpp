@@ -21,6 +21,7 @@ static PubSubClient mqttClient(wifiClient);
 static QueueHandle_t mqttQueue = nullptr;
 static String mqttBrokerIP;
 static uint16_t mqttBrokerPort;
+static volatile bool mqttPaused = false;
 
 
 /*
@@ -121,6 +122,10 @@ bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
 }
 
 void mqttLoop(TaskParams_t* params) {
+  if (mqttPaused) {
+    return;  // Skip all MQTT operations when paused
+  }
+  
   if (!mqttClient.connected()) {
     reconnect(params);
   }
@@ -187,4 +192,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String topicString = String(topic);
 
 
+}
+
+void mqttPause() {
+  mqttPaused = true;
+  if (mqttClient.connected()) {
+    mqttClient.disconnect();
+  }
+}
+
+void mqttResume() {
+  mqttPaused = false;
 }

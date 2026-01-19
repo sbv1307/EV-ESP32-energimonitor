@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -55,8 +55,9 @@ src/
  * ###################################################################################################
  */
 void setup() {
+  #ifdef DEBUG
   wait_for_any_key( SKETCH_VERSION + String(". Build at: ") + String(BUILD_TIMESTAMP));
-
+  #endif
   // Include ESP32_NW_Setup library will setup and store WiFi credentials if not present
   // for now, we will hardcode WiFi credentials for testing
 
