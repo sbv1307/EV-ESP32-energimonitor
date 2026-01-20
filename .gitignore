@@ -10,3 +10,4 @@ jlcpcb/*
 sym-lib-table
 
 Developer/*
+build_timestamp.h
