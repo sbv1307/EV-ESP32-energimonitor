@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -15,7 +15,7 @@ static void networkTask(void* pvParameters) {
   mqttInit( (TaskParams_t*)pvParameters );
 
                                                     #ifdef DEBUG
-                                                    Serial.println("Network Task initializing...\n");
+                                                    Serial.println("NetworkTask: Network Task initializing...\n");
                                                     #endif
   
   for (;;) {
@@ -26,18 +26,28 @@ static void networkTask(void* pvParameters) {
   }
 }
 
+/* ###################################################################################################
+ *                  W I F I   C O N N E C T I O N   T A S K
+ * ###################################################################################################
+ *  This task handles the WiFi connection process. It attempts to connect to the specified SSID and
+ *  password, and upon successful connection, it starts the main network task.
+ */
 static void wifiConnectionTask(void* pvParameters) {
   TaskParams_t* params = (TaskParams_t*)pvParameters;
   
   stopNetworkTask();  // Ensure any existing network task is stopped
 
                                                     #ifdef DEBUG
-                                                    Serial.print("Connecting to WiFi SSID: ");
+                                                    Serial.print("NetworkTask: Connecting to WiFi SSID: ");
                                                     Serial.println(params->wifiSSID);
                                                     #endif 
 
   // Disconnect if already connected
-  WiFi.disconnect();
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFi.disconnect();
+    vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to disconnect
+  }
+
   // Connect to WiFi
   WiFi.begin(params->wifiSSID, params->wifiPassword);
   
@@ -56,20 +66,32 @@ static void wifiConnectionTask(void* pvParameters) {
    */
   while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
     vTaskDelay(pdMS_TO_TICKS(500));
-    Serial.print(".");
+
+                                                  #ifdef DEBUG
+                                                      Serial.print(".");
+                                                  #endif
+
     attempts++;
   }
   
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nWiFi connection failed.");
+
+                                                    #ifdef DEBUG
+                                                    Serial.println("\nNetworkTask: WiFi connection failed.");
+                                                    #endif
     wifiConnectionTaskHandle = nullptr;
     vTaskDelete(NULL); // Delete this task
     return;
   }
   
   vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to settle WiFi connection
-  Serial.print("\nWiFi connected. IP address: ");
-  Serial.println(WiFi.localIP());
+
+                                                  #ifdef DEBUG
+                                                  Serial.println("\nNetworkTask: WiFi connected successfully.");
+                                                  Serial.print("\nWiFi connected. IP address: ");
+                                                  Serial.println(WiFi.localIP());
+                                                  #endif
+                                                  
   
   // Create the network task
   xTaskCreatePinnedToCore(
@@ -99,7 +121,7 @@ bool startNetworkTask(TaskParams_t* params) {
     4096,
     params,
     2,  // Higher priority to ensure WiFi connects first
-    &wifiConnectionTaskHandle,  // Don't need to store the handle
+    &wifiConnectionTaskHandle,  // Store the handle to avoid multiple instances
     0   // Core 0 (Wi-Fi)
   );
   return true;

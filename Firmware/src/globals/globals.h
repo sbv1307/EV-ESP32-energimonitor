@@ -2,6 +2,7 @@
 /*
 extern int systemState;
 */
+#include <Arduino.h>
 
 #define ssidNameSpaceKey "ssid"
 #define passNameSpaceKey "pass"
@@ -20,6 +21,9 @@ typedef struct {
     const char* mqttPassword;
     const char* sketchVersion;
     const char* nvsNamespace;
+    unsigned long ptCorrection;      // Pulse Time Correction used to calibrate the calculated consumption.
+    uint16_t    pulse_per_kWh;       // Number of pulses per kWh for the energy meter
+
 } TaskParams_t;
 
 void initializeGlobals( TaskParams_t* params );

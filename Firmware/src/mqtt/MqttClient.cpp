@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <PubSubClient.h>
@@ -8,6 +8,7 @@
 #include "MqttClient.h"
 #include "../config/config.h"
 #include "../config/privateConfig.h"
+#include "../pulsInput/PulseInputTask.h"
 
 
 #define RETAINED true                   // Used in MQTT publications. Can be changed during development and bugfixing.
@@ -22,6 +23,7 @@ static QueueHandle_t mqttQueue = nullptr;
 static String mqttBrokerIP;
 static uint16_t mqttBrokerPort;
 static volatile bool mqttPaused = false;
+static TaskParams_t* mqttParams = nullptr;
 
 
 /*
@@ -47,7 +49,7 @@ static void reconnect(TaskParams_t* params) {
     String will = String ( MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_ONLINE);
 
                                                              #ifdef DEBUG
-                                                             Serial.print("Attempting MQTT connection...");
+                                                             Serial.print("MqttClient: Attempting MQTT connection...");
                                                              #endif
 
     // Yield to watchdog before blocking connect call
@@ -65,6 +67,11 @@ static void reconnect(TaskParams_t* params) {
       mqttEnqueuePublish(will.c_str(), "True", RETAINED);
 
       publish_sketch_version( params);
+
+      publishMqttConfigurations();
+
+      //publishMqttEnergy(0.0f, 0, 0);  // Initial publish with zero values
+
       /*************************************************************************************
        *************************************************************************************
        *************************************************************************************
@@ -72,18 +79,18 @@ static void reconnect(TaskParams_t* params) {
        *************************************************************************************
        *************************************************************************************
        *************************************************************************************/
-      
-      String topicString = String(MQTT_PREFIX + "/+" + MQTT_SUFFIX_TOTAL);
+
+      String topicString = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SUFFIX_SET);
       mqttClient.subscribe(topicString.c_str(), 1);
 
                                                               #ifdef DEBUG
-                                                              Serial.println("MQTT connected");
+                                                              Serial.println("MqttClient: MQTT connected");
                                                               #endif
 
     } else {
 
                                                               #ifdef DEBUG
-                                                              Serial.print("MQTT failed, rc=");
+                                                              Serial.print("MqttClient: MQTT failed, rc=");
                                                               Serial.print(mqttClient.state());
                                                               Serial.println(" retrying...");
                                                               #endif
@@ -91,12 +98,17 @@ static void reconnect(TaskParams_t* params) {
   }
 }
 
+/* ###################################################################################################
+ *                  M Q T T   I N I T
+ * ###################################################################################################
+ */
 void mqttInit(TaskParams_t* params) {
+  mqttParams = params;
   
   initializeMQTTGlobals();
 
                                                           #ifdef DEBUG
-                                                          Serial.println("MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
+                                                          Serial.println("MqttClient: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
                                                           #endif
 
   mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort);
@@ -106,10 +118,14 @@ void mqttInit(TaskParams_t* params) {
 
   mqttQueue = xQueueCreate(10, sizeof(MqttMessage));
   if (!mqttQueue) {
-    Serial.println("MQTT queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
+    Serial.println("MqttClient: MQTT queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
   }
 }
 
+/* ###################################################################################################
+ *                  M Q T T   E N Q U E U E   P U B L I S H
+ * ###################################################################################################
+ */
 bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
   if (!mqttQueue) return false;
 
@@ -121,6 +137,10 @@ bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
   return xQueueSend(mqttQueue, &msg, 0) == pdTRUE;
 }
 
+/* ###################################################################################################
+ *                  M Q T T   L O O P
+ * ###################################################################################################
+ */
 void mqttLoop(TaskParams_t* params) {
   if (mqttPaused) {
     return;  // Skip all MQTT operations when paused
@@ -137,13 +157,17 @@ void mqttLoop(TaskParams_t* params) {
   while (xQueueReceive(mqttQueue, &msg, 0) == pdTRUE) {
 
                                           #ifdef DEBUG
-                                          Serial.println("Publishing to topic: " + String(msg.topic) + " payload: " + String(msg.payload) + " retain: " + String(msg.retain) );
+                                          Serial.println("MqttClient: Publishing to topic: " + String(msg.topic) + " payload: " + String(msg.payload) + " retain: " + String(msg.retain) );
                                           #endif
 
     mqttClient.publish(msg.topic, msg.payload, msg.retain);
   }
 }
 
+/* ###################################################################################################
+ *                  M Q T T   I S   C O N N E C T E D
+ * ###################################################################################################
+ */
 bool mqttIsConnected() {
   return mqttClient.connected();
 }
@@ -173,6 +197,11 @@ void publish_sketch_version(TaskParams_t* params)   // Publish only once at ever
   mqttEnqueuePublish(versionTopic.c_str(), versionMessage.c_str(), RETAINED);
 }
 
+/* ###################################################################################################
+ *                  I N I T I A L I Z E   M Q T T   G L O B A L S
+ * ###################################################################################################
+ *  
+ */
 void initializeMQTTGlobals()
 {
   // >>>>>>>>>>>>>   Set globals for MQTT Device and Client   <<<<<<<<<<<<<<<<<<
@@ -186,14 +215,76 @@ void initializeMQTTGlobals()
   mqttClientWithMac = String(MQTT_CLIENT + macStr);
 }
 
+/* ###################################################################################################
+ *                  M Q T T   C A L L B A C K
+ * ###################################################################################################
+ *  This function is called, when a subscribed topic receives a message.
+ */
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   JsonDocument doc;                         // 
   byte IRQ_PIN_reference = 0;
   String topicString = String(topic);
 
+                                                                    #ifdef DEBUG
+                                                                    Serial.print("MqttClient: Message arrived [");
+                                                                    Serial.print(topicString);
+                                                                    Serial.print("] Payload: "); 
+                                                                    for (unsigned int i = 0; i < length; i++) {
+                                                                      Serial.print((char)payload[i]);
+                                                                    }
+                                                                    Serial.println();
+                                                                    #endif
+  if (topicString.startsWith(MQTT_PREFIX) && topicString.endsWith(MQTT_SUFFIX_SET)) {
+    // Handle set commands
+    DeserializationError error = deserializeJson(doc, payload, length);
+    if (error) {
+                                                                    #ifdef DEBUG
+                                                                    Serial.print("MqttClient: JSON deserialization failed: ");
+                                                                    Serial.println(error.c_str());
+                                                                    #endif
+      return;
+    }
+
+    // Process each key-value pair in the JSON document
+    for (JsonPair kv : doc.as<JsonObject>()) {
+      String key = kv.key().c_str();
+      String value = kv.value().as<String>();
+
+                                                                    #ifdef DEBUG
+                                                                    Serial.print("MqttClient: Processing command - Key: ");
+                                                                    Serial.print(key);
+                                                                    Serial.print(", Value: ");
+                                                                    Serial.println(value);
+                                                                    #endif
+
+      // Add handling for specific keys here
+      // Example:
+      if (key == MQTT_NUMBER_ENERGY_ENTITYNAME) {
+        // Execute action based on value
+        float newEnergyValue = value.toFloat();
+                                                                    #ifdef DEBUG
+                                                                    Serial.print("MqttClient: Setting new energy value to: ");
+                                                                    Serial.println(newEnergyValue);
+                                                                    #endif
+
+        if (mqttParams != nullptr) {
+          uint32_t newPulseCounter = (uint32_t)(newEnergyValue * mqttParams->pulse_per_kWh + 0.5f);
+          setPulseCounterFromMqtt(newPulseCounter);
+        }
+      }
+    }
+  }
 
 }
 
+/* ###################################################################################################
+ *                  M Q T T   P A U S E   A N D   R E S U M E
+ * ###################################################################################################
+ *  These functions can be used to pause and resume MQTT operations.
+ *  When paused, the MQTT client will disconnect and no messages will be sent or received.
+ *  This is useful when the network is unstable or when performing critical operations that should
+ *  not be interrupted by MQTT activities.
+ */
 void mqttPause() {
   mqttPaused = true;
   if (mqttClient.connected()) {
@@ -201,6 +292,104 @@ void mqttPause() {
   }
 }
 
+/* ###################################################################################################
+ *                  M Q T T   R E S U M E
+ * ###################################################################################################
+ */
 void mqttResume() {
   mqttPaused = false;
 }
+
+/*
+ * ###################################################################################################
+ *              P U B L I S H   M Q T T   E N E R G Y   C O N F I G U R A T I O N
+ * ###################################################################################################
+ * 
+ * component can take the values: "sensor" or "number"
+ * device_class can take the values "energy" or "power"
+*/
+void publishMqttEnergyConfigJson( String component, String entityName, String unitOfMeasurement, String deviceClass)
+{
+  char payload[1024];
+  JsonDocument doc;
+
+  if ( component == MQTT_NUMBER_COMPONENT & deviceClass == MQTT_ENERGY_DEVICECLASS)
+  {
+    doc["command_topic"] = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SUFFIX_SET);
+    doc["command_template"] = String("{\"" + entityName + "\": {{ value }} }");
+    doc["max"] = 99999.99;
+    doc["min"] = 0.0;
+    doc["step"] = 0.01;
+  }
+  doc["name"] = entityName;
+  doc["state_topic"] = String(MQTT_DISCOVERY_PREFIX + MQTT_PREFIX + MQTT_SUFFIX_STATE);
+  doc["availability_topic"] = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_ONLINE);
+  doc["payload_available"] = "True";
+  doc["payload_not_available"] = "False";
+  doc["device_class"] = deviceClass;
+  doc["unit_of_measurement"] = unitOfMeasurement;
+  doc["unique_id"] = String(entityName + "_" + mqttDeviceNameWithMac);
+  doc["qos"] = 0;
+
+  if ( component == MQTT_SENSOR_COMPONENT & deviceClass == MQTT_POWER_DEVICECLASS)
+    doc["value_template"] = String("{{ value_json." + entityName + "}}");
+  else 
+    doc["value_template"] = String("{{ value_json." + entityName + " | round(2)}}");
+
+  // Suggested by GPT-5.2
+  /* 
+  JsonObject device = doc.createNestedObject("device");
+  JsonArray identifiers = device.createNestedArray("identifiers");
+  identifiers.add(String("meter_0"));
+  device["name"] = String("Energi - EV ESP32 Monitor");
+
+  Previously used code for device object
+  */
+  JsonObject device = doc["device"].to<JsonObject>();
+
+  device["identifiers"][0] = String("Meter");
+  device["name"] = String("Energi - EV ESP32 Monitor");
+
+  serializeJson(doc, payload, sizeof(payload));
+  String energyTopic = String( MQTT_DISCOVERY_PREFIX + component + "/" + deviceClass + "/config");
+
+  mqttEnqueuePublish(energyTopic.c_str(), payload, RETAINED);
+
+}
+
+/*
+ * ###################################################################################################
+ *                       P U B L I S H   M Q T T   C O N F I G U R A T I O N S  
+ * ###################################################################################################
+*/
+void publishMqttConfigurations() {
+
+  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_SENSOR_ENERGY_ENTITYNAME, "kWh", MQTT_ENERGY_DEVICECLASS);
+  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_SENSOR_POWER_ENTITYNAME, "W", MQTT_POWER_DEVICECLASS);
+  publishMqttEnergyConfigJson(MQTT_NUMBER_COMPONENT, MQTT_NUMBER_ENERGY_ENTITYNAME, "kWh", MQTT_ENERGY_DEVICECLASS);
+
+  //configurationPublished[device] = true;
+}
+
+/* ###################################################################################################
+ *                  P U B L I S H   M Q T T   E N E R G Y
+ * ###################################################################################################
+*/
+void publishMqttEnergy(float powerW, float pulseCounter, float subtotalPulseCounter)
+{
+  if (!mqttClient.connected()) {
+    return; // Exit if MQTT is not connected
+  }
+  
+  char payload[256];
+  JsonDocument doc;
+
+  doc[MQTT_SENSOR_POWER_ENTITYNAME] = powerW;
+  doc[MQTT_NUMBER_ENERGY_ENTITYNAME] = (float)pulseCounter;
+  doc[MQTT_SENSOR_ENERGY_ENTITYNAME] = (float)subtotalPulseCounter;
+
+  serializeJson(doc, payload, sizeof(payload));
+  String energyTopic = String( MQTT_DISCOVERY_PREFIX + MQTT_PREFIX + MQTT_SUFFIX_STATE);
+
+  mqttEnqueuePublish(energyTopic.c_str(), payload, RETAINED);
+} 

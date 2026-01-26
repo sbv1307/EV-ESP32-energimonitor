@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -9,6 +9,7 @@
 #include "config/privateConfig.h"
 #include "globals/globals.h"
 #include "network/NetworkTask.h"
+#include "pulsInput/PulseInputTask.h"
 
 /*
  * ######################################################################################################################################
@@ -55,9 +56,9 @@ src/
  * ###################################################################################################
  */
 void setup() {
-  #ifdef DEBUG
+//  #ifdef DEBUG
   wait_for_any_key( SKETCH_VERSION + String(". Build at: ") + String(BUILD_TIMESTAMP));
-  #endif
+//  #endif
   // Include ESP32_NW_Setup library will setup and store WiFi credentials if not present
   // for now, we will hardcode WiFi credentials for testing
 
@@ -65,19 +66,19 @@ void setup() {
   prefs.begin( NVS_NAMESPACE, false);
   if ( !prefs.isKey("ssid") || prefs.getString("ssid", "").isEmpty()) {
                                                                       #ifdef DEBUG
-                                                                        Serial.println("NVS NaMESPACE not found. Creating with default values.");
+                                                                        Serial.println("Main: NVS NaMESPACE not found. Creating with default values.");
                                                                       #endif
 
-    prefs.putString("ssid", "FIBERMEDIA-yb2f");
-    prefs.putString("pass", "7cx3AdKg6N6LSA");
-    prefs.putString("mqttIP", "192.168.100.201");
+    prefs.putString("ssid", "DIGIFIBRA-D3s4");
+    prefs.putString("pass", "FHkYs5k6k9Tc");
+    prefs.putString("mqttIP", "192.168.1.136");
     prefs.putString("mqttPort", "1883");
     prefs.putString("mqttUser", "");
     prefs.putString("mqttPass", "");  
   } else {
 
                                                                       #ifdef DEBUG
-                                                                        Serial.println("NVS NAMESPACE found. Using stored values.");
+                                                                        Serial.println("Main: NVS NAMESPACE found. Using stored values.");
                                                                       #endif
 
   }
@@ -86,6 +87,8 @@ void setup() {
   initializeGlobals( &networkParams );
 
   startNetworkTask( &networkParams );
+
+  //vTaskDelay(pdMS_TO_TICKS(5000));
 }
 
 /*
@@ -108,11 +111,15 @@ void loop() {
     
     if (WiFi.status() != WL_CONNECTED) {
                                                                       #ifdef DEBUG
-                                                                      Serial.println("WiFi disconnected. Attempting to reconnect...");
+                                                                      Serial.println("Main: WiFi disconnected. Attempting to reconnect...");
                                                                       #endif
       startNetworkTask( &networkParams );
     }
   }
+
+  startPulseInputTask( &networkParams );  // Ensure Pulse Count Task is running. If already running, this does nothing.
   
-  vTaskDelay(pdMS_TO_TICKS(100));
+
+  vTaskDelay(pdMS_TO_TICKS(5000));
+  PulseInputISR();
 }

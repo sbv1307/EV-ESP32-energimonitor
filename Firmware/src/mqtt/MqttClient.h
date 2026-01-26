@@ -9,10 +9,29 @@ const String MQTT_DEVICE_NAME               = "esp32-device_";      // MQTT devi
 const String MQTT_SKETCH_VERSION            = "/sketch_version";    // MQTT topic suffix for sketch version, include leading '/'
 const String MQTT_CLIENT                    = "ev-energy-monitor_"; // MQTT client prefix. Include trailing underscore
 const String MQTT_ONLINE                    = "/online";            // MQTT topic suffix for online status. Include leading '/'
+const String  MQTT_SENSOR_ENERGY_ENTITYNAME  = "Subtotal";          // name dislayed in HA device. No special chars, no spaces
+const String  MQTT_SENSOR_POWER_ENTITYNAME  = "Forbrug";            // name dislayed in HA device. No special chars, no spaces
+const String  MQTT_NUMBER_ENERGY_ENTITYNAME  = "Total";             // name dislayed in HA device. No special chars, no spaces
+const String  MQTT_DISCOVERY_PREFIX         = "homeassistant/";     // include tailing '/' in discovery prefix!
+const String  MQTT_SUFFIX_STATE             = "state";              // MQTT topic suffix for state messages. OBS no leading '/'
 
+/*  MQTT publication definitions
+ *  These definitions are used when publishing MQTT messages.
+*/
 const bool    RETAINED                      = true;                 // MQTT retained flag
 // MQTT Subscription topics
-const String MQTT_SUFFIX_TOTAL              = "/set_total";
+const String MQTT_SUFFIX_SET                = "/set";               // MQTT topic suffix for set commands. Include leading '/'  
+
+
+
+
+/*  None configurable MQTT definitions
+ *  These definitions are all defined in 'HomeAssistand -> MQTT' and cannot be changed.
+*/
+const String  MQTT_SENSOR_COMPONENT         = "sensor";
+const String  MQTT_NUMBER_COMPONENT         = "number";
+const String  MQTT_ENERGY_DEVICECLASS       = "energy";
+const String  MQTT_POWER_DEVICECLASS        = "power";
 
 /*
  * ##################################################################################################
@@ -32,3 +51,7 @@ void mqttLoop( TaskParams_t* params );
 void mqttCallback(char*, byte*, unsigned int);
 void mqttPause();
 void mqttResume();
+
+void publishMqttConfigurations();
+void publishMqttEnergy(float, float, float);
+
