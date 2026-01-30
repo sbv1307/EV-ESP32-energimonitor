@@ -6,12 +6,12 @@
 
 #include "MqttMessage.h"
 #include "MqttClient.h"
-#include "../config/config.h"
-#include "../config/privateConfig.h"
-#include "../pulsInput/PulseInputTask.h"
+#include "config.h"
+#include "privateConfig.h"
+#include "PulseInputTask.h"
 
 
-#define RETAINED true                   // Used in MQTT publications. Can be changed during development and bugfixing.
+#define RETAINED true       // Used in MQTT publications. Can be changed during development and bugfixing.
 
 static String mqttDeviceNameWithMac;
 static String mqttClientWithMac;
@@ -49,12 +49,13 @@ static void reconnect(TaskParams_t* params) {
     String will = String ( MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_ONLINE);
 
                                                              #ifdef DEBUG
-                                                             Serial.print("MqttClient: Attempting MQTT connection...");
+                                                             Serial.print("MqttClient:  rc= " + String(mqttClient.state()) + " Attempting MQTT connection...");
                                                              #endif
 
     // Yield to watchdog before blocking connect call
     vTaskDelay(pdMS_TO_TICKS(10));
     
+
     if (mqttClient.connect( mqttClientWithMac.c_str(),
                             params->mqttUsername, 
                             params->mqttPassword,
@@ -111,7 +112,7 @@ void mqttInit(TaskParams_t* params) {
                                                           Serial.println("MqttClient: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
                                                           #endif
 
-  mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort);
+  mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort);  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   mqttClient.setSocketTimeout(3);  // Set 3 second timeout to prevent watchdog triggers
   mqttClient.setCallback(mqttCallback);
 
@@ -212,7 +213,14 @@ void initializeMQTTGlobals()
   sprintf(macStr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
   mqttDeviceNameWithMac = String(MQTT_DEVICE_NAME + macStr);
-  mqttClientWithMac = String(MQTT_CLIENT + macStr);
+
+  // MQTT 3.1 brokers often enforce a 23-char clientId limit.
+  // Build a shorter clientId to avoid connection refusal (rc=2).
+  String macShort = String(macStr).substring(6); // last 6 hex chars
+  mqttClientWithMac = String(MQTT_CLIENT + macShort);
+  if (mqttClientWithMac.length() > 23) {
+    mqttClientWithMac = mqttClientWithMac.substring(0, 23);
+  }
 }
 
 /* ###################################################################################################

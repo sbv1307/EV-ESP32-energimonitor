@@ -1,7 +1,8 @@
 #define DEBUG
+#define STACK_WATERMARK
 
 #include "PulseInputTask.h"
-#include "../mqtt/MqttClient.h"
+#include "MqttClient.h"
 #include <Preferences.h>
 
 #define SAVE_INTERVAL_MS 60000  // Save to NVS every 60 seconds
@@ -197,6 +198,17 @@ static void PulseInputTask( void* pvParameters) {
         nextCheckMs = millis() + checkInterval;
       }
     }
+
+                                                            #ifdef STACK_WATERMARK
+                                                            static uint32_t lastLog = 0;
+                                                            if (millis() - lastLog > 5000) {
+                                                              lastLog = millis();
+                                                              gPulseInputTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+                                                            }
+                                                            #endif
+    
+  
+
   }
 
 }

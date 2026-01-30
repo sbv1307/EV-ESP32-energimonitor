@@ -1,9 +1,11 @@
 #define DEBUG
+#define STACK_WATERMARK
 
 #include <Arduino.h>
 #include <WiFi.h>
 
 #include "NetworkTask.h"
+#include "../globals/globals.h"
 #include "../ota/OtaService.h"
 #include "../mqtt/MqttClient.h"
 
@@ -23,6 +25,14 @@ static void networkTask(void* pvParameters) {
     mqttLoop((TaskParams_t*)pvParameters);
 
     vTaskDelay(pdMS_TO_TICKS(10));
+
+                                                    #ifdef STACK_WATERMARK
+                                                    static uint32_t lastLog = 0;
+                                                    if (millis() - lastLog > 5000) {
+                                                      lastLog = millis();
+                                                      gNetworkTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+                                                    }
+                                                    #endif
   }
 }
 
@@ -34,12 +44,16 @@ static void networkTask(void* pvParameters) {
  */
 static void wifiConnectionTask(void* pvParameters) {
   TaskParams_t* params = (TaskParams_t*)pvParameters;
+
+  // Debug: Print initialized parameters
+  Serial.println("wifiConnectionTask: WiFi SSID: " + String(params->wifiSSID) + "\n");  
+
+
   
   stopNetworkTask();  // Ensure any existing network task is stopped
 
                                                     #ifdef DEBUG
-                                                    Serial.print("NetworkTask: Connecting to WiFi SSID: ");
-                                                    Serial.println(params->wifiSSID);
+                                                    Serial.println("wifiConnectionTask: Connecting to WiFi SSID: " + String(params->wifiSSID) + " ... \n");
                                                     #endif 
 
   // Disconnect if already connected
@@ -77,7 +91,7 @@ static void wifiConnectionTask(void* pvParameters) {
   if (WiFi.status() != WL_CONNECTED) {
 
                                                     #ifdef DEBUG
-                                                    Serial.println("\nNetworkTask: WiFi connection failed.");
+                                                    Serial.println("\nWifiConnectionTask: WiFi connection failed. WiFi status: " + String(WiFi.status()) + "\n");
                                                     #endif
     wifiConnectionTaskHandle = nullptr;
     vTaskDelete(NULL); // Delete this task
@@ -87,7 +101,7 @@ static void wifiConnectionTask(void* pvParameters) {
   vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to settle WiFi connection
 
                                                   #ifdef DEBUG
-                                                  Serial.println("\nNetworkTask: WiFi connected successfully.");
+                                                  Serial.println("\nwifiConnectionTask: WiFi connected successfully.");
                                                   Serial.print("\nWiFi connected. IP address: ");
                                                   Serial.println(WiFi.localIP());
                                                   #endif
@@ -104,12 +118,20 @@ static void wifiConnectionTask(void* pvParameters) {
     0   // Core 0 (Wi-Fi)
   );
   
-  // Delete this initialization task as it's no longer needed
+                                                  #ifdef STACK_WATERMARK
+                                                  gWifiConnTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+                                                  #endif
+
+    // Delete this initialization task as it's no longer needed
   wifiConnectionTaskHandle = nullptr;
   vTaskDelete(NULL);
 }
 
 bool startNetworkTask(TaskParams_t* params) {
+
+  // Debug: Print initialized parameters
+  Serial.println("\nstartNetworkTask: WiFi SSID: " + String(params->wifiSSID) + "\n");  
+
   if (wifiConnectionTaskHandle != nullptr) {
     // WiFi connection task is already running
     return false;

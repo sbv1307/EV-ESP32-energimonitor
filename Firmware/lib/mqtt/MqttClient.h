@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-#include "../globals/globals.h"
+#include "globals.h"
 
 const String MQTT_PREFIX                    = "ev-e-monitor/";      // include tailing '/' in prefix!
 const String MQTT_DEVICE_NAME               = "esp32-device_";      // MQTT device name prefix Incl. trailing underscore

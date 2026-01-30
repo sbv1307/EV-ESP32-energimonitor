@@ -1,5 +1,5 @@
 #pragma once
-#include "globals/globals.h"
+#include "globals.h"
 #include <Arduino.h>
 
 void startPulseInputTask(TaskParams_t* params);

@@ -3,13 +3,16 @@
 extern int systemState;
 */
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
 
+/*
 #define ssidNameSpaceKey "ssid"
 #define passNameSpaceKey "pass"
 #define mqttIPNameSpaceKey "mqttIP"
 #define mqttPortNameSpaceKey "mqttPort"
 #define mqttUserNameSpaceKey "mqttUser" 
 #define mqttPasswordNameSpaceKey "mqttPass"
+*/
 
 // Task parameter structure
 typedef struct {
@@ -26,4 +29,10 @@ typedef struct {
 
 } TaskParams_t;
 
+
+
 void initializeGlobals( TaskParams_t* params );
+
+extern volatile UBaseType_t gNetworkTaskStackHighWater;
+extern volatile UBaseType_t gWifiConnTaskStackHighWater;
+extern volatile UBaseType_t gPulseInputTaskStackHighWater;

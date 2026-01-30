@@ -1,39 +1,41 @@
 # define DEBUG
 #include <Preferences.h>
 
+#include "config.h"
+#include "privateConfig.h"
 #include "globals.h"
+
+volatile UBaseType_t gNetworkTaskStackHighWater = 0;
+volatile UBaseType_t gWifiConnTaskStackHighWater = 0;
+volatile UBaseType_t gPulseInputTaskStackHighWater = 0;
 
 void initializeGlobals( TaskParams_t* params ) {
 
   Preferences pref;
-  pref.begin( params->nvsNamespace, false);
+  pref.begin( NVS_NAMESPACE, false);
   
-  // Store strings to prevent dangling pointers from temporary String objects
-  static String ssid = pref.getString(ssidNameSpaceKey, "");
-  static String password = pref.getString(passNameSpaceKey, "");
-  static String mqttIP = pref.getString(mqttIPNameSpaceKey, "");
-  static String mqttUser = pref.getString(mqttUserNameSpaceKey, "");
-  static String mqttPass = pref.getString(mqttPasswordNameSpaceKey, "");
   static unsigned long ptCorrection = pref.getULong("ptCorrection", 0);
   static uint16_t pulse_per_kWh = pref.getUShort("pulse_per_kWh", 100);
+  pref.end();
 
-  // Preserve the existing sketchVersion and nvsNamespace values
-  const char* savedSketchVersion = params->sketchVersion;
-  const char* savedNvsNamespace = params->nvsNamespace;
+
+
+  static String sketchVersion = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
+  const char* savedSketchVersion = sketchVersion.c_str();
+  const char* savedNvsNamespace = NVS_NAMESPACE;
   
   *params = {
-    .wifiSSID       = ssid.c_str(),
-    .wifiPassword   = password.c_str(),
-    .mqttBrokerIP   = mqttIP.c_str(),
-    .mqttBrokerPort = pref.getString(mqttPortNameSpaceKey, "").toInt(),
-    .mqttUsername   = mqttUser.c_str(),
-    .mqttPassword   = mqttPass.c_str(),
+    .wifiSSID       = SSID,
+    .wifiPassword   = PASS,
+    .mqttBrokerIP   = MQTT_BROKER,
+    .mqttBrokerPort = MQTT_PORT,
+    .mqttUsername   = MQTT_USER,
+    .mqttPassword   = MQTT_PASS,
     .sketchVersion  = savedSketchVersion,
     .nvsNamespace   = savedNvsNamespace,
     .ptCorrection   = ptCorrection,
     .pulse_per_kWh  = pulse_per_kWh
   };
-  pref.end();
 
                                     #ifdef DEBUG
                                       Serial.println("globals: Initialized global parameters:");

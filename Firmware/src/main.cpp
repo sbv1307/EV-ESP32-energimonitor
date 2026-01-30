@@ -1,15 +1,17 @@
-#define DEBUG
+#define NONE_HEADLESS // Define to disable headless wait_for_any_key functionality and use serial output instead
+#define DEBUG         // Enable debug serial output. Requires NONE_HEADLESS to be defined.
+#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Preferences.h>
 
 #include <wait_for_any_key.h>
-#include "config/config.h"
-#include "config/privateConfig.h"
-#include "globals/globals.h"
-#include "network/NetworkTask.h"
-#include "pulsInput/PulseInputTask.h"
+#include "config.h"
+#include "privateConfig.h"
+#include "globals.h"
+#include "NetworkTask.h"
+#include "PulseInputTask.h"
 
 /*
  * ######################################################################################################################################
@@ -18,8 +20,7 @@
  * ######################################################################################################################################
  * ######################################################################################################################################
  */
-static String versionString = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
-static TaskParams_t networkParams = { .sketchVersion = versionString.c_str(), .nvsNamespace = NVS_NAMESPACE };
+static TaskParams_t networkParams;
 
 /*
  * ##################################################################################################
@@ -34,8 +35,7 @@ static TaskParams_t networkParams = { .sketchVersion = versionString.c_str(), .n
  Function definitions are in their respective .cpp files.
  
  .h and .cpp file structure: 
-src/
- │── main.cpp          // setup() and loop()
+lib/
  │── networks
  │── │── NetworkTask.h
  │── │── NetworkTask.cpp  // WiFi and network related functions
@@ -56,39 +56,48 @@ src/
  * ###################################################################################################
  */
 void setup() {
-//  #ifdef DEBUG
-  wait_for_any_key( SKETCH_VERSION + String(". Build at: ") + String(BUILD_TIMESTAMP));
-//  #endif
-  // Include ESP32_NW_Setup library will setup and store WiFi credentials if not present
-  // for now, we will hardcode WiFi credentials for testing
 
-  Preferences prefs;
-  prefs.begin( NVS_NAMESPACE, false);
-  if ( !prefs.isKey("ssid") || prefs.getString("ssid", "").isEmpty()) {
-                                                                      #ifdef DEBUG
-                                                                        Serial.println("Main: NVS NaMESPACE not found. Creating with default values.");
-                                                                      #endif
+                                                              #ifdef NONE_HEADLESS
+                                                              wait_for_any_key( SKETCH_VERSION + String(". Build at: ") + String(BUILD_TIMESTAMP));
+                                                              #endif
 
-    prefs.putString("ssid", "DIGIFIBRA-D3s4");
-    prefs.putString("pass", "FHkYs5k6k9Tc");
-    prefs.putString("mqttIP", "192.168.1.136");
-    prefs.putString("mqttPort", "1883");
-    prefs.putString("mqttUser", "");
-    prefs.putString("mqttPass", "");  
-  } else {
+                                                              #ifdef STACK_WATERMARK
+                                                              Serial.printf("Starting FreeRTOS: Memory Usage\nInitial Free Heap: %u bytes\n", xPortGetFreeHeapSize());
+                                                              #endif
+                                                              
 
-                                                                      #ifdef DEBUG
-                                                                        Serial.println("Main: NVS NAMESPACE found. Using stored values.");
-                                                                      #endif
+/*
+Preferences prefs;
+prefs.begin( NVS_NAMESPACE, false);
+if ( prefs.isKey("ssid") || prefs.getString("ssid", "").isEmpty()) {
+  #ifdef DEBUG
+  Serial.println("Main: NVS NaMESPACE not found. Creating with default values.");
+  #endif
+  
+  prefs.putString("ssid", "SUIT FRENTE AL MAR 2.4G");
+  prefs.putString("pass", "Frentealmar");
+  prefs.putString("mqttIP", "192.168.100.245");
+  prefs.putString("mqttPort", "1883");
+  prefs.putString("mqttUser", "");
+  prefs.putString("mqttPass", "");  
+} else {
+  
+#ifdef DEBUG
+Serial.println("Main: NVS NAMESPACE found. Using stored values.");
+#endif
 
-  }
-  prefs.end();
+}
+prefs.end();
+*/
 
   initializeGlobals( &networkParams );
 
+  // Debug: Print initialized parameters
+  Serial.println("\nMain: WiFi SSID: " + String(networkParams.wifiSSID) + "\n");
+
   startNetworkTask( &networkParams );
 
-  //vTaskDelay(pdMS_TO_TICKS(5000));
+  vTaskDelay(pdMS_TO_TICKS(100000));
 }
 
 /*
@@ -103,6 +112,7 @@ void setup() {
 void loop() {
   static unsigned long lastWiFiCheck = 0;
   const unsigned long wifiCheckInterval = 5000; // Check every 5 seconds
+  static unsigned long lastStackLog = 0;
   
   unsigned long currentMillis = millis();
   
@@ -122,4 +132,28 @@ void loop() {
 
   vTaskDelay(pdMS_TO_TICKS(5000));
   PulseInputISR();
+
+                                        #ifdef STACK_WATERMARK
+                                          unsigned long stackNow = millis();
+                                          if (stackNow - lastStackLog >= 5000) {
+                                            lastStackLog = stackNow;
+                                            if (gNetworkTaskStackHighWater > 0) {
+                                              Serial.printf("NetworkTask stack free: %u words (%u bytes)\n",
+                                                (unsigned)gNetworkTaskStackHighWater,
+                                                (unsigned)(gNetworkTaskStackHighWater * sizeof(StackType_t)));
+                                            }
+                                            if (gWifiConnTaskStackHighWater > 0) {
+                                              Serial.printf("WifiConnectionTask stack free: %u words (%u bytes)\n",
+                                                (unsigned)gWifiConnTaskStackHighWater,
+                                                (unsigned)(gWifiConnTaskStackHighWater * sizeof(StackType_t)));
+                                            }
+                                            if (gPulseInputTaskStackHighWater > 0) {
+                                              Serial.printf("PulseInputTask stack free: %u words (%u bytes)\n",
+                                                (unsigned)gPulseInputTaskStackHighWater,
+                                                (unsigned)(gPulseInputTaskStackHighWater * sizeof(StackType_t)));
+                                            }
+                                            Serial.printf("Free Heap: %u bytes\n", xPortGetFreeHeapSize());
+                                          }
+                                        #endif
+
 }
