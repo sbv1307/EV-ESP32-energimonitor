@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <PubSubClient.h>
@@ -112,7 +112,7 @@ void mqttInit(TaskParams_t* params) {
                                                           Serial.println("MqttClient: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
                                                           #endif
 
-  mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort);  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  mqttClient.setServer(params->mqttBrokerIP, params->mqttBrokerPort); 
   mqttClient.setSocketTimeout(3);  // Set 3 second timeout to prevent watchdog triggers
   mqttClient.setCallback(mqttCallback);
 

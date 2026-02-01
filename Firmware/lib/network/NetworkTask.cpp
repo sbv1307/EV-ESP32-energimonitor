@@ -1,13 +1,15 @@
-#define DEBUG
+//#define DEBUG
 #define STACK_WATERMARK
 
 #include <Arduino.h>
 #include <WiFi.h>
 
 #include "NetworkTask.h"
-#include "../globals/globals.h"
-#include "../ota/OtaService.h"
-#include "../mqtt/MqttClient.h"
+#include "globals.h"
+#include "OtaService.h"
+#include "MqttClient.h"
+
+
 
 static TaskHandle_t networkTaskHandle = nullptr;
 static TaskHandle_t wifiConnectionTaskHandle = nullptr;
@@ -111,7 +113,7 @@ static void wifiConnectionTask(void* pvParameters) {
   xTaskCreatePinnedToCore(
     networkTask,
     "NetworkTask",
-    4096,
+    NETWORK_TASK_STACK_SIZE,
     params,
     1,
     &networkTaskHandle,
@@ -140,7 +142,7 @@ bool startNetworkTask(TaskParams_t* params) {
   xTaskCreatePinnedToCore(
     wifiConnectionTask,
     "WiFiConnTask",
-    4096,
+    WIFI_CONNECTION_TASK_STACK_SIZE,
     params,
     2,  // Higher priority to ensure WiFi connects first
     &wifiConnectionTaskHandle,  // Store the handle to avoid multiple instances

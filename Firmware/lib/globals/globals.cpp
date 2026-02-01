@@ -8,6 +8,7 @@
 volatile UBaseType_t gNetworkTaskStackHighWater = 0;
 volatile UBaseType_t gWifiConnTaskStackHighWater = 0;
 volatile UBaseType_t gPulseInputTaskStackHighWater = 0;
+volatile size_t gInitialFreeHeapSize = 0;
 
 void initializeGlobals( TaskParams_t* params ) {
 

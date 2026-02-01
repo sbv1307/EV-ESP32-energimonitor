@@ -36,3 +36,4 @@ void initializeGlobals( TaskParams_t* params );
 extern volatile UBaseType_t gNetworkTaskStackHighWater;
 extern volatile UBaseType_t gWifiConnTaskStackHighWater;
 extern volatile UBaseType_t gPulseInputTaskStackHighWater;
+extern volatile size_t  gInitialFreeHeapSize;

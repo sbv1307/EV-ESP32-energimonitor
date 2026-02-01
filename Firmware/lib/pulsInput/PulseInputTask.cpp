@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 #define STACK_WATERMARK
 
 #include "PulseInputTask.h"
@@ -226,7 +226,7 @@ void startPulseInputTask(TaskParams_t* params) {
   xTaskCreate(
     PulseInputTask,
     "PulseInputTask",
-    4096,
+    PULSE_INPUT_TASK_STACK_SIZE,
     params,
     1,
     &PulseInputTaskHandle
