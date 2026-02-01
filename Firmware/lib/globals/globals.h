@@ -5,15 +5,6 @@ extern int systemState;
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 
-/*
-#define ssidNameSpaceKey "ssid"
-#define passNameSpaceKey "pass"
-#define mqttIPNameSpaceKey "mqttIP"
-#define mqttPortNameSpaceKey "mqttPort"
-#define mqttUserNameSpaceKey "mqttUser" 
-#define mqttPasswordNameSpaceKey "mqttPass"
-*/
-
 // Task parameter structure
 typedef struct {
     const char* wifiSSID;
@@ -28,8 +19,6 @@ typedef struct {
     uint16_t    pulse_per_kWh;       // Number of pulses per kWh for the energy meter
 
 } TaskParams_t;
-
-
 
 void initializeGlobals( TaskParams_t* params );
 

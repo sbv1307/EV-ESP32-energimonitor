@@ -5,6 +5,7 @@
 #include "privateConfig.h"
 #include "globals.h"
 
+// Global variables to track stack high water marks and initial free heap size
 volatile UBaseType_t gNetworkTaskStackHighWater = 0;
 volatile UBaseType_t gWifiConnTaskStackHighWater = 0;
 volatile UBaseType_t gPulseInputTaskStackHighWater = 0;
