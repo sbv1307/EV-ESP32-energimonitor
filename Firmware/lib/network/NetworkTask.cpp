@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <time.h>
 
 #include "NetworkTask.h"
 #include "globals.h"
@@ -13,6 +14,12 @@
 
 static TaskHandle_t networkTaskHandle = nullptr;
 static TaskHandle_t wifiConnectionTaskHandle = nullptr;
+
+static void configureTime() {
+  setenv("TZ", "UTC0", 1);
+  tzset();
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov", "time.google.com");
+}
 
 static void networkTask(void* pvParameters) {
   otaInit();
@@ -107,6 +114,8 @@ static void wifiConnectionTask(void* pvParameters) {
                                                   Serial.print("\nWiFi connected. IP address: ");
                                                   Serial.println(WiFi.localIP());
                                                   #endif
+
+  configureTime();
                                                   
   
   // Create the network task

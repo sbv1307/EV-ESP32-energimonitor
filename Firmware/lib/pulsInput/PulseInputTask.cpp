@@ -3,6 +3,7 @@
 
 #include "PulseInputTask.h"
 #include "MqttClient.h"
+#include "../tesla/TeslaSheets.h"
 #include <Preferences.h>
 
 #define SAVE_INTERVAL_MS 60000  // Save to NVS every 60 seconds
@@ -184,6 +185,8 @@ static void PulseInputTask( void* pvParameters) {
       if (getLocalTime(&timeinfo)) {
         // Check for day change
         if (lastDay != -1 && timeinfo.tm_mday != lastDay) {
+          float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+          sendTeslaTelemetryToGoogleSheets((TaskParams_t*)pvParameters, energyKwh);
           subtotalPulseCounter = 0;
         }
         lastDay = timeinfo.tm_mday;

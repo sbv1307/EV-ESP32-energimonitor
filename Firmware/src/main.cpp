@@ -12,6 +12,7 @@
 #include "globals.h"
 #include "NetworkTask.h"
 #include "PulseInputTask.h"
+#include "TeslaSheets.h"
 
 /*
  * #################################################################################################
@@ -86,6 +87,8 @@ void loop() {
   static int NetworkTaskMaxStack = 0;
   static int WifiConnTaskMaxStack = 0;
   static int PulseInputTaskMaxStack = 0;
+  static int loopCounter = 0;
+  static bool testTeslaCallDone = false;
   
   unsigned long currentMillis = millis();
   
@@ -101,7 +104,24 @@ void loop() {
   }
 
   startPulseInputTask( &networkParams );  // Ensure Pulse Count Task is running. If already running, this does nothing.
-  
+
+  if (WiFi.status() == WL_CONNECTED) {
+    loopCounter++;
+    if (!testTeslaCallDone && loopCounter >= 3) {
+      
+                                                    #ifdef DEBUG
+                                                    Serial.println("Main: Testing Tesla API call to send telemetry to Google Sheets...");
+                                                    #endif
+
+      sendTeslaTelemetryToGoogleSheets(&networkParams, 0.0f);
+      testTeslaCallDone = true;
+
+                                            #ifdef DEBUG
+                                            Serial.println("Main: Tesla API test call completed."); 
+                                            #endif
+
+    }
+  }
 
   vTaskDelay(pdMS_TO_TICKS(5000));
   PulseInputISR();
