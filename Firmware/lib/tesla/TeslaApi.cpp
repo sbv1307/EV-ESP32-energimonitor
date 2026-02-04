@@ -13,9 +13,14 @@ static const char* TESLA_API_BASE_URL = "https://owner-api.teslamotors.com/api/1
 static const char* TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/token";
 static const char* TESLA_PREF_NAMESPACE = "tesla";
 
-static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, String* errorMessage,
-                                  bool* hasLocation = nullptr, bool* hasRange = nullptr,
-                                  bool* hasOdometer = nullptr, bool* hasBatteryLevel = nullptr);
+struct TeslaVehicleDataFlags {
+  bool hasLocation = false;
+  bool hasRange = false;
+  bool hasOdometer = false;
+  bool hasBatteryLevel = false;
+};
+
+static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, TeslaVehicleDataFlags* flags, String* errorMessage);
 static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry);
 
 
@@ -368,10 +373,7 @@ static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* er
                                            int maxAttempts = 3) {
   String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data";
   bool parsedOnce = false;
-  bool lastHasLocation = false;
-  bool lastHasRange = false;
-  bool lastHasOdometer = false;
-  bool lastHasBatteryLevel = false;
+  TeslaVehicleDataFlags lastFlags;
   String lastError;
 
   for (int attempt = 0; attempt < maxAttempts; ++attempt) {
@@ -383,19 +385,18 @@ static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* er
       continue;
     }
 
-    if (!teslaParseVehicleData(response, telemetry, &lastError, &lastHasLocation, &lastHasRange,
-                               &lastHasOdometer, &lastHasBatteryLevel)) {
+    if (!teslaParseVehicleData(response, telemetry, &lastFlags, &lastError)) {
       delay(2000);
       continue;
     }
 
     parsedOnce = true;
 
-    if (!lastHasLocation) {
-      lastHasLocation = teslaFetchLocationFromVehicleData(telemetry);
+    if (!lastFlags.hasLocation) {
+      lastFlags.hasLocation = teslaFetchLocationFromVehicleData(telemetry);
     }
 
-    if (lastHasRange && lastHasBatteryLevel && lastHasOdometer) {
+    if (lastFlags.hasRange && lastFlags.hasBatteryLevel && lastFlags.hasOdometer) {
       break;
     }
 
@@ -410,9 +411,7 @@ static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* er
   return parsedOnce;
 }
 
-static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, String* errorMessage,
-                                  bool* hasLocation, bool* hasRange,
-                                  bool* hasOdometer, bool* hasBatteryLevel) {
+static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, TeslaVehicleDataFlags* flags, String* errorMessage) {
   JsonDocument filter;
   filter["response"]["charge_state"]["est_battery_range"] = true;
   filter["response"]["charge_state"]["battery_range"] = true;
@@ -454,17 +453,11 @@ static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry,
     telemetry->latitude = lat.as<double>();
     telemetry->longitude = lon.as<double>();
   }
-  if (hasLocation) {
-    *hasLocation = foundLocation;
-  }
-  if (hasRange) {
-    *hasRange = !range.isNull();
-  }
-  if (hasOdometer) {
-    *hasOdometer = !odometer.isNull();
-  }
-  if (hasBatteryLevel) {
-    *hasBatteryLevel = !level.isNull();
+  if (flags) {
+    flags->hasLocation = foundLocation;
+    flags->hasRange = !range.isNull();
+    flags->hasOdometer = !odometer.isNull();
+    flags->hasBatteryLevel = !level.isNull();
   }
 
   if (!range.isNull()) {
@@ -484,9 +477,9 @@ static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry) {
   String locResponse;
   String locEndpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data?endpoints=location_data;drive_state";
   if (teslaHttpGetWithWake(locEndpoint, &locResponse, nullptr)) {
-    bool tempHasLocation = false;
-    teslaParseVehicleData(locResponse, telemetry, nullptr, &tempHasLocation, nullptr, nullptr, nullptr);
-    return tempHasLocation;
+    TeslaVehicleDataFlags tempFlags;
+    teslaParseVehicleData(locResponse, telemetry, &tempFlags, nullptr);
+    return tempFlags.hasLocation;
   }
   return false;
 }
