@@ -13,12 +13,14 @@ static const char* TESLA_API_BASE_URL = "https://owner-api.teslamotors.com/api/1
 static const char* TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/token";
 static const char* TESLA_PREF_NAMESPACE = "tesla";
 
+namespace {
 struct TeslaVehicleDataFlags {
   bool hasLocation = false;
   bool hasRange = false;
   bool hasOdometer = false;
   bool hasBatteryLevel = false;
 };
+}
 
 static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, TeslaVehicleDataFlags* flags, String* errorMessage);
 static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry);
@@ -373,7 +375,7 @@ static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* er
                                            int maxAttempts = 3) {
   String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data";
   bool parsedOnce = false;
-  TeslaVehicleDataFlags lastFlags;
+  TeslaVehicleDataFlags flags;
   String lastError;
 
   for (int attempt = 0; attempt < maxAttempts; ++attempt) {
@@ -385,18 +387,18 @@ static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* er
       continue;
     }
 
-    if (!teslaParseVehicleData(response, telemetry, &lastFlags, &lastError)) {
+    if (!teslaParseVehicleData(response, telemetry, &flags, &lastError)) {
       delay(2000);
       continue;
     }
 
     parsedOnce = true;
 
-    if (!lastFlags.hasLocation) {
-      lastFlags.hasLocation = teslaFetchLocationFromVehicleData(telemetry);
+    if (!flags.hasLocation) {
+      flags.hasLocation = teslaFetchLocationFromVehicleData(telemetry);
     }
 
-    if (lastFlags.hasRange && lastFlags.hasBatteryLevel && lastFlags.hasOdometer) {
+    if (flags.hasRange && flags.hasBatteryLevel && flags.hasOdometer) {
       break;
     }
 
