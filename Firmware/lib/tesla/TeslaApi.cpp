@@ -13,8 +13,11 @@ static const char* TESLA_API_BASE_URL = "https://owner-api.teslamotors.com/api/1
 static const char* TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/token";
 static const char* TESLA_PREF_NAMESPACE = "tesla";
 
-static bool teslaParseChargeState(const String& json, TeslaTelemetry* telemetry, bool* hasRange = nullptr, bool* hasBatteryLevel = nullptr);
-static bool teslaParseVehicleState(const String& json, TeslaTelemetry* telemetry, bool* hasOdometer = nullptr);
+static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, String* errorMessage,
+                                  bool* hasLocation = nullptr, bool* hasRange = nullptr,
+                                  bool* hasOdometer = nullptr, bool* hasBatteryLevel = nullptr);
+static void teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry, bool* hasLocation);
+
 
 struct TeslaAuthState {
   String accessToken;
@@ -361,47 +364,68 @@ static bool teslaHttpGetWithWake(const String& path, String* responseBody, Strin
   return false;
 }
 
-static bool teslaFetchChargeStateWithRetry(TeslaTelemetry* telemetry, bool* hasRange, bool* hasBatteryLevel) {
-  String chargeEndpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/data_request/charge_state";
-  for (int attempt = 0; attempt < 3; ++attempt) {
-    String chargeResponse;
-    String chargeError;
-    if (teslaHttpGetWithWake(chargeEndpoint, &chargeResponse, &chargeError)) {
-      if (!chargeResponse.isEmpty() && teslaParseChargeState(chargeResponse, telemetry, hasRange, hasBatteryLevel)) {
-        if ((hasRange && *hasRange) || (hasBatteryLevel && *hasBatteryLevel)) {
-          return true;
-        }
-      }
-    }
-    (void)chargeResponse;
-    (void)chargeError;
-    delay(2000);
-  }
-  return false;
-}
+static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, bool* hasLocation, bool* hasRange,
+                                           bool* hasOdometer, bool* hasBatteryLevel, String* errorMessage,
+                                           int maxAttempts = 3) {
+  String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data";
+  bool parsedOnce = false;
+  bool lastHasLocation = false;
+  bool lastHasRange = false;
+  bool lastHasOdometer = false;
+  bool lastHasBatteryLevel = false;
+  String lastError;
 
-static bool teslaFetchVehicleStateWithRetry(TeslaTelemetry* telemetry, bool* hasOdometer) {
-  String vehicleEndpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/data_request/vehicle_state";
-  for (int attempt = 0; attempt < 3; ++attempt) {
-    String vehicleResponse;
-    String vehicleError;
-    if (teslaHttpGetWithWake(vehicleEndpoint, &vehicleResponse, &vehicleError)) {
-      if (!vehicleResponse.isEmpty() && teslaParseVehicleState(vehicleResponse, telemetry, hasOdometer)) {
-        if (hasOdometer && *hasOdometer) {
-          return true;
-        }
-      }
+  for (int attempt = 0; attempt < maxAttempts; ++attempt) {
+    String response;
+    String fetchError;
+    if (!teslaHttpGetWithWake(endpoint, &response, &fetchError)) {
+      lastError = fetchError;
+      delay(2000);
+      continue;
     }
-    (void)vehicleResponse;
-    (void)vehicleError;
+
+    if (!teslaParseVehicleData(response, telemetry, &lastError, &lastHasLocation, &lastHasRange,
+                               &lastHasOdometer, &lastHasBatteryLevel)) {
+      delay(2000);
+      continue;
+    }
+
+    parsedOnce = true;
+
+    if (!lastHasLocation) {
+      teslaFetchLocationFromVehicleData(telemetry, &lastHasLocation);
+    }
+
+    if (lastHasRange && lastHasBatteryLevel && lastHasOdometer) {
+      break;
+    }
+
+    teslaWakeUp(nullptr);
+    teslaWaitForOnline();
     delay(2000);
   }
-  return false;
+
+  if (hasLocation) {
+    *hasLocation = lastHasLocation;
+  }
+  if (hasRange) {
+    *hasRange = lastHasRange;
+  }
+  if (hasOdometer) {
+    *hasOdometer = lastHasOdometer;
+  }
+  if (hasBatteryLevel) {
+    *hasBatteryLevel = lastHasBatteryLevel;
+  }
+  if (!parsedOnce && errorMessage) {
+    *errorMessage = lastError.isEmpty() ? "Failed to fetch vehicle data" : lastError;
+  }
+  return parsedOnce;
 }
 
 static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, String* errorMessage,
-                                  bool* hasLocation = nullptr, bool* hasRange = nullptr,
-                                  bool* hasOdometer = nullptr, bool* hasBatteryLevel = nullptr) {
+                                  bool* hasLocation, bool* hasRange,
+                                  bool* hasOdometer, bool* hasBatteryLevel) {
   JsonDocument filter;
   filter["response"]["charge_state"]["est_battery_range"] = true;
   filter["response"]["charge_state"]["battery_range"] = true;
@@ -468,88 +492,6 @@ static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry,
   return true;
 }
 
-static bool teslaParseChargeState(const String& json, TeslaTelemetry* telemetry, bool* hasRange, bool* hasBatteryLevel) {
-  JsonDocument filter;
-  filter["response"]["est_battery_range"] = true;
-  filter["response"]["battery_range"] = true;
-  filter["response"]["ideal_battery_range"] = true;
-  filter["response"]["battery_level"] = true;
-
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, json, DeserializationOption::Filter(filter));
-  if (err) {
-    return false;
-  }
-
-  JsonVariant range = doc["response"]["est_battery_range"];
-  if (range.isNull()) {
-    range = doc["response"]["battery_range"];
-  }
-  if (range.isNull()) {
-    range = doc["response"]["ideal_battery_range"];
-  }
-  JsonVariant level = doc["response"]["battery_level"];
-  if (!range.isNull()) {
-    telemetry->estimatedBatteryRangeMiles = range.as<float>();
-  }
-  if (!level.isNull()) {
-    telemetry->batteryLevelPercent = level.as<float>();
-  }
-  if (hasRange) {
-    *hasRange = !range.isNull();
-  }
-  if (hasBatteryLevel) {
-    *hasBatteryLevel = !level.isNull();
-  }
-  return true;
-}
-
-static bool teslaParseVehicleState(const String& json, TeslaTelemetry* telemetry, bool* hasOdometer) {
-  JsonDocument filter;
-  filter["response"]["odometer"] = true;
-
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, json, DeserializationOption::Filter(filter));
-  if (err) {
-    return false;
-  }
-
-  JsonVariant odometer = doc["response"]["odometer"];
-  if (!odometer.isNull()) {
-    telemetry->odometerMiles = odometer.as<float>();
-  }
-  if (hasOdometer) {
-    *hasOdometer = !odometer.isNull();
-  }
-  return true;
-}
-
-static bool teslaParseDriveState(const String& json, TeslaTelemetry* telemetry, String* errorMessage) {
-  JsonDocument filter;
-  filter["response"]["latitude"] = true;
-  filter["response"]["longitude"] = true;
-
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, json, DeserializationOption::Filter(filter));
-  if (err) {
-    if (errorMessage) {
-      *errorMessage = String("drive_state JSON parse failed: ") + err.c_str();
-    }
-    return false;
-  }
-
-  JsonVariant lat = doc["response"]["latitude"];
-  JsonVariant lon = doc["response"]["longitude"];
-  if (lat.isNull() || lon.isNull()) {
-    if (errorMessage) {
-      *errorMessage = "latitude or longitude missing in response";
-    }
-    return false;
-  }
-  telemetry->latitude = lat.as<double>();
-  telemetry->longitude = lon.as<double>();
-  return true;
-}
 
 static void teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry, bool* hasLocation) {
   String locResponse;
@@ -573,68 +515,12 @@ bool teslaGetTelemetry(TeslaTelemetry* outTelemetry, String* errorMessage) {
 
   TeslaTelemetry temp{};
 
-  String response;
-  String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data";
-  int statusCode = 0;
-  if (!teslaHttpGet(endpoint, &response, errorMessage, true, &statusCode)) {
-    bool isOffline = statusCode == HTTP_CODE_REQUEST_TIMEOUT;
-    if (!isOffline && errorMessage) {
-      isOffline = errorMessage->indexOf("vehicle unavailable") >= 0;
-    }
-
-    if (isOffline) {
-      if (!teslaWakeUp(errorMessage)) {
-        return false;
-      }
-
-      bool success = false;
-      for (int attempt = 0; attempt < 3; ++attempt) {
-        delay(2000);
-        bool hasLocation = false;
-        bool hasRange = false;
-        bool hasOdometer = false;
-        bool hasBatteryLevel = false;
-        if (teslaHttpGet(endpoint, &response, errorMessage, true, &statusCode) &&
-            teslaParseVehicleData(response, &temp, errorMessage, &hasLocation, &hasRange, &hasOdometer, &hasBatteryLevel)) {
-          if (!hasRange || !hasBatteryLevel || !hasOdometer) {
-            teslaWakeUp(nullptr);
-            teslaWaitForOnline();
-            String retryResponse;
-            if (teslaHttpGet(endpoint, &retryResponse, nullptr, true, &statusCode)) {
-              teslaParseVehicleData(retryResponse, &temp, nullptr, &hasLocation, &hasRange, &hasOdometer, &hasBatteryLevel);
-            }
-          }
-          if (!hasLocation) {
-            teslaFetchLocationFromVehicleData(&temp, &hasLocation);
-          }
-          success = true;
-          break;
-        }
-      }
-
-      if (!success) {
-        return false;
-      }
-    } else {
-      return false;
-    }
-  } else {
-    bool hasLocation = false;
-    bool hasRange = false;
-    bool hasOdometer = false;
-    bool hasBatteryLevel = false;
-    if (!teslaParseVehicleData(response, &temp, errorMessage, &hasLocation, &hasRange, &hasOdometer, &hasBatteryLevel)) {
-      return false;
-    }
-    if (!hasRange || !hasBatteryLevel || !hasOdometer) {
-      String retryResponse;
-      if (teslaHttpGetWithWake(endpoint, &retryResponse, nullptr)) {
-        teslaParseVehicleData(retryResponse, &temp, nullptr, &hasLocation, &hasRange, &hasOdometer, &hasBatteryLevel);
-      }
-    }
-    if (!hasLocation) {
-      teslaFetchLocationFromVehicleData(&temp, &hasLocation);
-    }
+  bool hasLocation = false;
+  bool hasRange = false;
+  bool hasOdometer = false;
+  bool hasBatteryLevel = false;
+  if (!teslaFetchVehicleDataWithRetry(&temp, &hasLocation, &hasRange, &hasOdometer, &hasBatteryLevel, errorMessage)) {
+    return false;
   }
 
   temp.isValid = true;
