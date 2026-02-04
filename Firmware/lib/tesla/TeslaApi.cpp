@@ -16,7 +16,7 @@ static const char* TESLA_PREF_NAMESPACE = "tesla";
 static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, String* errorMessage,
                                   bool* hasLocation = nullptr, bool* hasRange = nullptr,
                                   bool* hasOdometer = nullptr, bool* hasBatteryLevel = nullptr);
-static void teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry, bool* hasLocation);
+static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry);
 
 
 struct TeslaAuthState {
@@ -364,8 +364,7 @@ static bool teslaHttpGetWithWake(const String& path, String* responseBody, Strin
   return false;
 }
 
-static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, bool* hasLocation, bool* hasRange,
-                                           bool* hasOdometer, bool* hasBatteryLevel, String* errorMessage,
+static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* errorMessage,
                                            int maxAttempts = 3) {
   String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data";
   bool parsedOnce = false;
@@ -393,7 +392,7 @@ static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, bool* hasL
     parsedOnce = true;
 
     if (!lastHasLocation) {
-      teslaFetchLocationFromVehicleData(telemetry, &lastHasLocation);
+      lastHasLocation = teslaFetchLocationFromVehicleData(telemetry);
     }
 
     if (lastHasRange && lastHasBatteryLevel && lastHasOdometer) {
@@ -405,18 +404,6 @@ static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, bool* hasL
     delay(2000);
   }
 
-  if (hasLocation) {
-    *hasLocation = lastHasLocation;
-  }
-  if (hasRange) {
-    *hasRange = lastHasRange;
-  }
-  if (hasOdometer) {
-    *hasOdometer = lastHasOdometer;
-  }
-  if (hasBatteryLevel) {
-    *hasBatteryLevel = lastHasBatteryLevel;
-  }
   if (!parsedOnce && errorMessage) {
     *errorMessage = lastError.isEmpty() ? "Failed to fetch vehicle data" : lastError;
   }
@@ -493,16 +480,15 @@ static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry,
 }
 
 
-static void teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry, bool* hasLocation) {
+static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry) {
   String locResponse;
   String locEndpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data?endpoints=location_data;drive_state";
   if (teslaHttpGetWithWake(locEndpoint, &locResponse, nullptr)) {
     bool tempHasLocation = false;
     teslaParseVehicleData(locResponse, telemetry, nullptr, &tempHasLocation, nullptr, nullptr, nullptr);
-    if (hasLocation) {
-      *hasLocation = tempHasLocation;
-    }
+    return tempHasLocation;
   }
+  return false;
 }
 
 bool teslaGetTelemetry(TeslaTelemetry* outTelemetry, String* errorMessage) {
@@ -515,11 +501,7 @@ bool teslaGetTelemetry(TeslaTelemetry* outTelemetry, String* errorMessage) {
 
   TeslaTelemetry temp{};
 
-  bool hasLocation = false;
-  bool hasRange = false;
-  bool hasOdometer = false;
-  bool hasBatteryLevel = false;
-  if (!teslaFetchVehicleDataWithRetry(&temp, &hasLocation, &hasRange, &hasOdometer, &hasBatteryLevel, errorMessage)) {
+  if (!teslaFetchVehicleDataWithRetry(&temp, errorMessage)) {
     return false;
   }
 
