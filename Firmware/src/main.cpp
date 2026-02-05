@@ -114,8 +114,13 @@ void loop() {
 
   if (WiFi.status() == WL_CONNECTED) {
     // TO BE Changed back to if (millis() >= nextCheckMs) adn loopCounter removed after testing daily reset logic by simulating a day change after 30 seconds
+    #ifdef DEBUG_TeslaTelemetry
     loopCounter++;
     if (loopCounter >= 3 && millis() >= nextCheckMs) {
+    #else
+    if (millis() >= nextCheckMs) {
+    #endif
+
       struct tm timeinfo;
       if (getLocalTime(&timeinfo)) {
 
