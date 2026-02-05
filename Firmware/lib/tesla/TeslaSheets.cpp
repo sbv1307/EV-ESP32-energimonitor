@@ -52,8 +52,9 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
   Serial.println(String("Date: ") + dateBuf);
   Serial.println(String("Time: ") + timeBuf);
   Serial.println(String("Battery level (%): ") + telemetry.batteryLevelPercent);
-  Serial.println(String("Estimated battery range (mi): ") + telemetry.estimatedBatteryRangeMiles);
-  Serial.println(String("Odometer (mi): ") + telemetry.odometerMiles);
+  const float milesToKm = 1.609344f;
+  Serial.println(String("Estimated battery range (km): ") + telemetry.estimatedBatteryRangeMiles * milesToKm);
+  Serial.println(String("Odometer (km): ") + telemetry.odometerMiles * milesToKm);
   Serial.println(String("Energy (kWh): ") + energyKwh);
   Serial.println(String("Latitude: ") + String(telemetry.latitude, 6));
   Serial.println(String("Longitude: ") + String(telemetry.longitude, 6));
