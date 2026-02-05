@@ -2,7 +2,7 @@
 #include "globals.h"
 #include <Arduino.h>
 
-constexpr int PULSE_INPUT_TASK_STACK_SIZE = 2365;
+constexpr int PULSE_INPUT_TASK_STACK_SIZE = 4785; // 4KB stack size for the task
 
 void startPulseInputTask(TaskParams_t* params);
 

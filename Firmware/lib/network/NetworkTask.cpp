@@ -1,5 +1,5 @@
 //#define DEBUG
-#define STACK_WATERMARK
+//#define STACK_WATERMARK
 
 #include <Arduino.h>
 #include <WiFi.h>

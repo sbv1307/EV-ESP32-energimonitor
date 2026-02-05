@@ -1,5 +1,5 @@
 //#define DEBUG
-#define STACK_WATERMARK
+//#define STACK_WATERMARK
 
 #include "PulseInputTask.h"
 #include "MqttClient.h"
@@ -177,6 +177,13 @@ static void PulseInputTask( void* pvParameters) {
 
       saveToNVS(pulseCounter, subtotalPulseCounter);
       lastSaveMs = millis();
+
+      #ifdef DEBUG // For test purposes, calling the Google Sheets function here to verify it works without waiting for the daily reset
+        Serial.println("\nTesting Google Sheets telemetry send with current pulse count: " + String(pulseCounter) + "\n");
+        float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+        sendTeslaTelemetryToGoogleSheets((TaskParams_t*)pvParameters, energyKwh);
+      #endif
+
     }
 
     // ---- 4. Daily subtotal reset check ----  
