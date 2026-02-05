@@ -1,4 +1,4 @@
-#define NONE_HEADLESS // Define to disable headless wait_for_any_key functionality and use serial output instead
+//#define NONE_HEADLESS // Define to disable headless wait_for_any_key functionality and use serial output instead
 //#define DEBUG         // Enable debug serial output. Requires NONE_HEADLESS to be defined.
 //#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
 //#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.  
@@ -13,6 +13,7 @@
 #include "globals.h"
 #include "NetworkTask.h"
 #include "PulseInputTask.h"
+#include "PulseInputIsrTest.h"
 #include "TeslaSheets.h"
 
 /*
@@ -111,6 +112,14 @@ void loop() {
   }
 
   startPulseInputTask( &networkParams );  // Ensure Pulse Count Task is running. If already running, this does nothing.
+  
+  // Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. This will only start if not already running.
+  startPulseInputIsrTestTask();
+
+  static bool pulseInterruptAttached = false;
+  if (!pulseInterruptAttached && isPulseInputReady()) {
+    pulseInterruptAttached = attachPulseInputInterrupt(PULSE_INPUT_GPIO, PULSE_INPUT_INTERRUPT_MODE);
+  }
 
   if (WiFi.status() == WL_CONNECTED) {
     // TO BE Changed back to if (millis() >= nextCheckMs) adn loopCounter removed after testing daily reset logic by simulating a day change after 30 seconds
@@ -152,8 +161,23 @@ void loop() {
     }
   }
 
-  vTaskDelay(pdMS_TO_TICKS(5000));
-  PulseInputISR();
+  unsigned long nextDelayMs = wifiCheckInterval;
+  unsigned long nowMs = millis();
+
+  if (nextCheckMs > nowMs) {
+    nextDelayMs = min(nextDelayMs, nextCheckMs - nowMs);
+  } else {
+    nextDelayMs = 0;
+  }
+
+  const unsigned long stackIntervalMs = 5000;
+  if (nowMs - lastStackLog < stackIntervalMs) {
+    nextDelayMs = min(nextDelayMs, stackIntervalMs - (nowMs - lastStackLog));
+  } else {
+    nextDelayMs = 0;
+  }
+
+  vTaskDelay(pdMS_TO_TICKS(max(1UL, nextDelayMs)));
 
                                                                       #ifdef STACK_WATERMARK
                                                                         unsigned long stackNow = millis();

@@ -91,10 +91,27 @@ float calculatePower( TaskParams_t* params,uint32_t deltaUs) {
  * ###################################################################################################
  */
 void IRAM_ATTR PulseInputISR() {
+  if (PulseInputQueue == nullptr) {
+    return;
+  }
   unsigned long ts = micros();
   BaseType_t higherPriorityTaskWoken = pdFALSE;
   xQueueSendFromISR(PulseInputQueue, &ts, &higherPriorityTaskWoken);
   portYIELD_FROM_ISR(higherPriorityTaskWoken);
+}
+
+bool isPulseInputReady() {
+  return PulseInputQueue != nullptr;
+}
+
+bool attachPulseInputInterrupt(int gpio, int mode) {
+  if (gpio < 0 || PulseInputQueue == nullptr) {
+    return false;
+  }
+
+  pinMode(gpio, INPUT);
+  attachInterrupt(digitalPinToInterrupt(gpio), PulseInputISR, mode);
+  return true;
 }
 
 /* ###################################################################################################
@@ -120,9 +137,8 @@ static void PulseInputTask( void* pvParameters) {
                                                     Serial.println("Pulse Input Task initializing...\n");
                                                     #endif
 
-  PulseInputQueue = xQueueCreate(10, sizeof(unsigned long));
-  if (!PulseInputQueue) {
-    Serial.println("Pulse count queue creation failed!");
+  if (PulseInputQueue == nullptr) {
+    Serial.println("Pulse count queue not initialized!");
     PulseInputTaskHandle = nullptr;
     vTaskDelete(nullptr);
     return;
@@ -237,6 +253,14 @@ void startPulseInputTask(TaskParams_t* params) {
   if (PulseInputTaskHandle != nullptr && eTaskGetState(PulseInputTaskHandle) != eDeleted) {
     return; // Task already running
   }
+
+  if (PulseInputQueue == nullptr) {
+    PulseInputQueue = xQueueCreate(10, sizeof(unsigned long));
+    if (!PulseInputQueue) {
+      Serial.println("Pulse count queue creation failed!");
+      return;
+    }
+  }
   
   xTaskCreate(
     PulseInputTask,
@@ -247,3 +271,4 @@ void startPulseInputTask(TaskParams_t* params) {
     &PulseInputTaskHandle
   );
 }
+
