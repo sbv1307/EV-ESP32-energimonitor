@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 //#define STACK_WATERMARK
 
 #include "PulseInputTask.h"
@@ -13,12 +13,33 @@ static QueueHandle_t PulseInputQueue = nullptr;
 static portMUX_TYPE PulseCounterMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool PulseCounterUpdatePending = false;
 static volatile uint32_t PendingPulseCounter = 0;
+static portMUX_TYPE EnergyKwhMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile float LatestEnergyKwh = 0.0f;
+static portMUX_TYPE SubtotalResetMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile bool SubtotalResetPending = false;
 
 void setPulseCounterFromMqtt(uint32_t newPulseCounter) {
   portENTER_CRITICAL(&PulseCounterMux);
   PendingPulseCounter = newPulseCounter;
   PulseCounterUpdatePending = true;
   portEXIT_CRITICAL(&PulseCounterMux);
+}
+
+void requestSubtotalReset() {
+  portENTER_CRITICAL(&SubtotalResetMux);
+  SubtotalResetPending = true;
+  portEXIT_CRITICAL(&SubtotalResetMux);
+}
+
+bool getLatestEnergyKwh(float* energyKwh) {
+  if (!energyKwh) {
+    return false;
+  }
+
+  portENTER_CRITICAL(&EnergyKwhMux);
+  *energyKwh = LatestEnergyKwh;
+  portEXIT_CRITICAL(&EnergyKwhMux);
+  return true;
 }
 
 /* ###################################################################################################
@@ -92,9 +113,6 @@ static void PulseInputTask( void* pvParameters) {
   uint32_t pulseCounter = loadFromNVS(&subtotalPulseCounter);
   float powerW = 0.0f;
 
-  int lastDay = -1;
-  uint32_t nextCheckMs = 0;
-
 
   uint32_t lastSaveMs = millis();
 
@@ -128,6 +146,19 @@ static void PulseInputTask( void* pvParameters) {
       PulseCounterUpdatePending = false;
       portEXIT_CRITICAL(&PulseCounterMux);
 
+      portENTER_CRITICAL(&EnergyKwhMux);
+      LatestEnergyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      portEXIT_CRITICAL(&EnergyKwhMux);
+
+      saveToNVS(pulseCounter, subtotalPulseCounter);
+    }
+
+    if (SubtotalResetPending) {
+      portENTER_CRITICAL(&SubtotalResetMux);
+      SubtotalResetPending = false;
+      portEXIT_CRITICAL(&SubtotalResetMux);
+
+      subtotalPulseCounter = 0;
       saveToNVS(pulseCounter, subtotalPulseCounter);
     }
 
@@ -161,6 +192,10 @@ static void PulseInputTask( void* pvParameters) {
                         (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh,
                         (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh);
 
+      portENTER_CRITICAL(&EnergyKwhMux);
+      LatestEnergyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      portEXIT_CRITICAL(&EnergyKwhMux);
+
     }
 
 
@@ -177,36 +212,6 @@ static void PulseInputTask( void* pvParameters) {
 
       saveToNVS(pulseCounter, subtotalPulseCounter);
       lastSaveMs = millis();
-
-      #ifdef DEBUG // For test purposes, calling the Google Sheets function here to verify it works without waiting for the daily reset
-        Serial.println("\nTesting Google Sheets telemetry send with current pulse count: " + String(pulseCounter) + "\n");
-        float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
-        sendTeslaTelemetryToGoogleSheets((TaskParams_t*)pvParameters, energyKwh);
-      #endif
-
-    }
-
-    // ---- 4. Daily subtotal reset check ----  
-    if (millis() >= nextCheckMs) {
-      struct tm timeinfo;
-      if (getLocalTime(&timeinfo)) {
-        // Check for day change
-        if (lastDay != -1 && timeinfo.tm_mday != lastDay) {
-          float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
-          sendTeslaTelemetryToGoogleSheets((TaskParams_t*)pvParameters, energyKwh);
-          subtotalPulseCounter = 0;
-        }
-        lastDay = timeinfo.tm_mday;
-        
-        // Calculate seconds until midnight
-        uint32_t secsUntilMidnight = (23 - timeinfo.tm_hour) * 3600 +
-                                      (59 - timeinfo.tm_min) * 60 +
-                                      (60 - timeinfo.tm_sec);
-        
-        // Check again at half the remaining time (but at least every 10 minutes)
-        uint32_t checkInterval = max(secsUntilMidnight / 2, 600U) * 1000;
-        nextCheckMs = millis() + checkInterval;
-      }
     }
 
                                                             #ifdef STACK_WATERMARK

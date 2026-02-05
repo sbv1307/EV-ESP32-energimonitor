@@ -1,6 +1,7 @@
 #define NONE_HEADLESS // Define to disable headless wait_for_any_key functionality and use serial output instead
 #define DEBUG         // Enable debug serial output. Requires NONE_HEADLESS to be defined.
 //#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
+#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.  
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -87,9 +88,15 @@ void loop() {
   static int NetworkTaskMaxStack = 0;
   static int WifiConnTaskMaxStack = 0;
   static int PulseInputTaskMaxStack = 0;
-  static int loopCounter = 0;
-  static bool testTeslaCallDone = false;
-  
+  static int lastDay = -1;
+  static uint32_t nextCheckMs = 0;
+   
+  // To BE REMOVED: Temporary code to test daily reset logic by simulating a day change after 30 seconds
+                                                                      #ifdef DEBUG_TeslaTelemetry
+                                                                      static int loopCounter = 0;
+                                                                      static bool testDailyResetInjected = false; // For testing daily reset logic by simulating a day change after 30 seconds
+                                                                      #endif
+                                                                                                                      
   unsigned long currentMillis = millis();
   
   if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
@@ -106,20 +113,37 @@ void loop() {
   startPulseInputTask( &networkParams );  // Ensure Pulse Count Task is running. If already running, this does nothing.
 
   if (WiFi.status() == WL_CONNECTED) {
+    // TO BE Changed back to if (millis() >= nextCheckMs) adn loopCounter removed after testing daily reset logic by simulating a day change after 30 seconds
     loopCounter++;
-    if (!testTeslaCallDone && loopCounter >= 3) {
-      
-                                                    #ifdef DEBUG
-                                                    Serial.println("Main: Testing Tesla API call to send telemetry to Google Sheets...");
-                                                    #endif
+    if (loopCounter >= 3 && millis() >= nextCheckMs) {
+      struct tm timeinfo;
+      if (getLocalTime(&timeinfo)) {
 
-      sendTeslaTelemetryToGoogleSheets(&networkParams, 0.0f);
-      testTeslaCallDone = true;
+                                      // To BE REMOVED: Temporary code to test daily reset logic by simulating a day change after 30 seconds
+                                      #ifdef DEBUG_TeslaTelemetry // Inject a day change for testing daily reset logic
+                                      if (!testDailyResetInjected && lastDay == -1) {
+                                        lastDay = (timeinfo.tm_mday == 1) ? 28 : (timeinfo.tm_mday - 1);
+                                        testDailyResetInjected = true;
+                                        Serial.println("Main: Forced day change for daily reset test.");
+                                      }
+                                      #endif
 
-                                            #ifdef DEBUG
-                                            Serial.println("Main: Tesla API test call completed."); 
-                                            #endif
+        if (lastDay != -1 && timeinfo.tm_mday != lastDay) {
+          float energyKwh = 0.0f;
+          if (getLatestEnergyKwh(&energyKwh)) {
+            sendTeslaTelemetryToGoogleSheets(&networkParams, energyKwh);
+          }
+          requestSubtotalReset();
+        }
+        lastDay = timeinfo.tm_mday;
 
+        uint32_t secsUntilMidnight = (23 - timeinfo.tm_hour) * 3600 +
+                                      (59 - timeinfo.tm_min) * 60 +
+                                      (60 - timeinfo.tm_sec);
+
+        uint32_t checkInterval = max(secsUntilMidnight / 2, 600U) * 1000;
+        nextCheckMs = millis() + checkInterval;
+      }
     }
   }
 
