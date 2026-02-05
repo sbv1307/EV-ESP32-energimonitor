@@ -1,7 +1,7 @@
 #define NONE_HEADLESS // Define to disable headless wait_for_any_key functionality and use serial output instead
-#define DEBUG         // Enable debug serial output. Requires NONE_HEADLESS to be defined.
+//#define DEBUG         // Enable debug serial output. Requires NONE_HEADLESS to be defined.
 //#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
-#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.  
+//#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.  
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -90,13 +90,13 @@ void loop() {
   static int PulseInputTaskMaxStack = 0;
   static int lastDay = -1;
   static uint32_t nextCheckMs = 0;
-   
+
   // To BE REMOVED: Temporary code to test daily reset logic by simulating a day change after 30 seconds
                                                                       #ifdef DEBUG_TeslaTelemetry
                                                                       static int loopCounter = 0;
                                                                       static bool testDailyResetInjected = false; // For testing daily reset logic by simulating a day change after 30 seconds
                                                                       #endif
-                                                                                                                      
+
   unsigned long currentMillis = millis();
   
   if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
