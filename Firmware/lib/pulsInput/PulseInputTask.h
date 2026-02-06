@@ -10,6 +10,8 @@ void IRAM_ATTR PulseInputISR();
 
 bool isPulseInputReady();
 
+bool waitForPulseInputReady(uint32_t timeoutMs);
+
 bool attachPulseInputInterrupt(int gpio, int mode);
 
 void setPulseCounterFromMqtt(uint32_t newPulseCounter);

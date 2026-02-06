@@ -7,7 +7,6 @@
 #include <WiFi.h>
 #include <Preferences.h>
 
-#include <wait_for_any_key.h>
 #include "config.h"
 #include "privateConfig.h"
 #include "globals.h"
@@ -15,6 +14,12 @@
 #include "PulseInputTask.h"
 #include "PulseInputIsrTest.h"
 #include "TeslaSheets.h"
+
+#ifdef NONE_HEADLESS
+#include <wait_for_any_key.h>
+#include "build_timestamp.h"
+#endif
+
 
 /*
  * #################################################################################################
@@ -34,7 +39,7 @@ static TaskParams_t networkParams;
  * ##################################################################################################
  * ##################################################################################################
 
- Functions are now declared in their respective header files and only included here.
+ Functions are generally now declared in their respective header files and only included here.
  Function definitions are in their respective .cpp files.
  
  .h and .cpp file structure: 
@@ -46,6 +51,23 @@ lib/
  |-- │── OtaService.h
  |-- │── OtaService.cpp   // OTA update related functions
  */
+
+ /***************************************************************************************************
+  * Function to handle daily telemetry sending and subtotal reset logic. 
+  * This function checks if it's time to send daily telemetry data to Google Sheets 
+  * and if the day has changed to reset the subtotal. It also handles pending telemetry data
+  *  if WiFi was not connected at the scheduled time.
+  */
+ 
+static void handleDailyTelemetry(TaskParams_t *networkParams,
+                                 int &lastDay,
+                                 uint32_t &nextCheckMs,
+                                 bool &pendingTelemetryToSend,
+                                 float &pendingEnergyKwh);
+
+static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
+                                          uint32_t nextCheckMs,
+                                          unsigned long lastStackLog);
 
 
 
@@ -78,7 +100,14 @@ void setup() {
    * after a successful WiFi connection, which could lead to missed pulses during startup.
   */
   startPulseInputTask( &networkParams );
-   
+
+  waitForPulseInputReady(0);
+  if (PULSE_INPUT_GPIO >= 0) {
+    while (!attachPulseInputInterrupt(PULSE_INPUT_GPIO, PULSE_INPUT_INTERRUPT_MODE)) {
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+  }
+  
   startNetworkTask( &networkParams );
 }
 
@@ -100,12 +129,8 @@ void loop() {
   static int PulseInputTaskMaxStack = 0;
   static int lastDay = -1;
   static uint32_t nextCheckMs = 0;
-
-  // To BE REMOVED: Temporary code to test daily reset logic by simulating a day change after 30 seconds
-                                                                      #ifdef DEBUG_TeslaTelemetry
-                                                                      static int loopCounter = 0;
-                                                                      static bool testDailyResetInjected = false; // For testing daily reset logic by simulating a day change after 30 seconds
-                                                                      #endif
+  static bool pendingTelemetryToSend = false;
+  static float pendingEnergyKwh = 0.0f;
 
   unsigned long currentMillis = millis();
   
@@ -125,66 +150,15 @@ void loop() {
   // Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. This will only start if not already running.
   startPulseInputIsrTestTask();
 
-  static bool pulseInterruptAttached = false;
-  if (!pulseInterruptAttached && isPulseInputReady()) {
-    pulseInterruptAttached = attachPulseInputInterrupt(PULSE_INPUT_GPIO, PULSE_INPUT_INTERRUPT_MODE);
-  }
+  handleDailyTelemetry(&networkParams,
+                       lastDay,
+                       nextCheckMs,
+                       pendingTelemetryToSend,
+                       pendingEnergyKwh);
 
-  if (WiFi.status() == WL_CONNECTED) {
-    // TO BE Changed back to if (millis() >= nextCheckMs) adn loopCounter removed after testing daily reset logic by simulating a day change after 30 seconds
-    #ifdef DEBUG_TeslaTelemetry
-    loopCounter++;
-    if (loopCounter >= 3 && millis() >= nextCheckMs) {
-    #else
-    if (millis() >= nextCheckMs) {
-    #endif
-
-      struct tm timeinfo;
-      if (getLocalTime(&timeinfo)) {
-
-                                      // To BE REMOVED: Temporary code to test daily reset logic by simulating a day change after 30 seconds
-                                      #ifdef DEBUG_TeslaTelemetry // Inject a day change for testing daily reset logic
-                                      if (!testDailyResetInjected && lastDay == -1) {
-                                        lastDay = (timeinfo.tm_mday == 1) ? 28 : (timeinfo.tm_mday - 1);
-                                        testDailyResetInjected = true;
-                                        Serial.println("Main: Forced day change for daily reset test.");
-                                      }
-                                      #endif
-
-        if (lastDay != -1 && timeinfo.tm_mday != lastDay) {
-          float energyKwh = 0.0f;
-          if (getLatestEnergyKwh(&energyKwh)) {
-            sendTeslaTelemetryToGoogleSheets(&networkParams, energyKwh);
-          }
-          requestSubtotalReset();
-        }
-        lastDay = timeinfo.tm_mday;
-
-        uint32_t secsUntilMidnight = (23 - timeinfo.tm_hour) * 3600 +
-                                      (59 - timeinfo.tm_min) * 60 +
-                                      (60 - timeinfo.tm_sec);
-
-        uint32_t checkInterval = max(secsUntilMidnight / 2, 600U) * 1000;
-        nextCheckMs = millis() + checkInterval;
-      }
-    }
-  }
-
-  unsigned long nextDelayMs = wifiCheckInterval;
-  unsigned long nowMs = millis();
-
-  if (nextCheckMs > nowMs) {
-    nextDelayMs = min(nextDelayMs, nextCheckMs - nowMs);
-  } else {
-    nextDelayMs = 0;
-  }
-
-  const unsigned long stackIntervalMs = 5000;
-  if (nowMs - lastStackLog < stackIntervalMs) {
-    nextDelayMs = min(nextDelayMs, stackIntervalMs - (nowMs - lastStackLog));
-  } else {
-    nextDelayMs = 0;
-  }
+  unsigned long nextDelayMs = calculateNextDelayMs(wifiCheckInterval,
+                                                   nextCheckMs,
+                                                   lastStackLog);
 
   vTaskDelay(pdMS_TO_TICKS(max(1UL, nextDelayMs)));
 
@@ -226,4 +200,73 @@ void loop() {
                                                                         }
                                                                       #endif
 
+}
+
+/*********************************************************************************************************
+ * #################################################################################################
+ * #################################################################################################
+ *                 F u n c t i o n    D e f i n i t i o n s
+ * #################################################################################################
+ * #################################################################################################
+ * Functions are generally now defined in their respective .cpp files. 
+ * Only functions that are very specific to the main loop and not used elsewhere are defined here.
+ */
+
+static void handleDailyTelemetry(TaskParams_t *networkParams,
+                                 int &lastDay,
+                                 uint32_t &nextCheckMs,
+                                 bool &pendingTelemetryToSend,
+                                 float &pendingEnergyKwh) {
+  if (pendingTelemetryToSend && WiFi.status() == WL_CONNECTED) {
+    sendTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh);
+    pendingTelemetryToSend = false;
+  }
+
+  if (millis() >= nextCheckMs) {
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+      if (lastDay != -1 && timeinfo.tm_mday != lastDay) {
+        float energyKwh = 0.0f;
+        if (getLatestEnergyKwh(&energyKwh)) {
+          if (WiFi.status() == WL_CONNECTED) {
+            sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh);
+          } else {
+            pendingEnergyKwh = energyKwh;
+            pendingTelemetryToSend = true;
+          }
+        }
+        requestSubtotalReset();
+      }
+      lastDay = timeinfo.tm_mday;
+
+      uint32_t secsUntilMidnight = (23 - timeinfo.tm_hour) * 3600 +
+                                   (59 - timeinfo.tm_min) * 60 +
+                                   (60 - timeinfo.tm_sec);
+
+      uint32_t checkInterval = max(secsUntilMidnight / 2, 600U) * 1000;
+      nextCheckMs = millis() + checkInterval;
+    }
+  }
+}
+
+static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
+                                          uint32_t nextCheckMs,
+                                          unsigned long lastStackLog) {
+  unsigned long nextDelayMs = wifiCheckInterval;
+  unsigned long nowMs = millis();
+
+  if (nextCheckMs > nowMs) {
+    nextDelayMs = min(nextDelayMs, nextCheckMs - nowMs);
+  } else {
+    nextDelayMs = 0;
+  }
+
+  const unsigned long stackIntervalMs = 5000;
+  if (nowMs - lastStackLog < stackIntervalMs) {
+    nextDelayMs = min(nextDelayMs, stackIntervalMs - (nowMs - lastStackLog));
+  } else {
+    nextDelayMs = 0;
+  }
+
+  return nextDelayMs;
 }

@@ -10,6 +10,7 @@
 
 static TaskHandle_t PulseInputTaskHandle = nullptr;
 static QueueHandle_t PulseInputQueue = nullptr;
+static volatile bool PulseInputTaskReady = false;
 static portMUX_TYPE PulseCounterMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool PulseCounterUpdatePending = false;
 static volatile uint32_t PendingPulseCounter = 0;
@@ -101,7 +102,18 @@ void IRAM_ATTR PulseInputISR() {
 }
 
 bool isPulseInputReady() {
-  return PulseInputQueue != nullptr;
+  return PulseInputQueue != nullptr && PulseInputTaskReady;
+}
+
+bool waitForPulseInputReady(uint32_t timeoutMs) {
+  uint32_t startMs = millis();
+  while (!isPulseInputReady()) {
+    if (timeoutMs > 0 && (millis() - startMs) >= timeoutMs) {
+      return false;
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  return true;
 }
 
 bool attachPulseInputInterrupt(int gpio, int mode) {
@@ -143,6 +155,8 @@ static void PulseInputTask( void* pvParameters) {
     vTaskDelete(nullptr);
     return;
   }
+
+  PulseInputTaskReady = true;
  
                                                     #ifdef DEBUG
                                                     Serial.println("Pulse Input Task started with following parameters:\n");
@@ -253,6 +267,8 @@ void startPulseInputTask(TaskParams_t* params) {
   if (PulseInputTaskHandle != nullptr && eTaskGetState(PulseInputTaskHandle) != eDeleted) {
     return; // Task already running
   }
+
+  PulseInputTaskReady = false;
 
   if (PulseInputQueue == nullptr) {
     PulseInputQueue = xQueueCreate(10, sizeof(unsigned long));
