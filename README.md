@@ -1,14 +1,14 @@
 # EV ESP32 Energy monitor
 An ESP32 MQTT interface for an energy meter, used when charging your electrical vehicle at home.
 
-The energy meter monitored, will have a pulse output, which is connected to the interface.
+The energy meter connected to the ESP32 MQTT interface, will have a pulse output.
 
 
-### The interface will publish the following to MQTT:
-- A configuration to MQTT, which can be picked up by Home Assistant (HA). HA will then be able to display the data below published to MQTT.
-- Energy meter reading, which also can be set by the HA integration.
-- A calculated energy consumption<sup class="fn"><span id="a1">[1](#f1)</span></sup>
-- A daily energy meter reading to MQTT
+### The interface will publish the following to the MQTT broker:
+- A configuration, which can be picked up by Home Assistant (HA). HA will then be able to display the data mentioned below.
+- Energy meter reading (kWh), which also can be set by the HA integration.
+- A calculated energy consumption (W)<sup class="fn"><span id="a1">[1](#f1)</span></sup>
+- A daily energy usage (kWh)
 
 ### The following will be published to Google Sheets:
 - A daily update containing: Date, Time, , Battery range, Odometer, Energy meter reading, Latitude and Longitude

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "build_timestamp.h"
 #include <Arduino.h>
 
 constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT interface - V1.0.0";

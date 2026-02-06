@@ -70,6 +70,15 @@ void setup() {
 
   initializeGlobals( &networkParams );
 
+  /*
+   * Start the Pulse Input Task before the Network Task to ensure that pulse counting starts immediately
+   * and is not delayed by network connection attempts. The Network Task will run in parallel and handle 
+   * WiFi connectivity and MQTT communication.
+   * If the Network Task is started first, there could be a delay in starting the Pulse Input Task until 
+   * after a successful WiFi connection, which could lead to missed pulses during startup.
+  */
+  startPulseInputTask( &networkParams );
+   
   startNetworkTask( &networkParams );
 }
 

@@ -4,6 +4,7 @@
 #include "config.h"
 #include "privateConfig.h"
 #include "globals.h"
+#include "build_timestamp.h"
 
 // Global variables to track stack high water marks and initial free heap size
 volatile UBaseType_t gNetworkTaskStackHighWater = 0;
