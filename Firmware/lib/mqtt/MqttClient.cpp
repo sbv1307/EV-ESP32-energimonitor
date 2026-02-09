@@ -3,6 +3,7 @@
 #include <Preferences.h>
 #include <PubSubClient.h>
 #include <WiFi.h>
+#include <time.h>
 
 #include "MqttMessage.h"
 #include "MqttClient.h"
@@ -24,6 +25,28 @@ static String mqttBrokerIP;
 static uint16_t mqttBrokerPort;
 static volatile bool mqttPaused = false;
 static TaskParams_t* mqttParams = nullptr;
+
+static void formatLogTimestamp(char* buffer, size_t bufferSize) {
+  if (!buffer || bufferSize == 0) {
+    return;
+  }
+
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    snprintf(buffer,
+             bufferSize,
+             "%04d-%02d-%02d %02d:%02d:%02d",
+             timeinfo.tm_year + 1900,
+             timeinfo.tm_mon + 1,
+             timeinfo.tm_mday,
+             timeinfo.tm_hour,
+             timeinfo.tm_min,
+             timeinfo.tm_sec);
+    return;
+  }
+
+  snprintf(buffer, bufferSize, "ms:%lu", (unsigned long)millis());
+}
 
 
 /*
@@ -136,6 +159,36 @@ bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
   msg.retain = retain;
 
   return xQueueSend(mqttQueue, &msg, 0) == pdTRUE;
+}
+
+bool publishMqttLog(const char* topicSuffix, const char* message, bool retain) {
+  if (!topicSuffix || !message || !mqttQueue) {
+    return false;
+  }
+
+  String topic = String(MQTT_PREFIX + mqttDeviceNameWithMac);
+  if (topicSuffix[0] == '/') {
+    topic += topicSuffix;
+  } else {
+    topic += "/";
+    topic += topicSuffix;
+  }
+
+  char timestamp[32] = {0};
+  formatLogTimestamp(timestamp, sizeof(timestamp));
+
+  char payload[MQTT_PAYLOAD_LEN] = {0};
+  snprintf(payload, sizeof(payload), "%s - %s", timestamp, message);
+
+  return mqttEnqueuePublish(topic.c_str(), payload, retain);
+}
+
+bool publishMqttLogStatus(const char* message, bool retain) {
+  return publishMqttLog(MQTT_LOG_STATUS_SUFFIX.c_str(), message, retain);
+}
+
+bool publishMqttLogEmail(const char* message, bool retain) {
+  return publishMqttLog(MQTT_LOG_EMAIL_SUFFIX.c_str(), message, retain);
 }
 
 /* ###################################################################################################
@@ -278,6 +331,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         if (mqttParams != nullptr) {
           uint32_t newPulseCounter = (uint32_t)(newEnergyValue * mqttParams->pulse_per_kWh + 0.5f);
           setPulseCounterFromMqtt(newPulseCounter);
+        }
+      } else if (key == MQTT_SENSOR_ENERGY_ENTITYNAME) {
+        if (value.equalsIgnoreCase("true")) {
+          requestSubtotalReset();
         }
       }
     }

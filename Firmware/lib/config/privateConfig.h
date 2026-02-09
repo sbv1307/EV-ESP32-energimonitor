@@ -3,9 +3,9 @@
 
 
 
-constexpr char SSID[] = "DIGIFIBRA-u4UQ";
-constexpr char PASS[] = "EX4E2Dsy6DF3";
-constexpr char MQTT_BROKER[] = "192.168.1.132";
+constexpr char SSID[] = "FIBERMEDIA-txzP";
+constexpr char PASS[] = "cavS3XKFSSrv9a";
+constexpr char MQTT_BROKER[] = "192.168.100.206";
 //constexpr char SSID[] = "Steens Hotspot";
 //constexpr char PASS[] = "ceres1!S";
 //constexpr char MQTT_BROKER[] = "10.44.60.6";

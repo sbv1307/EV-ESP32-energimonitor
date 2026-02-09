@@ -1,7 +1,7 @@
-//#define NONE_HEADLESS // Define to disable headless wait_for_any_key functionality and use serial output instead
-//#define DEBUG         // Enable debug serial output. Requires NONE_HEADLESS to be defined.
-//#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
-//#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.  
+//#define NONE_HEADLESS
+//#define DEBUG
+#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
+//#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -14,6 +14,7 @@
 #include "PulseInputTask.h"
 #include "PulseInputIsrTest.h"
 #include "TeslaSheets.h"
+#include "MqttClient.h"
 
 #ifdef NONE_HEADLESS
 #include <wait_for_any_key.h>
@@ -165,38 +166,68 @@ void loop() {
                                                                       #ifdef STACK_WATERMARK
                                                                         unsigned long stackNow = millis();
                                                                         if (stackNow - lastStackLog >= 5000) {
-                                                                          Serial.println(">>>>>>>>>>>>>>>>>>>>>>   Checking Stack sizes   <<<<<<<<<<<<<<<<<<<<<<<<<<<<");
                                                                           lastStackLog = stackNow;
                                                                           if (gNetworkTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = NETWORK_TASK_STACK_SIZE - gNetworkTaskStackHighWater;
                                                                             uint32_t optimalNetworkTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
                                                                             if ( abs( (int)NETWORK_TASK_STACK_SIZE - (int)optimalNetworkTaskStackSize) > 100 )  // Only log if there's a significant difference
-                                                                              Serial.printf("Change networkTaskStackSize to: %u words (%u bytes)\n",
-                                                                                (unsigned)optimalNetworkTaskStackSize,
-                                                                                (unsigned)(optimalNetworkTaskStackSize * sizeof(StackType_t))
-                                                                              );
+                                                                              {
+                                                                                char logMsg[128] = {0};
+                                                                                snprintf(logMsg,
+                                                                                         sizeof(logMsg),
+                                                                                         "Change networkTaskStackSize to: %u words (%u bytes)",
+                                                                                         (unsigned)optimalNetworkTaskStackSize,
+                                                                                         (unsigned)(optimalNetworkTaskStackSize * sizeof(StackType_t)));
+                                                                                publishMqttLogStatus(logMsg, false);
+                                                                              }
                                                                           }
                                                                           if (gWifiConnTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = WIFI_CONNECTION_TASK_STACK_SIZE - gWifiConnTaskStackHighWater;
                                                                             uint32_t optimalWifiConnTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
                                                                             if ( abs( (int)WIFI_CONNECTION_TASK_STACK_SIZE - (int)optimalWifiConnTaskStackSize) > 100 )  // Only log if there's a significant difference
-                                                                              Serial.printf("Change wifiConnectionTaskStackSize to: %u words (%u bytes)\n",
-                                                                                (unsigned)optimalWifiConnTaskStackSize,
-                                                                                (unsigned)(optimalWifiConnTaskStackSize * sizeof(StackType_t))
-                                                                              );
+                                                                              {
+                                                                                char logMsg[128] = {0};
+                                                                                snprintf(logMsg,
+                                                                                         sizeof(logMsg),
+                                                                                         "Change wifiConnectionTaskStackSize to: %u words (%u bytes)",
+                                                                                         (unsigned)optimalWifiConnTaskStackSize,
+                                                                                         (unsigned)(optimalWifiConnTaskStackSize * sizeof(StackType_t)));
+                                                                                publishMqttLogStatus(logMsg, false);
+                                                                              }
                                                                           }
                                                                           if (gPulseInputTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = PULSE_INPUT_TASK_STACK_SIZE - gPulseInputTaskStackHighWater;
                                                                             uint32_t optimalPulseInputTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
                                                                             if ( abs( (int)PULSE_INPUT_TASK_STACK_SIZE - (int)optimalPulseInputTaskStackSize) > 100 )  // Only log if there's a significant difference
-                                                                              Serial.printf("Change pulseInputTaskStackSize to: %u words (%u bytes)\n",
-                                                                                (unsigned)optimalPulseInputTaskStackSize,
-                                                                                (unsigned)(optimalPulseInputTaskStackSize * sizeof(StackType_t))
-                                                                              );
+                                                                              {
+                                                                                char logMsg[128] = {0};
+                                                                                snprintf(logMsg,
+                                                                                         sizeof(logMsg),
+                                                                                         "Change pulseInputTaskStackSize to: %u words (%u bytes)",
+                                                                                         (unsigned)optimalPulseInputTaskStackSize,
+                                                                                         (unsigned)(optimalPulseInputTaskStackSize * sizeof(StackType_t)));
+                                                                                publishMqttLogStatus(logMsg, false);
+                                                                              }
                                                                           }
-                                                                          Serial.printf("Initial Free Heap: %u bytes\n", (unsigned)gInitialFreeHeapSize);
-                                                                          Serial.printf("Current Free Heap: %u bytes\n", xPortGetFreeHeapSize());
-                                                                          Serial.println("=============================================================================");
+                                                                          /*
+                                                                          
+                                                                          {
+                                                                            char logMsg[96] = {0};
+                                                                            snprintf(logMsg,
+                                                                                     sizeof(logMsg),
+                                                                                     "Initial Free Heap: %u bytes",
+                                                                                     (unsigned)gInitialFreeHeapSize);
+                                                                            publishMqttLogStatus(logMsg, false);
+                                                                          }
+                                                                          {
+                                                                            char logMsg[96] = {0};
+                                                                            snprintf(logMsg,
+                                                                                     sizeof(logMsg),
+                                                                                     "Current Free Heap: %u bytes",
+                                                                                     (unsigned)xPortGetFreeHeapSize());
+                                                                            publishMqttLogStatus(logMsg, false);
+                                                                          }
+                                                                          */
                                                                         }
                                                                       #endif
 
@@ -217,6 +248,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
                                  uint32_t &nextCheckMs,
                                  bool &pendingTelemetryToSend,
                                  float &pendingEnergyKwh) {
+  static uint32_t lastTimeFailLogMs = 0;
   if (pendingTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     sendTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh);
     pendingTelemetryToSend = false;
@@ -230,12 +262,15 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
         if (getLatestEnergyKwh(&energyKwh)) {
           if (WiFi.status() == WL_CONNECTED) {
             sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh);
+            publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Daily telemetry sent", false);
           } else {
             pendingEnergyKwh = energyKwh;
             pendingTelemetryToSend = true;
+            publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Daily telemetry pending (WiFi offline)", false);
           }
         }
         requestSubtotalReset();
+        publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Day changed, subtotal reset requested", false);
       }
       lastDay = timeinfo.tm_mday;
 
@@ -245,6 +280,12 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
 
       uint32_t checkInterval = max(secsUntilMidnight / 2, 600U) * 1000;
       nextCheckMs = millis() + checkInterval;
+    } else {
+      uint32_t nowMs = millis();
+      if (nowMs - lastTimeFailLogMs >= 300000U) {
+        publishMqttLogStatus("getLocalTime failed; daily telemetry/reset deferred", false);
+        lastTimeFailLogMs = nowMs;
+      }
     }
   }
 }

@@ -26,3 +26,9 @@ extern volatile UBaseType_t gNetworkTaskStackHighWater;
 extern volatile UBaseType_t gWifiConnTaskStackHighWater;
 extern volatile UBaseType_t gPulseInputTaskStackHighWater;
 extern volatile size_t  gInitialFreeHeapSize;
+
+// Task stack sizes (in words)
+constexpr int NETWORK_TASK_STACK_SIZE = 5069;
+constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2505;
+constexpr int PULSE_INPUT_TASK_STACK_SIZE = 3440; // 8KB stack size for the task
+constexpr int PULSE_ISR_TEST_TASK_STACK_SIZE = 4096;

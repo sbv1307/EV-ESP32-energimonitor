@@ -9,6 +9,9 @@ const String MQTT_DEVICE_NAME               = "esp32-device_";      // MQTT devi
 const String MQTT_SKETCH_VERSION            = "/sketch_version";    // MQTT topic suffix for sketch version, include leading '/'
 const String MQTT_CLIENT                    = "ev-energy-monitor_"; // MQTT client prefix. Include trailing underscore
 const String MQTT_ONLINE                    = "/online";            // MQTT topic suffix for online status. Include leading '/'
+const String MQTT_LOG_SUFFIX                = "/log";               // MQTT topic suffix for log messages. Include leading '/'
+const String MQTT_LOG_STATUS_SUFFIX         = "/log/status";        // MQTT topic suffix for status logs. Include leading '/'
+const String MQTT_LOG_EMAIL_SUFFIX          = "/log/email";         // MQTT topic suffix for email-routed logs. Include leading '/'
 const String  MQTT_SENSOR_ENERGY_ENTITYNAME  = "Subtotal";          // name dislayed in HA device. No special chars, no spaces
 const String  MQTT_SENSOR_POWER_ENTITYNAME  = "Forbrug";            // name dislayed in HA device. No special chars, no spaces
 const String  MQTT_NUMBER_ENERGY_ENTITYNAME  = "Total";             // name dislayed in HA device. No special chars, no spaces
@@ -54,4 +57,7 @@ void mqttResume();
 
 void publishMqttConfigurations();
 void publishMqttEnergy(float, float, float);
+bool publishMqttLog(const char* topicSuffix, const char* message, bool retain = false);
+bool publishMqttLogStatus(const char* message, bool retain = false);
+bool publishMqttLogEmail(const char* message, bool retain = false);
 

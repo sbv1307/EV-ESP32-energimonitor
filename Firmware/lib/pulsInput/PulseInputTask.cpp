@@ -1,5 +1,5 @@
 //#define DEBUG
-//#define STACK_WATERMARK
+#define STACK_WATERMARK
 
 #include "PulseInputTask.h"
 #include "MqttClient.h"
@@ -30,6 +30,8 @@ void requestSubtotalReset() {
   portENTER_CRITICAL(&SubtotalResetMux);
   SubtotalResetPending = true;
   portEXIT_CRITICAL(&SubtotalResetMux);
+
+  publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Subtotal reset requested", false);
 }
 
 bool getLatestEnergyKwh(float* energyKwh) {
@@ -101,6 +103,10 @@ void IRAM_ATTR PulseInputISR() {
   portYIELD_FROM_ISR(higherPriorityTaskWoken);
 }
 
+/* ###################################################################################################
+ *             I S   P U L S E    I N P U T   R E A D Y
+ * ###################################################################################################
+ */
 bool isPulseInputReady() {
   return PulseInputQueue != nullptr && PulseInputTaskReady;
 }
@@ -150,7 +156,11 @@ static void PulseInputTask( void* pvParameters) {
                                                     #endif
 
   if (PulseInputQueue == nullptr) {
-    Serial.println("Pulse count queue not initialized!");
+
+                                                    #ifdef DEBUG
+                                                    Serial.println("Pulse count queue not initialized!");
+                                                    #endif
+    
     PulseInputTaskHandle = nullptr;
     vTaskDelete(nullptr);
     return;
@@ -180,16 +190,39 @@ static void PulseInputTask( void* pvParameters) {
       LatestEnergyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
       portEXIT_CRITICAL(&EnergyKwhMux);
 
+      float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      float subtotalKwh = (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
+
       saveToNVS(pulseCounter, subtotalPulseCounter);
     }
 
+    bool shouldResetSubtotal = false;
+    portENTER_CRITICAL(&SubtotalResetMux);
     if (SubtotalResetPending) {
-      portENTER_CRITICAL(&SubtotalResetMux);
       SubtotalResetPending = false;
-      portEXIT_CRITICAL(&SubtotalResetMux);
+      shouldResetSubtotal = true;
+    }
+    portEXIT_CRITICAL(&SubtotalResetMux);
+
+    if (shouldResetSubtotal) {
+
+      char resetMsg[128] = {0};
+      snprintf(resetMsg,
+               sizeof(resetMsg),
+               "Subtotal reset handling: total=%lu subtotal=%u",
+               (unsigned long)pulseCounter,
+               (unsigned)subtotalPulseCounter);
+      publishMqttLogStatus(resetMsg, false);
 
       subtotalPulseCounter = 0;
       saveToNVS(pulseCounter, subtotalPulseCounter);
+
+      float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      float subtotalKwh = 0.0f;
+      publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
+
+      publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Subtotal reset applied", false);
     }
 
     if (xQueueReceive(PulseInputQueue, &ts, pdMS_TO_TICKS(1000))) {
@@ -273,7 +306,11 @@ void startPulseInputTask(TaskParams_t* params) {
   if (PulseInputQueue == nullptr) {
     PulseInputQueue = xQueueCreate(10, sizeof(unsigned long));
     if (!PulseInputQueue) {
-      Serial.println("Pulse count queue creation failed!");
+
+                                                #ifdef DEBUG
+                                                Serial.println("Pulse count queue creation failed!");
+                                                #endif
+
       return;
     }
   }
