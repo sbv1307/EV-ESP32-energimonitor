@@ -178,7 +178,9 @@ void loop() {
                                                                                          "Change networkTaskStackSize to: %u words (%u bytes)",
                                                                                          (unsigned)optimalNetworkTaskStackSize,
                                                                                          (unsigned)(optimalNetworkTaskStackSize * sizeof(StackType_t)));
-                                                                                publishMqttLogStatus(logMsg, false);
+                                                                                
+                                                                                
+                                                                                publishMqttLog("log/stack/network", logMsg, false);
                                                                               }
                                                                           }
                                                                           if (gWifiConnTaskStackHighWater > 0) {
@@ -192,7 +194,7 @@ void loop() {
                                                                                          "Change wifiConnectionTaskStackSize to: %u words (%u bytes)",
                                                                                          (unsigned)optimalWifiConnTaskStackSize,
                                                                                          (unsigned)(optimalWifiConnTaskStackSize * sizeof(StackType_t)));
-                                                                                publishMqttLogStatus(logMsg, false);
+                                                                                publishMqttLog("log/stack/wifiConnection", logMsg, false);
                                                                               }
                                                                           }
                                                                           if (gPulseInputTaskStackHighWater > 0) {
@@ -206,7 +208,7 @@ void loop() {
                                                                                          "Change pulseInputTaskStackSize to: %u words (%u bytes)",
                                                                                          (unsigned)optimalPulseInputTaskStackSize,
                                                                                          (unsigned)(optimalPulseInputTaskStackSize * sizeof(StackType_t)));
-                                                                                publishMqttLogStatus(logMsg, false);
+                                                                                publishMqttLog("log/stack/pulseInput", logMsg, false);
                                                                               }
                                                                           }
                                                                           /*

@@ -68,7 +68,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
                    String(telemetry.batteryLevelPercent, 1) + "," +
                    String(rangeKm, 2) + "," +
                    String(odometerKm, 2) + "," +
-                   String(energyKwh, 3) + "," +
+                   String(energyKwh, 2) + "," +
                    String(telemetry.latitude, 6) + "," +
                    String(telemetry.longitude, 6);
 
