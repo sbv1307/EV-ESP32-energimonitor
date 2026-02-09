@@ -16,6 +16,8 @@ static volatile bool PulseCounterUpdatePending = false;
 static volatile uint32_t PendingPulseCounter = 0;
 static portMUX_TYPE EnergyKwhMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile float LatestEnergyKwh = 0.0f;
+static volatile float LatestPowerW = 0.0f;
+static volatile float LatestSubtotalKwh = 0.0f;
 static portMUX_TYPE SubtotalResetMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool SubtotalResetPending = false;
 
@@ -41,6 +43,19 @@ bool getLatestEnergyKwh(float* energyKwh) {
 
   portENTER_CRITICAL(&EnergyKwhMux);
   *energyKwh = LatestEnergyKwh;
+  portEXIT_CRITICAL(&EnergyKwhMux);
+  return true;
+}
+
+bool getLatestEnergySnapshot(float* powerW, float* energyKwh, float* subtotalKwh) {
+  if (!powerW || !energyKwh || !subtotalKwh) {
+    return false;
+  }
+
+  portENTER_CRITICAL(&EnergyKwhMux);
+  *powerW = LatestPowerW;
+  *energyKwh = LatestEnergyKwh;
+  *subtotalKwh = LatestSubtotalKwh;
   portEXIT_CRITICAL(&EnergyKwhMux);
   return true;
 }
@@ -147,6 +162,14 @@ static void PulseInputTask( void* pvParameters) {
   uint16_t subtotalPulseCounter = 0;
   uint32_t pulseCounter = loadFromNVS(&subtotalPulseCounter);
   float powerW = 0.0f;
+  float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+  float subtotalKwh = (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+
+  portENTER_CRITICAL(&EnergyKwhMux);
+  LatestPowerW = powerW;
+  LatestEnergyKwh = energyKwh;
+  LatestSubtotalKwh = subtotalKwh;
+  portEXIT_CRITICAL(&EnergyKwhMux);
 
 
   uint32_t lastSaveMs = millis();
@@ -186,12 +209,14 @@ static void PulseInputTask( void* pvParameters) {
       PulseCounterUpdatePending = false;
       portEXIT_CRITICAL(&PulseCounterMux);
 
-      portENTER_CRITICAL(&EnergyKwhMux);
-      LatestEnergyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
-      portEXIT_CRITICAL(&EnergyKwhMux);
-
       float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
       float subtotalKwh = (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+
+      portENTER_CRITICAL(&EnergyKwhMux);
+      LatestPowerW = powerW;
+      LatestEnergyKwh = energyKwh;
+      LatestSubtotalKwh = subtotalKwh;
+      portEXIT_CRITICAL(&EnergyKwhMux);
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
 
       saveToNVS(pulseCounter, subtotalPulseCounter);
@@ -220,6 +245,11 @@ static void PulseInputTask( void* pvParameters) {
 
       float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
       float subtotalKwh = 0.0f;
+      portENTER_CRITICAL(&EnergyKwhMux);
+      LatestPowerW = powerW;
+      LatestEnergyKwh = energyKwh;
+      LatestSubtotalKwh = subtotalKwh;
+      portEXIT_CRITICAL(&EnergyKwhMux);
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
 
       publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Subtotal reset applied", false);
@@ -251,12 +281,14 @@ static void PulseInputTask( void* pvParameters) {
       }
       lastTs = ts;
 
-      publishMqttEnergy(powerW, 
-                        (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh,
-                        (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh);
+      float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      float subtotalKwh = (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      publishMqttEnergy(powerW, energyKwh, subtotalKwh);
 
       portENTER_CRITICAL(&EnergyKwhMux);
-      LatestEnergyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      LatestPowerW = powerW;
+      LatestEnergyKwh = energyKwh;
+      LatestSubtotalKwh = subtotalKwh;
       portEXIT_CRITICAL(&EnergyKwhMux);
 
     }

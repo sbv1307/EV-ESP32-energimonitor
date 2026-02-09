@@ -16,4 +16,6 @@ void setPulseCounterFromMqtt(uint32_t newPulseCounter);
 
 bool getLatestEnergyKwh(float* energyKwh);
 
+bool getLatestEnergySnapshot(float* powerW, float* energyKwh, float* subtotalKwh);
+
 void requestSubtotalReset();
