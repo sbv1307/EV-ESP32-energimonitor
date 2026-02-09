@@ -167,49 +167,54 @@ void loop() {
                                                                         unsigned long stackNow = millis();
                                                                         if (stackNow - lastStackLog >= 5000) {
                                                                           lastStackLog = stackNow;
+                                                                          static uint32_t maxOptimalNetworkTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalWifiConnTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalPulseInputTaskStackSize = 0;
+
                                                                           if (gNetworkTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = NETWORK_TASK_STACK_SIZE - gNetworkTaskStackHighWater;
                                                                             uint32_t optimalNetworkTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
-                                                                            if ( abs( (int)NETWORK_TASK_STACK_SIZE - (int)optimalNetworkTaskStackSize) > 100 )  // Only log if there's a significant difference
-                                                                              {
-                                                                                char logMsg[128] = {0};
-                                                                                snprintf(logMsg,
-                                                                                         sizeof(logMsg),
-                                                                                         "Change networkTaskStackSize to: %u words (%u bytes)",
-                                                                                         (unsigned)optimalNetworkTaskStackSize,
-                                                                                         (unsigned)(optimalNetworkTaskStackSize * sizeof(StackType_t)));
-                                                                                
-                                                                                
-                                                                                publishMqttLog("log/stack/network", logMsg, false);
-                                                                              }
+                                                                            bool significantDiff = abs((int)NETWORK_TASK_STACK_SIZE - (int)optimalNetworkTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalNetworkTaskStackSize > maxOptimalNetworkTaskStackSize) {
+                                                                              maxOptimalNetworkTaskStackSize = optimalNetworkTaskStackSize;
+                                                                              char logMsg[128] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change networkTaskStackSize to: %u words (%u bytes)",
+                                                                                       (unsigned)optimalNetworkTaskStackSize,
+                                                                                       (unsigned)(optimalNetworkTaskStackSize * sizeof(StackType_t)));
+                                                                              publishMqttLog("log/stack/network", logMsg, false);
+                                                                            }
                                                                           }
                                                                           if (gWifiConnTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = WIFI_CONNECTION_TASK_STACK_SIZE - gWifiConnTaskStackHighWater;
                                                                             uint32_t optimalWifiConnTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
-                                                                            if ( abs( (int)WIFI_CONNECTION_TASK_STACK_SIZE - (int)optimalWifiConnTaskStackSize) > 100 )  // Only log if there's a significant difference
-                                                                              {
-                                                                                char logMsg[128] = {0};
-                                                                                snprintf(logMsg,
-                                                                                         sizeof(logMsg),
-                                                                                         "Change wifiConnectionTaskStackSize to: %u words (%u bytes)",
-                                                                                         (unsigned)optimalWifiConnTaskStackSize,
-                                                                                         (unsigned)(optimalWifiConnTaskStackSize * sizeof(StackType_t)));
-                                                                                publishMqttLog("log/stack/wifiConnection", logMsg, false);
-                                                                              }
+                                                                            bool significantDiff = abs((int)WIFI_CONNECTION_TASK_STACK_SIZE - (int)optimalWifiConnTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalWifiConnTaskStackSize > maxOptimalWifiConnTaskStackSize) {
+                                                                              maxOptimalWifiConnTaskStackSize = optimalWifiConnTaskStackSize;
+                                                                              char logMsg[128] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change wifiConnectionTaskStackSize to: %u words (%u bytes)",
+                                                                                       (unsigned)optimalWifiConnTaskStackSize,
+                                                                                       (unsigned)(optimalWifiConnTaskStackSize * sizeof(StackType_t)));
+                                                                              publishMqttLog("log/stack/wifiConnection", logMsg, false);
+                                                                            }
                                                                           }
                                                                           if (gPulseInputTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = PULSE_INPUT_TASK_STACK_SIZE - gPulseInputTaskStackHighWater;
                                                                             uint32_t optimalPulseInputTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
-                                                                            if ( abs( (int)PULSE_INPUT_TASK_STACK_SIZE - (int)optimalPulseInputTaskStackSize) > 100 )  // Only log if there's a significant difference
-                                                                              {
-                                                                                char logMsg[128] = {0};
-                                                                                snprintf(logMsg,
-                                                                                         sizeof(logMsg),
-                                                                                         "Change pulseInputTaskStackSize to: %u words (%u bytes)",
-                                                                                         (unsigned)optimalPulseInputTaskStackSize,
-                                                                                         (unsigned)(optimalPulseInputTaskStackSize * sizeof(StackType_t)));
-                                                                                publishMqttLog("log/stack/pulseInput", logMsg, false);
-                                                                              }
+                                                                            bool significantDiff = abs((int)PULSE_INPUT_TASK_STACK_SIZE - (int)optimalPulseInputTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalPulseInputTaskStackSize > maxOptimalPulseInputTaskStackSize) {
+                                                                              maxOptimalPulseInputTaskStackSize = optimalPulseInputTaskStackSize;
+                                                                              char logMsg[128] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change pulseInputTaskStackSize to: %u words (%u bytes)",
+                                                                                       (unsigned)optimalPulseInputTaskStackSize,
+                                                                                       (unsigned)(optimalPulseInputTaskStackSize * sizeof(StackType_t)));
+                                                                              publishMqttLog("log/stack/pulseInput", logMsg, false);
+                                                                            }
                                                                           }
                                                                           /*
                                                                           
