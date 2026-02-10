@@ -27,7 +27,7 @@ void otaInit() {
       } else {  // U_SPIFFS
         type = "filesystem";
       }
-      Serial.println("OTA Start updating " + type);
+      publishMqttLogStatus(("OTA start: " + type).c_str(), false);
       #ifdef DEBUG
                                                 Serial.println("Network Task stopped for OTA update.");
                                                 #endif
@@ -36,27 +36,24 @@ void otaInit() {
     */                                            
     })
     .onEnd([]() {
-      Serial.println("\nOTA End");
+      publishMqttLogStatus("OTA end", false);
+      mqttResume();  // Resume MQTT after OTA completes
     })
     .onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      char msg[48] = {0};
+      unsigned int pct = (total == 0) ? 0 : (progress / (total / 100));
+      snprintf(msg, sizeof(msg), "OTA progress: %u%%", pct);
+      publishMqttLogStatus(msg, false);
     })
     .onError([](ota_error_t error) {
-      Serial.printf("OTA Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) {
-        Serial.println("Auth Failed");
-      } else if (error == OTA_BEGIN_ERROR) {
-        Serial.println("Begin Failed");
-      } else if (error == OTA_CONNECT_ERROR) {
-        Serial.println("Connect Failed");
-      } else if (error == OTA_RECEIVE_ERROR) {
-        Serial.println("Receive Failed");
-      } else if (error == OTA_END_ERROR) {
-        Serial.println("End Failed");
-      }
+      char msg[32] = {0};
+      snprintf(msg, sizeof(msg), "OTA error: %u", (unsigned)error);
+      publishMqttLogStatus(msg, false);
+      mqttResume();  // Ensure MQTT resumes even on error
     });
 
   ArduinoOTA.begin();
+  publishMqttLogStatus("OTA service initialized", false);
   
                                                 #ifdef DEBUG
                                                 Serial.println("OTA service initialized");
