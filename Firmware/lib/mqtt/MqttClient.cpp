@@ -21,10 +21,15 @@ static WiFiClient wifiClient;
 static PubSubClient mqttClient(wifiClient);
 
 static QueueHandle_t mqttQueue = nullptr;
-static String mqttBrokerIP;
-static uint16_t mqttBrokerPort;
+static QueueHandle_t mqttRxQueue = nullptr;
 static volatile bool mqttPaused = false;
 static TaskParams_t* mqttParams = nullptr;
+
+struct MqttRxMessage {
+  char topic[MQTT_TOPIC_LEN];
+  char payload[MQTT_PAYLOAD_LEN];
+  uint16_t length;
+};
 
 static void formatLogTimestamp(char* buffer, size_t bufferSize) {
   if (!buffer || bufferSize == 0) {
@@ -143,6 +148,11 @@ void mqttInit(TaskParams_t* params) {
   mqttQueue = xQueueCreate(10, sizeof(MqttMessage));
   if (!mqttQueue) {
     Serial.println("MqttClient: MQTT queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
+  }
+
+  mqttRxQueue = xQueueCreate(6, sizeof(MqttRxMessage));
+  if (!mqttRxQueue) {
+    Serial.println("MqttClient: MQTT RX queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
   }
 }
 
@@ -282,34 +292,52 @@ void initializeMQTTGlobals()
  *  This function is called, when a subscribed topic receives a message.
  */
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  JsonDocument doc;                         // 
-  byte IRQ_PIN_reference = 0;
-  String topicString = String(topic);
+  if (!mqttRxQueue || !topic || !payload || length == 0) {
+    return;
+  }
+
+  MqttRxMessage msg{};
+  strncpy(msg.topic, topic, MQTT_TOPIC_LEN - 1);
+
+  if (length >= MQTT_PAYLOAD_LEN) {
+    length = MQTT_PAYLOAD_LEN - 1;
+  }
+  memcpy(msg.payload, payload, length);
+  msg.payload[length] = '\0';
+  msg.length = static_cast<uint16_t>(length);
+
+  xQueueSend(mqttRxQueue, &msg, 0);
+}
+
+void mqttProcessRxQueue() {
+  if (!mqttRxQueue) {
+    return;
+  }
+
+  MqttRxMessage msg;
+  while (xQueueReceive(mqttRxQueue, &msg, 0) == pdTRUE) {
+    JsonDocument doc;
+    String topicString = String(msg.topic);
 
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Message arrived [");
                                                                     Serial.print(topicString);
-                                                                    Serial.print("] Payload: "); 
-                                                                    for (unsigned int i = 0; i < length; i++) {
-                                                                      Serial.print((char)payload[i]);
-                                                                    }
-                                                                    Serial.println();
+                                                                    Serial.print("] Payload: ");
+                                                                    Serial.println(msg.payload);
                                                                     #endif
-  if (topicString.startsWith(MQTT_PREFIX) && topicString.endsWith(MQTT_SUFFIX_SET)) {
-    // Handle set commands
-    DeserializationError error = deserializeJson(doc, payload, length);
-    if (error) {
+    if (topicString.startsWith(MQTT_PREFIX) && topicString.endsWith(MQTT_SUFFIX_SET)) {
+      DeserializationError error = deserializeJson(doc, msg.payload, msg.length);
+      if (error) {
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: JSON deserialization failed: ");
                                                                     Serial.println(error.c_str());
                                                                     #endif
-      return;
-    }
+        continue;
+      }
 
-    // Process each key-value pair in the JSON document
-    for (JsonPair kv : doc.as<JsonObject>()) {
-      String key = kv.key().c_str();
-      String value = kv.value().as<String>();
+      for (JsonPair kv : doc.as<JsonObject>()) {
+        String key = kv.key().c_str();
+        String value = kv.value().as<String>();
 
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Processing command - Key: ");
@@ -318,28 +346,25 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
                                                                     Serial.println(value);
                                                                     #endif
 
-      // Add handling for specific keys here
-      // Example:
-      if (key == MQTT_NUMBER_ENERGY_ENTITYNAME) {
-        // Execute action based on value
-        float newEnergyValue = value.toFloat();
+        if (key == MQTT_NUMBER_ENERGY_ENTITYNAME) {
+          float newEnergyValue = value.toFloat();
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Setting new energy value to: ");
                                                                     Serial.println(newEnergyValue);
                                                                     #endif
 
-        if (mqttParams != nullptr) {
-          uint32_t newPulseCounter = (uint32_t)(newEnergyValue * mqttParams->pulse_per_kWh + 0.5f);
-          setPulseCounterFromMqtt(newPulseCounter);
-        }
-      } else if (key == MQTT_SENSOR_ENERGY_ENTITYNAME) {
-        if (value.equalsIgnoreCase("true")) {
-          requestSubtotalReset();
+          if (mqttParams != nullptr) {
+            uint32_t newPulseCounter = (uint32_t)(newEnergyValue * mqttParams->pulse_per_kWh + 0.5f);
+            setPulseCounterFromMqtt(newPulseCounter);
+          }
+        } else if (key == MQTT_SENSOR_ENERGY_ENTITYNAME) {
+          if (value.equalsIgnoreCase("true")) {
+            requestSubtotalReset();
+          }
         }
       }
     }
   }
-
 }
 
 /* ###################################################################################################

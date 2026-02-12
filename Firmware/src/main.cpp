@@ -125,9 +125,6 @@ void loop() {
   static unsigned long lastWiFiCheck = 0;
   const unsigned long wifiCheckInterval = 5000; // Check every 5 seconds
   static unsigned long lastStackLog = 0;
-  static int NetworkTaskMaxStack = 0;
-  static int WifiConnTaskMaxStack = 0;
-  static int PulseInputTaskMaxStack = 0;
   static int lastDay = -1;
   static uint32_t nextCheckMs = 0;
   static bool pendingTelemetryToSend = false;
@@ -150,6 +147,8 @@ void loop() {
   
   // Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. This will only start if not already running.
   startPulseInputIsrTestTask();
+
+  mqttProcessRxQueue();
 
   handleDailyTelemetry(&networkParams,
                        lastDay,
@@ -180,9 +179,9 @@ void loop() {
                                                                               char logMsg[128] = {0};
                                                                               snprintf(logMsg,
                                                                                        sizeof(logMsg),
-                                                                                       "Change networkTaskStackSize to: %u words (%u bytes)",
-                                                                                       (unsigned)optimalNetworkTaskStackSize,
-                                                                                       (unsigned)(optimalNetworkTaskStackSize * sizeof(StackType_t)));
+                                                                                       "Change networkTaskStackSize from: %u to: %u words",
+                                                                                       (unsigned)NETWORK_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalNetworkTaskStackSize);
                                                                               publishMqttLog("log/stack/network", logMsg, false);
                                                                             }
                                                                           }
@@ -195,9 +194,9 @@ void loop() {
                                                                               char logMsg[128] = {0};
                                                                               snprintf(logMsg,
                                                                                        sizeof(logMsg),
-                                                                                       "Change wifiConnectionTaskStackSize to: %u words (%u bytes)",
-                                                                                       (unsigned)optimalWifiConnTaskStackSize,
-                                                                                       (unsigned)(optimalWifiConnTaskStackSize * sizeof(StackType_t)));
+                                                                                       "Change wifiConnectionTaskStackSize from: %u to: %u words",
+                                                                                       (unsigned)WIFI_CONNECTION_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalWifiConnTaskStackSize);
                                                                               publishMqttLog("log/stack/wifiConnection", logMsg, false);
                                                                             }
                                                                           }
@@ -210,9 +209,9 @@ void loop() {
                                                                               char logMsg[128] = {0};
                                                                               snprintf(logMsg,
                                                                                        sizeof(logMsg),
-                                                                                       "Change pulseInputTaskStackSize to: %u words (%u bytes)",
-                                                                                       (unsigned)optimalPulseInputTaskStackSize,
-                                                                                       (unsigned)(optimalPulseInputTaskStackSize * sizeof(StackType_t)));
+                                                                                       "Change pulseInputTaskStackSize from: %u to: %u words",
+                                                                                       (unsigned)PULSE_INPUT_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalPulseInputTaskStackSize);
                                                                               publishMqttLog("log/stack/pulseInput", logMsg, false);
                                                                             }
                                                                           }
