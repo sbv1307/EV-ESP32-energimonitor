@@ -52,6 +52,7 @@ bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain);
 void mqttInit( TaskParams_t* params );
 void mqttLoop( TaskParams_t* params );
 void mqttProcessRxQueue();
+void mqttProcessDeferredQueue();
 void mqttCallback(char*, byte*, unsigned int);
 void mqttPause();
 void mqttResume();

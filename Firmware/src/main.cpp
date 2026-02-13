@@ -149,6 +149,7 @@ void loop() {
   startPulseInputIsrTestTask();
 
   mqttProcessRxQueue();
+  mqttProcessDeferredQueue();
 
   handleDailyTelemetry(&networkParams,
                        lastDay,

@@ -22,6 +22,7 @@ static PubSubClient mqttClient(wifiClient);
 
 static QueueHandle_t mqttQueue = nullptr;
 static QueueHandle_t mqttRxQueue = nullptr;
+static QueueHandle_t mqttDeferredQueue = nullptr;
 static volatile bool mqttPaused = false;
 static TaskParams_t* mqttParams = nullptr;
 
@@ -30,6 +31,23 @@ struct MqttRxMessage {
   char payload[MQTT_PAYLOAD_LEN];
   uint16_t length;
 };
+
+enum class MqttDeferredCommandType : uint8_t {
+  PublishConfigurations = 1
+};
+
+struct MqttDeferredCommand {
+  MqttDeferredCommandType type;
+};
+
+static bool mqttEnqueueDeferredCommand(MqttDeferredCommandType type) {
+  if (!mqttDeferredQueue) {
+    return false;
+  }
+
+  MqttDeferredCommand cmd{type};
+  return xQueueSend(mqttDeferredQueue, &cmd, 0) == pdTRUE;
+}
 
 static void formatLogTimestamp(char* buffer, size_t bufferSize) {
   if (!buffer || bufferSize == 0) {
@@ -97,7 +115,7 @@ static void reconnect(TaskParams_t* params) {
 
       publish_sketch_version( params);
 
-      publishMqttConfigurations();
+      mqttEnqueueDeferredCommand(MqttDeferredCommandType::PublishConfigurations);
 
       //publishMqttEnergy(0.0f, 0, 0);  // Initial publish with zero values
 
@@ -153,6 +171,11 @@ void mqttInit(TaskParams_t* params) {
   mqttRxQueue = xQueueCreate(6, sizeof(MqttRxMessage));
   if (!mqttRxQueue) {
     Serial.println("MqttClient: MQTT RX queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
+  }
+
+  mqttDeferredQueue = xQueueCreate(2, sizeof(MqttDeferredCommand));
+  if (!mqttDeferredQueue) {
+    Serial.println("MqttClient: MQTT deferred queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
   }
 }
 
@@ -363,6 +386,23 @@ void mqttProcessRxQueue() {
           }
         }
       }
+    }
+  }
+}
+
+void mqttProcessDeferredQueue() {
+  if (!mqttDeferredQueue) {
+    return;
+  }
+
+  MqttDeferredCommand cmd;
+  while (xQueueReceive(mqttDeferredQueue, &cmd, 0) == pdTRUE) {
+    switch (cmd.type) {
+      case MqttDeferredCommandType::PublishConfigurations:
+        publishMqttConfigurations();
+        break;
+      default:
+        break;
     }
   }
 }
