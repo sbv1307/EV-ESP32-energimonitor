@@ -14,8 +14,6 @@ static void PulseInputIsrTestTask(void* pvParameters) {
   TickType_t lastPulseTick = xTaskGetTickCount();
   uint32_t lastNotReadyLogMs = 0;
   bool wasReady = false;
-  pinMode(TEST_ANALOG_PIN, OUTPUT);
-  digitalWrite(TEST_ANALOG_PIN, HIGH); // Supply power for potentiometer to simulate power consumption levels
 
   while (true) {
     while (!isPulseInputReady()) {
