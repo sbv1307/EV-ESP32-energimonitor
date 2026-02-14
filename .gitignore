@@ -12,3 +12,4 @@ sym-lib-table
 Developer/*
 build_timestamp.h
 assistant-format.md
+privateConfig.h

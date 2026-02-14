@@ -11,7 +11,6 @@
 
 static const char* TESLA_API_BASE_URL = "https://owner-api.teslamotors.com/api/1";
 static const char* TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/token";
-static const char* TESLA_PREF_NAMESPACE = "tesla";
 
 namespace {
 struct TeslaVehicleDataFlags {
@@ -35,9 +34,16 @@ struct TeslaAuthState {
 
 static TeslaAuthState gTeslaAuth;
 
+static String teslaReadStringPref(Preferences& pref, const char* key) {
+  if (!pref.isKey(key)) {
+    return String();
+  }
+  return pref.getString(key, "");
+}
+
 static void teslaStoreTokens() {
   Preferences pref;
-  pref.begin(TESLA_PREF_NAMESPACE, false);
+  pref.begin(TESLA_PREF_NVS_NAMESPACE, false);
   pref.putString("access_token", gTeslaAuth.accessToken);
   pref.putString("refresh_token", gTeslaAuth.refreshToken);
   pref.putULong64("expires_at", gTeslaAuth.expiresAt);
@@ -50,9 +56,9 @@ static void teslaLoadTokens() {
   }
 
   Preferences pref;
-  pref.begin(TESLA_PREF_NAMESPACE, false);
-  gTeslaAuth.accessToken = pref.getString("access_token", "");
-  gTeslaAuth.refreshToken = pref.getString("refresh_token", "");
+  pref.begin(TESLA_PREF_NVS_NAMESPACE, true);
+  gTeslaAuth.accessToken = teslaReadStringPref(pref, "access_token");
+  gTeslaAuth.refreshToken = teslaReadStringPref(pref, "refresh_token");
   gTeslaAuth.expiresAt = pref.getULong64("expires_at", 0);
   pref.end();
 

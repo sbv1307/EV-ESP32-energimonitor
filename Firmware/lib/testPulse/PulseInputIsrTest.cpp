@@ -4,14 +4,18 @@
 
 #include "PulseInputTask.h"
 #include "MqttClient.h"
+#include "ChargingSession.h"
 
 static TaskHandle_t PulseInputIsrTestTaskHandle = nullptr;
 
 static void PulseInputIsrTestTask(void* pvParameters) {
-  const TickType_t intervalTicks = (TickType_t)((uint64_t)4UL * 60UL * 60UL * (uint64_t)configTICK_RATE_HZ); // 6 times per day
-  TickType_t lastWakeTick = xTaskGetTickCount();
+  const TickType_t chargingIntervalTicks = pdMS_TO_TICKS(4500);
+  const TickType_t idleIntervalTicks = (TickType_t)((uint64_t)4UL * 60UL * 60UL * (uint64_t)configTICK_RATE_HZ); // 6 times per day
+  TickType_t lastPulseTick = xTaskGetTickCount();
   uint32_t lastNotReadyLogMs = 0;
   bool wasReady = false;
+  pinMode(TEST_ANALOG_PIN, OUTPUT);
+  digitalWrite(TEST_ANALOG_PIN, HIGH); // Supply power for potentiometer to simulate power consumption levels
 
   while (true) {
     while (!isPulseInputReady()) {
@@ -22,7 +26,7 @@ static void PulseInputIsrTestTask(void* pvParameters) {
       }
       wasReady = false;
       vTaskDelay(pdMS_TO_TICKS(1000));
-      lastWakeTick = xTaskGetTickCount();
+      lastPulseTick = xTaskGetTickCount();
     }
 
     if (!wasReady) {
@@ -30,9 +34,17 @@ static void PulseInputIsrTestTask(void* pvParameters) {
       wasReady = true;
     }
 
-    vTaskDelayUntil(&lastWakeTick, intervalTicks);
-    PulseInputISR();
-    publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "PulseInputIsrTestTask simulated pulse", false);
+    const TickType_t intervalTicks = isChargingSessionCharging() ? chargingIntervalTicks : idleIntervalTicks;
+    const TickType_t nowTick = xTaskGetTickCount();
+
+    if ((nowTick - lastPulseTick) >= intervalTicks) {
+      PulseInputISR();
+      publishMqttLog(MQTT_LOG_SUFFIX, "PulseInputIsrTestTask simulated pulse", false);
+      lastPulseTick = nowTick;
+      continue;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 

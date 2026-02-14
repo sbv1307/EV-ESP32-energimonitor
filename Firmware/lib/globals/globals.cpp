@@ -15,7 +15,7 @@ volatile size_t gInitialFreeHeapSize = 0;
 void initializeGlobals( TaskParams_t* params ) {
 
   Preferences pref;
-  pref.begin( NVS_NAMESPACE, false);
+  pref.begin( CONFIG_NVS_NAMESPACE, false);
   
   static unsigned long ptCorrection = pref.getULong("ptCorrection", 0);
   static uint16_t pulse_per_kWh = pref.getUShort("pulse_per_kWh", 100);
@@ -25,7 +25,7 @@ void initializeGlobals( TaskParams_t* params ) {
 
   static String sketchVersion = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
   const char* savedSketchVersion = sketchVersion.c_str();
-  const char* savedNvsNamespace = NVS_NAMESPACE;
+  const char* savedNvsNamespace = CONFIG_NVS_NAMESPACE;
   
   *params = {
     .wifiSSID       = SSID,

@@ -3,7 +3,9 @@
 
 #include "PulseInputTask.h"
 #include "MqttClient.h"
-#include "../tesla/TeslaSheets.h"
+#include "TeslaSheets.h"
+#include "config.h"
+
 #include <Preferences.h>
 
 #define SAVE_INTERVAL_MS 60000  // Save to NVS every 60 seconds
@@ -33,7 +35,7 @@ void requestSubtotalReset() {
   SubtotalResetPending = true;
   portEXIT_CRITICAL(&SubtotalResetMux);
 
-  publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Subtotal reset requested", false);
+  publishMqttLog(MQTT_LOG_SUFFIX, "Subtotal reset requested", false);
 }
 
 bool getLatestEnergyKwh(float* energyKwh) {
@@ -66,7 +68,7 @@ bool getLatestEnergySnapshot(float* powerW, float* energyKwh, float* subtotalKwh
  */
 uint32_t loadFromNVS(uint16_t* subtotalPulseCounter) {
   Preferences pref;
-  pref.begin("storage", true); // true = read-only
+  pref.begin(COUNT_NVS_NAMESPACE, true); // true = read-only
   uint32_t pulseCounter = pref.getUInt("pulse_count", 0);
   uint32_t subtotalStored = pref.getUInt("subtotal_count", 0);
   pref.end();
@@ -82,7 +84,7 @@ uint32_t loadFromNVS(uint16_t* subtotalPulseCounter) {
  */
 void saveToNVS(uint32_t pulseCounter, uint16_t subtotalPulseCounter) {
   Preferences pref;
-  pref.begin("storage", false); // false = read/write
+  pref.begin(COUNT_NVS_NAMESPACE, false); // false = read/write
   pref.putUInt("pulse_count", pulseCounter);
   pref.putUInt("subtotal_count", (uint32_t)subtotalPulseCounter);
   pref.end();
@@ -252,7 +254,7 @@ static void PulseInputTask( void* pvParameters) {
       portEXIT_CRITICAL(&EnergyKwhMux);
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
 
-      publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Subtotal reset applied", false);
+      publishMqttLog(MQTT_LOG_SUFFIX, "Subtotal reset applied", false);
     }
 
     if (xQueueReceive(PulseInputQueue, &ts, pdMS_TO_TICKS(1000))) {

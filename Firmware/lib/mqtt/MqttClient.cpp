@@ -92,7 +92,7 @@ static void reconnect(TaskParams_t* params) {
     }
     lastAttempt = now;
     
-    String will = String ( MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_ONLINE);
+    String will = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_ONLINE;
 
                                                              #ifdef DEBUG
                                                              Serial.print("MqttClient:  rc= " + String(mqttClient.state()) + " Attempting MQTT connection...");
@@ -127,7 +127,7 @@ static void reconnect(TaskParams_t* params) {
        *************************************************************************************
        *************************************************************************************/
 
-      String topicString = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SUFFIX_SET);
+      String topicString = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SUFFIX_SET;
       mqttClient.subscribe(topicString.c_str(), 1);
 
                                                               #ifdef DEBUG
@@ -199,7 +199,7 @@ bool publishMqttLog(const char* topicSuffix, const char* message, bool retain) {
     return false;
   }
 
-  String topic = String(MQTT_PREFIX + mqttDeviceNameWithMac);
+  String topic = String(MQTT_PREFIX) + mqttDeviceNameWithMac;
   if (topicSuffix[0] == '/') {
     topic += topicSuffix;
   } else {
@@ -217,11 +217,11 @@ bool publishMqttLog(const char* topicSuffix, const char* message, bool retain) {
 }
 
 bool publishMqttLogStatus(const char* message, bool retain) {
-  return publishMqttLog(MQTT_LOG_STATUS_SUFFIX.c_str(), message, retain);
+  return publishMqttLog(MQTT_LOG_STATUS_SUFFIX, message, retain);
 }
 
 bool publishMqttLogEmail(const char* message, bool retain) {
-  return publishMqttLog(MQTT_LOG_EMAIL_SUFFIX.c_str(), message, retain);
+  return publishMqttLog(MQTT_LOG_EMAIL_SUFFIX, message, retain);
 }
 
 /* ###################################################################################################
@@ -273,7 +273,7 @@ bool mqttIsConnected() {
 void publish_sketch_version(TaskParams_t* params)   // Publish only once at every reboot.
 {
   IPAddress ip = WiFi.localIP();
-  String versionTopic = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SKETCH_VERSION);
+  String versionTopic = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SKETCH_VERSION;
   String versionMessage = String(params->sketchVersion + String("\nConnected to SSID: \'") +\
                                   String(params->wifiSSID) + String("\' at: ") +\
                                   String(ip[0]) + String(".") +\
@@ -298,12 +298,12 @@ void initializeMQTTGlobals()
   char macStr[13] = {0};
   sprintf(macStr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-  mqttDeviceNameWithMac = String(MQTT_DEVICE_NAME + macStr);
+  mqttDeviceNameWithMac = String(MQTT_DEVICE_NAME) + macStr;
 
   // MQTT 3.1 brokers often enforce a 23-char clientId limit.
   // Build a shorter clientId to avoid connection refusal (rc=2).
   String macShort = String(macStr).substring(6); // last 6 hex chars
-  mqttClientWithMac = String(MQTT_CLIENT + macShort);
+  mqttClientWithMac = String(MQTT_CLIENT) + macShort;
   if (mqttClientWithMac.length() > 23) {
     mqttClientWithMac = mqttClientWithMac.substring(0, 23);
   }
@@ -445,15 +445,15 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
 
   if ( component == MQTT_NUMBER_COMPONENT & deviceClass == MQTT_ENERGY_DEVICECLASS)
   {
-    doc["command_topic"] = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SUFFIX_SET);
+    doc["command_topic"] = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SUFFIX_SET;
     doc["command_template"] = String("{\"" + entityName + "\": {{ value }} }");
     doc["max"] = 99999.99;
     doc["min"] = 0.0;
     doc["step"] = 0.01;
   }
   doc["name"] = entityName;
-  doc["state_topic"] = String(MQTT_DISCOVERY_PREFIX + MQTT_PREFIX + MQTT_SUFFIX_STATE);
-  doc["availability_topic"] = String(MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_ONLINE);
+  doc["state_topic"] = String(MQTT_DISCOVERY_PREFIX) + mqttDeviceNameWithMac + "/" + MQTT_PREFIX + MQTT_SUFFIX_STATE;
+  doc["availability_topic"] = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_ONLINE;
   doc["payload_available"] = "True";
   doc["payload_not_available"] = "False";
   doc["device_class"] = deviceClass;
@@ -477,11 +477,11 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
   */
   JsonObject device = doc["device"].to<JsonObject>();
 
-  device["identifiers"][0] = String("Meter");
-  device["name"] = String("Energi - EV ESP32 Monitor");
+  device["identifiers"][0] = String(mqttDeviceNameWithMac);
+  device["name"] = String(MQTT_HA_CARD_NAME);
 
   serializeJson(doc, payload, sizeof(payload));
-  String energyTopic = String( MQTT_DISCOVERY_PREFIX + component + "/" + deviceClass + "/config");
+  String energyTopic = String(MQTT_DISCOVERY_PREFIX) + component + "/" + mqttDeviceNameWithMac + "/" + deviceClass + "/config";
 
   mqttEnqueuePublish(energyTopic.c_str(), payload, RETAINED);
 
@@ -526,7 +526,7 @@ void publishMqttEnergy(float powerW, float pulseCounter, float subtotalPulseCoun
   doc[MQTT_SENSOR_ENERGY_ENTITYNAME] = (float)subtotalPulseCounter;
 
   serializeJson(doc, payload, sizeof(payload));
-  String energyTopic = String( MQTT_DISCOVERY_PREFIX + MQTT_PREFIX + MQTT_SUFFIX_STATE);
+  String energyTopic = String(MQTT_DISCOVERY_PREFIX) + mqttDeviceNameWithMac + "/" + MQTT_PREFIX + MQTT_SUFFIX_STATE;
 
   mqttEnqueuePublish(energyTopic.c_str(), payload, RETAINED);
 } 

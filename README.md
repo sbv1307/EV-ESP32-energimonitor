@@ -33,3 +33,6 @@ The energy meter connected to the ESP32 MQTT interface, will have a pulse output
 <sup class="fn">
 <span id="f1">[Energy consumption is calculated by measuring the time between pulses provided by the energy meter, connected to the interface](#a1)</span>
 </sup>
+
+### Release reminder
+- Before release, search for `TEST_ONLY_PULSE_ISR_INTERVAL` and remove any temporary test-only code blocks.

@@ -102,7 +102,7 @@ static void wifiConnectionTask(void* pvParameters) {
                                                     #ifdef DEBUG
                                                     Serial.println("\nWifiConnectionTask: WiFi connection failed. WiFi status: " + String(WiFi.status()) + "\n");
                                                     #endif
-    publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "WiFi connection failed", false);
+    publishMqttLog(MQTT_LOG_SUFFIX, "WiFi connection failed", false);
     wifiConnectionTaskHandle = nullptr;
     vTaskDelete(NULL); // Delete this task
     return;
@@ -110,7 +110,7 @@ static void wifiConnectionTask(void* pvParameters) {
   
   vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to settle WiFi connection
 
-  publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "WiFi connected", false);
+  publishMqttLog(MQTT_LOG_SUFFIX, "WiFi connected", false);
 
                                                   #ifdef DEBUG
                                                   Serial.println("\nwifiConnectionTask: WiFi connected successfully.");
@@ -120,7 +120,7 @@ static void wifiConnectionTask(void* pvParameters) {
 
   configureTime();
 
-  publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Time configured (NTP)", false);
+  publishMqttLog(MQTT_LOG_SUFFIX, "Time configured (NTP)", false);
                                                   
   
   // Create the network task

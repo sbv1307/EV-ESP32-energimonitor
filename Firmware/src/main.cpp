@@ -1,7 +1,8 @@
-//#define NONE_HEADLESS
+#define NONE_HEADLESS
 //#define DEBUG
 #define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
 //#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.
+//#define DEBUG_CHARGING_SESSION
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -14,6 +15,7 @@
 #include "PulseInputTask.h"
 #include "PulseInputIsrTest.h"
 #include "TeslaSheets.h"
+#include "ChargingSession.h"
 #include "MqttClient.h"
 
 #ifdef NONE_HEADLESS
@@ -110,6 +112,8 @@ void setup() {
   }
   
   startNetworkTask( &networkParams );
+
+  initChargingSession();
 }
 
 /*
@@ -143,8 +147,9 @@ void loop() {
     }
   }
 
-  startPulseInputTask( &networkParams );  // Ensure Pulse Count Task is running. If already running, this does nothing.
-  
+  // Ensure Pulse Count Task is running. If already running, this does nothing.
+  startPulseInputTask( &networkParams );
+
   // Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. This will only start if not already running.
   startPulseInputIsrTestTask();
 
@@ -156,6 +161,12 @@ void loop() {
                        nextCheckMs,
                        pendingTelemetryToSend,
                        pendingEnergyKwh);
+
+                                                                      #ifdef DEBUG_CHARGING_SESSION
+                                                                      Serial.println("Main loop: Calling handleChargingSession");
+                                                                      #endif
+
+  handleChargingSession(&networkParams);
 
   unsigned long nextDelayMs = calculateNextDelayMs(wifiCheckInterval,
                                                    nextCheckMs,
@@ -269,15 +280,15 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
         if (getLatestEnergyKwh(&energyKwh)) {
           if (WiFi.status() == WL_CONNECTED) {
             sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh);
-            publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Daily telemetry sent", false);
+            publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry sent", false);
           } else {
             pendingEnergyKwh = energyKwh;
             pendingTelemetryToSend = true;
-            publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Daily telemetry pending (WiFi offline)", false);
+            publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry pending (WiFi offline)", false);
           }
         }
         requestSubtotalReset();
-        publishMqttLog(MQTT_LOG_SUFFIX.c_str(), "Day changed, subtotal reset requested", false);
+        publishMqttLog(MQTT_LOG_SUFFIX, "Day changed, subtotal reset requested", false);
       }
       lastDay = timeinfo.tm_mday;
 

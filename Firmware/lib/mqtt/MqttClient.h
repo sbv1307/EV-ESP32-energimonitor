@@ -4,26 +4,27 @@
 
 #include "globals.h"
 
-const String MQTT_PREFIX                    = "ev-e-monitor/";      // include tailing '/' in prefix!
-const String MQTT_DEVICE_NAME               = "esp32-device_";      // MQTT device name prefix Incl. trailing underscore
-const String MQTT_SKETCH_VERSION            = "/sketch_version";    // MQTT topic suffix for sketch version, include leading '/'
-const String MQTT_CLIENT                    = "ev-energy-monitor_"; // MQTT client prefix. Include trailing underscore
-const String MQTT_ONLINE                    = "/online";            // MQTT topic suffix for online status. Include leading '/'
-const String MQTT_LOG_SUFFIX                = "/log";               // MQTT topic suffix for log messages. Include leading '/'
-const String MQTT_LOG_STATUS_SUFFIX         = "/log/status";        // MQTT topic suffix for status logs. Include leading '/'
-const String MQTT_LOG_EMAIL_SUFFIX          = "/log/email";         // MQTT topic suffix for email-routed logs. Include leading '/'
-const String  MQTT_SENSOR_ENERGY_ENTITYNAME  = "Subtotal";          // name dislayed in HA device. No special chars, no spaces
-const String  MQTT_SENSOR_POWER_ENTITYNAME  = "Forbrug";            // name dislayed in HA device. No special chars, no spaces
-const String  MQTT_NUMBER_ENERGY_ENTITYNAME  = "Total";             // name dislayed in HA device. No special chars, no spaces
-const String  MQTT_DISCOVERY_PREFIX         = "homeassistant/";     // include tailing '/' in discovery prefix!
-const String  MQTT_SUFFIX_STATE             = "state";              // MQTT topic suffix for state messages. OBS no leading '/'
+constexpr char MQTT_PREFIX[]                    = "ev-e-charging/";     // include tailing '/' in prefix!
+constexpr char MQTT_DEVICE_NAME[]               = "esp32-doit_";        // MQTT device name prefix Incl. trailing underscore
+constexpr char MQTT_SKETCH_VERSION[]            = "/sketch_version";    // MQTT topic suffix for sketch version, include leading '/'
+constexpr char MQTT_CLIENT[]                    = "ev-energy-charging_"; // MQTT client prefix. Include trailing underscore
+constexpr char MQTT_HA_CARD_NAME[]              = "Energi - EV Charging"; // Name used for Home Assistant card. No special chars, no spaces
+constexpr char MQTT_ONLINE[]                    = "/online";            // MQTT topic suffix for online status. Include leading '/'
+constexpr char MQTT_LOG_SUFFIX[]                = "/log";               // MQTT topic suffix for log messages. Include leading '/'
+constexpr char MQTT_LOG_STATUS_SUFFIX[]         = "/log/status";        // MQTT topic suffix for status logs. Include leading '/'
+constexpr char MQTT_LOG_EMAIL_SUFFIX[]          = "/log/email";         // MQTT topic suffix for email-routed logs. Include leading '/'
+constexpr char MQTT_SENSOR_ENERGY_ENTITYNAME[]  = "Subtotal";           // name dislayed in HA device. No special chars, no spaces
+constexpr char MQTT_SENSOR_POWER_ENTITYNAME[]   = "Forbrug";            // name dislayed in HA device. No special chars, no spaces
+constexpr char MQTT_NUMBER_ENERGY_ENTITYNAME[]  = "Total";              // name dislayed in HA device. No special chars, no spaces
+constexpr char MQTT_DISCOVERY_PREFIX[]          = "homeassistant/";     // include tailing '/' in discovery prefix!
+constexpr char MQTT_SUFFIX_STATE[]              = "state";              // MQTT topic suffix for state messages. OBS no leading '/'
 
 /*  MQTT publication definitions
  *  These definitions are used when publishing MQTT messages.
 */
 const bool    RETAINED                      = true;                 // MQTT retained flag
 // MQTT Subscription topics
-const String MQTT_SUFFIX_SET                = "/set";               // MQTT topic suffix for set commands. Include leading '/'  
+constexpr char MQTT_SUFFIX_SET[]            = "/set";               // MQTT topic suffix for set commands. Include leading '/'  
 
 
 
@@ -31,10 +32,10 @@ const String MQTT_SUFFIX_SET                = "/set";               // MQTT topi
 /*  None configurable MQTT definitions
  *  These definitions are all defined in 'HomeAssistand -> MQTT' and cannot be changed.
 */
-const String  MQTT_SENSOR_COMPONENT         = "sensor";
-const String  MQTT_NUMBER_COMPONENT         = "number";
-const String  MQTT_ENERGY_DEVICECLASS       = "energy";
-const String  MQTT_POWER_DEVICECLASS        = "power";
+constexpr char MQTT_SENSOR_COMPONENT[]      = "sensor";
+constexpr char MQTT_NUMBER_COMPONENT[]      = "number";
+constexpr char MQTT_ENERGY_DEVICECLASS[]    = "energy";
+constexpr char MQTT_POWER_DEVICECLASS[]     = "power";
 
 /*
  * ##################################################################################################

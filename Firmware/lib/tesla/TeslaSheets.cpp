@@ -37,9 +37,62 @@ static bool formatDateTime(char* dateBuf, size_t dateBufLen, char* timeBuf, size
   return hasLocalTime;
 }
 
-bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
+bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget target, const String& payload) {
   (void)params;
 
+  const char* sheetParamName = (target == TeslaSheetTarget::TeslaData)
+                                  ? TESLA_GSHEET_PARAM_NAME_DATA
+                                  : TESLA_GSHEET_PARAM_NAME;
+
+  String url = String(TESLA_GSHEET_WEBAPP_URL_PREFIX) +
+               TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID +
+               TESLA_GSHEET_WEBAPP_URL_SUFFIX +
+               "?" + sheetParamName + "=" + payload;
+
+                                                            #ifdef DEBUG
+                                                            Serial.print("Uploading to Google Sheets: ");
+                                                            Serial.println(url);
+                                                            #endif 
+
+  if (WiFi.status() != WL_CONNECTED) {
+
+                                                            #ifdef DEBUG
+                                                            Serial.println("Google Sheets upload failed: WiFi not connected");
+                                                            #endif
+
+    return false;
+  }
+
+  WiFiClientSecure client;
+  client.setInsecure();
+
+  HTTPClient http;
+  http.setTimeout(20000);
+  if (!http.begin(client, url)) {
+
+                                                              #ifdef DEBUG
+                                                              Serial.println("Google Sheets upload failed: HTTP begin failed");
+                                                              #endif
+
+    return false;
+  }
+
+  int httpCode = http.GET();
+  if (httpCode != HTTP_CODE_OK) {
+
+                                                              #ifdef DEBUG
+                                                              Serial.println(String("Google Sheets upload failed: HTTP GET failed with code ") + httpCode);
+                                                              #endif
+
+    http.end();
+    return false;
+  }
+
+  http.end();
+  return true;
+}
+
+bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
   TeslaTelemetry telemetry;
   String errorMessage;
   if (!teslaGetTelemetry(&telemetry, &errorMessage)) {
@@ -72,43 +125,5 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
                    String(telemetry.latitude, 6) + "," +
                    String(telemetry.longitude, 6);
 
-  String url = String(TESLA_GSHEET_WEBAPP_URL_PREFIX) +
-               TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID +
-               TESLA_GSHEET_WEBAPP_URL_SUFFIX +
-               "?" + TESLA_GSHEET_PARAM_NAME + "=" + payload;
-
-  if (WiFi.status() != WL_CONNECTED) {
-                                                  #ifdef DEBUG
-                                                  Serial.println("Google Sheets upload failed: WiFi not connected");
-                                                  #endif
-    return false;
-  }
-
-  WiFiClientSecure client;
-  client.setInsecure();
-
-  HTTPClient http;
-  http.setTimeout(20000);
-  if (!http.begin(client, url)) {
-
-                                                              #ifdef DEBUG
-                                                              Serial.println("Google Sheets upload failed: HTTP begin failed");
-                                                              #endif
-
-    return false;
-  }
-
-  int httpCode = http.GET();
-  if (httpCode != HTTP_CODE_OK) {
-
-                                                              #ifdef DEBUG
-                                                              Serial.println(String("Google Sheets upload failed: HTTP GET failed with code ") + httpCode);
-                                                              #endif    
-
-    http.end();
-    return false;
-  }
-
-  http.end();
-  return true;
+  return sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaLog, payload);
 }
