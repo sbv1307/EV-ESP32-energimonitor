@@ -23,5 +23,5 @@ constexpr char TESLA_CLIENT_SECRET[] = "";
 constexpr char TESLA_GSHEET_WEBAPP_URL_PREFIX[] = "https://script.google.com/macros/s/";
 constexpr char TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID[] = "YOUR_DEPLOYMENT_ID";
 constexpr char TESLA_GSHEET_WEBAPP_URL_SUFFIX[] = "/exec";
-constexpr char TESLA_GSHEET_PARAM_NAME[] = "YOUR_GOOGLE_SHEET_NAME";
+constexpr char TESLA_GSHEET_PARAM_NAME_LOG[] = "YOUR_GOOGLE_SHEET_NAME";
 constexpr char TESLA_GSHEET_PARAM_NAME_DATA[] = "YOUR_CHARGING_SHEET_NAME";

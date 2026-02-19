@@ -1,4 +1,4 @@
-//#define DEBUG_CHARGING_SESSION
+#define DEBUG_CHARGING_SESSION
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -384,11 +384,8 @@ void handleChargingSession(TaskParams_t* params) {
 }
 
 /* ============================================================================
- * ===============  FOR   TESTING  == To be removed ===========================*/
-// For test purpose, to allow the PulseInputIsrTest task to check if the vehicle is currently charging or not, which affects the pulse simulation interval.
-// Added function declaration for isChargingSessionCharging, which is used in PulseInputIsrTest.cpp to determine the pulse interval based on whether the vehicle is currently charging or not.
+ * ===============  To be used to display charging status ===========================*/
 
 bool isChargingSessionCharging() {
   return gState == ChargingState::Charging;
 }
-/* TEST_ONLY_PULSE_ISR_INTERVAL: END */

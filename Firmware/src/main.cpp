@@ -1,8 +1,8 @@
 #define NONE_HEADLESS
-//#define DEBUG
+#define DEBUG
 #define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
-//#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.
-//#define DEBUG_CHARGING_SESSION
+#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.
+#define DEBUG_CHARGING_SESSION
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -162,11 +162,22 @@ void loop() {
                        pendingTelemetryToSend,
                        pendingEnergyKwh);
 
-                                                                      #ifdef DEBUG_CHARGING_SESSION
-                                                                      Serial.println("Main loop: Calling handleChargingSession");
-                                                                      #endif
-
   handleChargingSession(&networkParams);
+
+  /*
+   * Preparation for including:
+   *   OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging, chargeEnergyKwh,
+                                smartCharging, chargingStartTime, currentEnergyPrice,
+                                energyPriceAtSessionStart);
+   * energyKwh: float energyKwh = 0.0f;
+                if (getLatestEnergyKwh(&energyKwh)
+   * isChargingSessionCharging: isChargingSessionCharging()
+   * chargeEnergyKwh: In buildTeslaDataPayload() -> float chargeEnergyKwh = energyKwh - gSnapshot.startEnergyKwh;
+   * smartCharging: From MQTT broker?
+   * chargingStartTime: From MQTT broker
+   * currentEnergyPrice: From MQTT broker
+   * energyPriceAtSessionStart: From MQTT broker
+   */
 
   unsigned long nextDelayMs = calculateNextDelayMs(wifiCheckInterval,
                                                    nextCheckMs,

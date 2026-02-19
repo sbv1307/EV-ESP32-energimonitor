@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <PubSubClient.h>

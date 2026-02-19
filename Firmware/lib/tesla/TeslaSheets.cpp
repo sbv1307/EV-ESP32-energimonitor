@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 #include <Arduino.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
@@ -42,7 +42,7 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
 
   const char* sheetParamName = (target == TeslaSheetTarget::TeslaData)
                                   ? TESLA_GSHEET_PARAM_NAME_DATA
-                                  : TESLA_GSHEET_PARAM_NAME;
+                                  : TESLA_GSHEET_PARAM_NAME_LOG;
 
   String url = String(TESLA_GSHEET_WEBAPP_URL_PREFIX) +
                TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID +

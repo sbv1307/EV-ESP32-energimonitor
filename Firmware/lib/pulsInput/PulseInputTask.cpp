@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 #define STACK_WATERMARK
 
 #include "PulseInputTask.h"
