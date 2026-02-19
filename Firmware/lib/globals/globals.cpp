@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 #include <Preferences.h>
 
 #include "config.h"

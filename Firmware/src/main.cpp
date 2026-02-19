@@ -65,6 +65,7 @@ lib/
 static void handleDailyTelemetry(TaskParams_t *networkParams,
                                  int &lastDay,
                                  uint32_t &nextCheckMs,
+                                 bool &bootTelemetryToSend,
                                  bool &pendingTelemetryToSend,
                                  float &pendingEnergyKwh);
 
@@ -131,6 +132,7 @@ void loop() {
   static unsigned long lastStackLog = 0;
   static int lastDay = -1;
   static uint32_t nextCheckMs = 0;
+  static bool bootTelemetryToSend = true;
   static bool pendingTelemetryToSend = false;
   static float pendingEnergyKwh = 0.0f;
 
@@ -159,6 +161,7 @@ void loop() {
   handleDailyTelemetry(&networkParams,
                        lastDay,
                        nextCheckMs,
+                       bootTelemetryToSend,
                        pendingTelemetryToSend,
                        pendingEnergyKwh);
 
@@ -275,9 +278,20 @@ void loop() {
 static void handleDailyTelemetry(TaskParams_t *networkParams,
                                  int &lastDay,
                                  uint32_t &nextCheckMs,
+                                 bool &bootTelemetryToSend,
                                  bool &pendingTelemetryToSend,
                                  float &pendingEnergyKwh) {
   static uint32_t lastTimeFailLogMs = 0;
+
+  if (bootTelemetryToSend && WiFi.status() == WL_CONNECTED) {
+    float energyKwh = 0.0f;
+    if (getLatestEnergyKwh(&energyKwh)) {
+      sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh);
+      bootTelemetryToSend = false;
+      publishMqttLog(MQTT_LOG_SUFFIX, "Boot telemetry sent", false);
+    }
+  }
+
   if (pendingTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     sendTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh);
     pendingTelemetryToSend = false;

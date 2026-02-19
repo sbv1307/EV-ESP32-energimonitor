@@ -175,6 +175,8 @@ static void PulseInputTask( void* pvParameters) {
 
 
   uint32_t lastSaveMs = millis();
+  uint32_t lastSavedPulseCounter = pulseCounter;
+  uint16_t lastSavedSubtotalPulseCounter = subtotalPulseCounter;
 
                                                     #ifdef DEBUG
                                                     Serial.println("Pulse Input Task initializing...\n");
@@ -207,6 +209,7 @@ static void PulseInputTask( void* pvParameters) {
   while (true) {
     if (PulseCounterUpdatePending) {
       portENTER_CRITICAL(&PulseCounterMux);
+      uint32_t previousPulseCounter = pulseCounter;
       pulseCounter = PendingPulseCounter;
       PulseCounterUpdatePending = false;
       portEXIT_CRITICAL(&PulseCounterMux);
@@ -221,7 +224,12 @@ static void PulseInputTask( void* pvParameters) {
       portEXIT_CRITICAL(&EnergyKwhMux);
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
 
-      saveToNVS(pulseCounter, subtotalPulseCounter);
+      if (pulseCounter != previousPulseCounter) {
+        saveToNVS(pulseCounter, subtotalPulseCounter);
+        lastSavedPulseCounter = pulseCounter;
+        lastSavedSubtotalPulseCounter = subtotalPulseCounter;
+        lastSaveMs = millis();
+      }
     }
 
     bool shouldResetSubtotal = false;
@@ -242,8 +250,14 @@ static void PulseInputTask( void* pvParameters) {
                (unsigned)subtotalPulseCounter);
       publishMqttLogStatus(resetMsg, false);
 
+      bool subtotalChanged = subtotalPulseCounter != 0;
       subtotalPulseCounter = 0;
-      saveToNVS(pulseCounter, subtotalPulseCounter);
+      if (subtotalChanged) {
+        saveToNVS(pulseCounter, subtotalPulseCounter);
+        lastSavedPulseCounter = pulseCounter;
+        lastSavedSubtotalPulseCounter = subtotalPulseCounter;
+        lastSaveMs = millis();
+      }
 
       float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
       float subtotalKwh = 0.0f;
@@ -302,13 +316,20 @@ static void PulseInputTask( void* pvParameters) {
 
     // ---- 3. Periodic NVS save ----
     if (millis() - lastSaveMs >= SAVE_INTERVAL_MS) {
+      bool hasCounterChanges = (pulseCounter != lastSavedPulseCounter) ||
+                               (subtotalPulseCounter != lastSavedSubtotalPulseCounter);
+
+      if (hasCounterChanges) {
 
                                           #ifdef DEBUG
                                           Serial.println("\nSaving pulse count to NVS: " + String(pulseCounter) + "\n");
                                           #endif
 
-      saveToNVS(pulseCounter, subtotalPulseCounter);
-      lastSaveMs = millis();
+        saveToNVS(pulseCounter, subtotalPulseCounter);
+        lastSavedPulseCounter = pulseCounter;
+        lastSavedSubtotalPulseCounter = subtotalPulseCounter;
+        lastSaveMs = millis();
+      }
     }
 
                                                             #ifdef STACK_WATERMARK
