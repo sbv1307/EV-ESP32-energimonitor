@@ -12,9 +12,10 @@ constexpr char MQTT_USER[] = "";
 constexpr char MQTT_PASS[] = "";
 
 // Tesla Owner API (see https://tesla-api.timdorr.com/)
-// Provide a valid OAuth access token and target vehicle ID.
+// Provide a valid OAuth access token and target vehicle id.
+// IMPORTANT: Use the field named "id" from the Tesla API dump, not "vehicle_id".
 constexpr char TESLA_ACCESS_TOKEN[] = "YOUR_TESLA_ACCESS_TOKEN";
-constexpr char TESLA_VEHICLE_ID[]   = "YOUR_TESLA_VEHICLE_ID"; // numeric string, e.g. "12345678901234567"
+constexpr char TESLA_OWNER_API_ID[] = "YOUR_TESLA_OWNER_API_ID"; // numeric string from field "id", e.g. "12345678901234567"
 constexpr char TESLA_REFRESH_TOKEN[] = "YOUR_TESLA_REFRESH_TOKEN";
 constexpr char TESLA_CLIENT_ID[] = "ownerapi";
 constexpr char TESLA_CLIENT_SECRET[] = "";

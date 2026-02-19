@@ -184,9 +184,9 @@ static bool teslaHttpGet(const String& path, String* responseBody, String* error
     return false;
   }
 
-  if (strlen(TESLA_VEHICLE_ID) == 0) {
+  if (strlen(TESLA_OWNER_API_ID) == 0) {
     if (errorMessage) {
-      *errorMessage = "Tesla vehicle ID not configured";
+      *errorMessage = "Tesla Owner API id not configured";
     }
     return false;
   }
@@ -253,9 +253,9 @@ static bool teslaHttpPost(const String& path, const String& body, String* respon
     return false;
   }
 
-  if (strlen(TESLA_VEHICLE_ID) == 0) {
+  if (strlen(TESLA_OWNER_API_ID) == 0) {
     if (errorMessage) {
-      *errorMessage = "Tesla vehicle ID not configured";
+      *errorMessage = "Tesla Owner API id not configured";
     }
     return false;
   }
@@ -317,7 +317,7 @@ static bool teslaHttpPost(const String& path, const String& body, String* respon
 
 static bool teslaWakeUp(String* errorMessage) {
   String response;
-  String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/wake_up";
+  String endpoint = String("/vehicles/") + TESLA_OWNER_API_ID + "/wake_up";
   return teslaHttpPost(endpoint, "{}", &response, errorMessage);
 }
 
@@ -337,7 +337,7 @@ static bool teslaIsVehicleOnline(const String& json) {
 
 static void teslaWaitForOnline(int maxAttempts = 6, uint32_t delayMs = 2000) {
   String response;
-  String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID;
+  String endpoint = String("/vehicles/") + TESLA_OWNER_API_ID;
   for (int attempt = 0; attempt < maxAttempts; ++attempt) {
     if (teslaHttpGet(endpoint, &response, nullptr)) {
       if (teslaIsVehicleOnline(response)) {
@@ -379,7 +379,7 @@ static bool teslaHttpGetWithWake(const String& path, String* responseBody, Strin
 
 static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* errorMessage,
                                            int maxAttempts = 3) {
-  String endpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data";
+  String endpoint = String("/vehicles/") + TESLA_OWNER_API_ID + "/vehicle_data";
   bool parsedOnce = false;
   TeslaVehicleDataFlags flags;
   String lastError;
@@ -483,7 +483,7 @@ static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry,
 
 static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry) {
   String locResponse;
-  String locEndpoint = String("/vehicles/") + TESLA_VEHICLE_ID + "/vehicle_data?endpoints=location_data;drive_state";
+  String locEndpoint = String("/vehicles/") + TESLA_OWNER_API_ID + "/vehicle_data?endpoints=location_data;drive_state";
   if (teslaHttpGetWithWake(locEndpoint, &locResponse, nullptr)) {
     TeslaVehicleDataFlags tempFlags;
     teslaParseVehicleData(locResponse, telemetry, &tempFlags, nullptr);
