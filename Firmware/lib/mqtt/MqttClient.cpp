@@ -384,6 +384,23 @@ void mqttProcessRxQueue() {
           if (value.equalsIgnoreCase("true")) {
             requestSubtotalReset();
           }
+        } else if (key == MQTT_SMART_CHG) {
+          if (value.equalsIgnoreCase("true")) {
+            gSmartChargingActivated = true;
+          } else {
+            gSmartChargingActivated = false;
+          }
+          gDisplayUpdateAvailable = true; // Trigger display update
+        } else if (key == MQTT_CHG_START_TIME) {
+          strncpy(gChargingStartTime, value.c_str(), sizeof(gChargingStartTime) - 1);
+          gChargingStartTime[sizeof(gChargingStartTime) - 1] = '\0'; // Ensure null-termination
+          gDisplayUpdateAvailable = true; // Trigger display update
+        } else if (key == MQTT_CURR_E_PRICE) {
+          gCurrentEnergyPrice = value.toFloat();
+          gDisplayUpdateAvailable = true; // Trigger display update
+        } else if (key == MQTT_E_PRICE_LIMIT) {
+          gEnergyPriceLimit = value.toFloat();
+          gDisplayUpdateAvailable = true; // Trigger display update
         }
       }
     }

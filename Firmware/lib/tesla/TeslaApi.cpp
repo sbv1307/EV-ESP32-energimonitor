@@ -28,6 +28,7 @@ static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry);
 struct TeslaAuthState {
   String accessToken;
   String refreshToken;
+  String ownerApiId;
   uint64_t expiresAt = 0; // epoch seconds
   bool initialized = false;
 };
@@ -46,6 +47,7 @@ static void teslaStoreTokens() {
   pref.begin(TESLA_PREF_NVS_NAMESPACE, false);
   pref.putString("access_token", gTeslaAuth.accessToken);
   pref.putString("refresh_token", gTeslaAuth.refreshToken);
+  pref.putString("owner_api_id", gTeslaAuth.ownerApiId);
   pref.putULong64("expires_at", gTeslaAuth.expiresAt);
   pref.end();
 }
@@ -59,6 +61,7 @@ static void teslaLoadTokens() {
   pref.begin(TESLA_PREF_NVS_NAMESPACE, true);
   gTeslaAuth.accessToken = teslaReadStringPref(pref, "access_token");
   gTeslaAuth.refreshToken = teslaReadStringPref(pref, "refresh_token");
+  gTeslaAuth.ownerApiId = teslaReadStringPref(pref, "owner_api_id");
   gTeslaAuth.expiresAt = pref.getULong64("expires_at", 0);
   pref.end();
 
@@ -68,8 +71,11 @@ static void teslaLoadTokens() {
   if (gTeslaAuth.refreshToken.isEmpty() && strlen(TESLA_REFRESH_TOKEN) > 0) {
     gTeslaAuth.refreshToken = TESLA_REFRESH_TOKEN;
   }
+  if (gTeslaAuth.ownerApiId.isEmpty() && strlen(TESLA_OWNER_API_ID) > 0) {
+    gTeslaAuth.ownerApiId = TESLA_OWNER_API_ID;
+  }
 
-  if (!gTeslaAuth.accessToken.isEmpty() || !gTeslaAuth.refreshToken.isEmpty()) {
+  if (!gTeslaAuth.accessToken.isEmpty() || !gTeslaAuth.refreshToken.isEmpty() || !gTeslaAuth.ownerApiId.isEmpty()) {
     teslaStoreTokens();
   }
 
@@ -184,7 +190,9 @@ static bool teslaHttpGet(const String& path, String* responseBody, String* error
     return false;
   }
 
-  if (strlen(TESLA_OWNER_API_ID) == 0) {
+  teslaLoadTokens();
+
+  if (gTeslaAuth.ownerApiId.isEmpty()) {
     if (errorMessage) {
       *errorMessage = "Tesla Owner API id not configured";
     }
@@ -253,7 +261,9 @@ static bool teslaHttpPost(const String& path, const String& body, String* respon
     return false;
   }
 
-  if (strlen(TESLA_OWNER_API_ID) == 0) {
+  teslaLoadTokens();
+
+  if (gTeslaAuth.ownerApiId.isEmpty()) {
     if (errorMessage) {
       *errorMessage = "Tesla Owner API id not configured";
     }
@@ -316,8 +326,9 @@ static bool teslaHttpPost(const String& path, const String& body, String* respon
 }
 
 static bool teslaWakeUp(String* errorMessage) {
+  teslaLoadTokens();
   String response;
-  String endpoint = String("/vehicles/") + TESLA_OWNER_API_ID + "/wake_up";
+  String endpoint = String("/vehicles/") + gTeslaAuth.ownerApiId + "/wake_up";
   return teslaHttpPost(endpoint, "{}", &response, errorMessage);
 }
 
@@ -336,8 +347,9 @@ static bool teslaIsVehicleOnline(const String& json) {
 }
 
 static void teslaWaitForOnline(int maxAttempts = 6, uint32_t delayMs = 2000) {
+  teslaLoadTokens();
   String response;
-  String endpoint = String("/vehicles/") + TESLA_OWNER_API_ID;
+  String endpoint = String("/vehicles/") + gTeslaAuth.ownerApiId;
   for (int attempt = 0; attempt < maxAttempts; ++attempt) {
     if (teslaHttpGet(endpoint, &response, nullptr)) {
       if (teslaIsVehicleOnline(response)) {
@@ -379,7 +391,8 @@ static bool teslaHttpGetWithWake(const String& path, String* responseBody, Strin
 
 static bool teslaFetchVehicleDataWithRetry(TeslaTelemetry* telemetry, String* errorMessage,
                                            int maxAttempts = 3) {
-  String endpoint = String("/vehicles/") + TESLA_OWNER_API_ID + "/vehicle_data";
+  teslaLoadTokens();
+  String endpoint = String("/vehicles/") + gTeslaAuth.ownerApiId + "/vehicle_data";
   bool parsedOnce = false;
   TeslaVehicleDataFlags flags;
   String lastError;
@@ -482,8 +495,9 @@ static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry,
 
 
 static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry) {
+  teslaLoadTokens();
   String locResponse;
-  String locEndpoint = String("/vehicles/") + TESLA_OWNER_API_ID + "/vehicle_data?endpoints=location_data;drive_state";
+  String locEndpoint = String("/vehicles/") + gTeslaAuth.ownerApiId + "/vehicle_data?endpoints=location_data;drive_state";
   if (teslaHttpGetWithWake(locEndpoint, &locResponse, nullptr)) {
     TeslaVehicleDataFlags tempFlags;
     teslaParseVehicleData(locResponse, telemetry, &tempFlags, nullptr);

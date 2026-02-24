@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 #include <ArduinoOTA.h>
 
 #include "OtaService.h"

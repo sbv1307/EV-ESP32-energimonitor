@@ -1,0 +1,240 @@
+# Automation: EV Charging Monitor MQTT Sync
+# Description:
+# This automation monitors the state of the smart charging switch and other relevant attributes related to EV charging
+# in Home Assistant. It publishes the current state and relevant data to an MQTT topic that an ESP32 device can subscribe to.
+# The automation is designed to publish a full JSON payload on certain triggers (like Home Assistant start, MQTT online status, 
+# or changes to the runtime ID) and partial updates when specific attributes change (like current price, charging start time, 
+# smart charging activation, or electricity price limit).
+# The MQTT topic structure is defined as: <mqtt_prefix>/<runtime_id>/set, where mqtt_prefix and runtime_id are configurable 
+# via input_text entities in Home Assistant.
+# Note: Ensure that the MQTT broker is properly configured in Home Assistant and that the ESP32 device is subscribed to the 
+# correct topic to receive the updates.
+# Configuration:
+# The following input_text entities should be defined in Home Assistant for this automation to work:
+# - input_text.ev_charging_monitor_mqtt_prefix: (manual configuration required) A string to define the MQTT topic prefix. It is defined in the EV Charging 
+#   firmware configuration and should match the prefix used by the ESP32 device when it publishes its online status. 
+#   This allows the automation to correctly identify and interact with the ESP32 device.
+# - input_text.ev_charging_monitor_runtime_id: (automatically updated) A string to hold the runtime ID of the EV charging monitor, 
+#   which is captured from the MQTT topic when the ESP32 device comes online.
+
+# Remote the first # from the following lines and add them to your configuration.yaml 
+
+## Global variable for charger ID used in automations_charging_monitor.yaml
+#input_text:
+#  ev_charging_monitor_mqtt_prefix:
+#    name: EV Charging Monitor MQTT Prefix
+#    initial: ev-e-charging
+#    pattern: "^[A-Za-z0-9_-]+$"
+#    max: 64
+#
+#  ev_charging_monitor_runtime_id:
+#    name: EV Charging Monitor Runtime ID
+#    pattern: "^[A-Za-z0-9_-]+$"
+#    max: 64
+#
+##Automations for EV Charging Monitor
+#automation EvChargingMonitor: !include automations_charging_monitor.yaml
+
+
+- id: ev_globals_holder
+  alias: EV Globals Holder
+  initial_state: false
+  trigger: []
+  variables: &ev_globals
+    charging_monitor_mqtt_prefix: "{{ states('input_text.ev_charging_monitor_mqtt_prefix') }}"
+    charging_monitor_id: "{{ states('input_text.ev_charging_monitor_runtime_id') }}"
+  action: []
+
+- id: ev_capture_monitor_id_from_mqtt
+  alias: EV Capture Monitor ID from MQTT
+  variables:
+    <<: *ev_globals
+  trigger:
+    - platform: mqtt
+      topic: "+/+/online"
+      payload: "True"
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.topic.split('/') | length == 3 and
+           trigger.topic.split('/')[0] == charging_monitor_mqtt_prefix }}
+  action:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.ev_charging_monitor_runtime_id
+      data:
+        value: "{{ trigger.topic.split('/')[1] }}"
+
+- id: ev_charging_data_publish
+  alias: Publish EV charging data to ESP32
+
+  variables:
+    <<: *ev_globals
+
+  trigger:
+
+    # FULL publish triggers
+    - platform: homeassistant
+      event: start
+      id: full
+
+    - platform: mqtt
+      topic: "+/+/online"
+      payload: "True"
+      id: full
+
+    - platform: state
+      entity_id: input_text.ev_charging_monitor_runtime_id
+      id: full
+
+
+    # PARTIAL publish triggers
+
+    - platform: state
+      entity_id: sensor.ev_smart_charging_charging
+      attribute: current_price
+      id: price
+
+    - platform: state
+      entity_id: sensor.ev_smart_charging_charging
+      attribute: Charging start time
+      id: start
+
+    - platform: state
+      entity_id: switch.ev_smart_charging_smart_charging_activated
+      id: smart
+
+    - platform: state
+      entity_id: number.ev_smart_charging_electricity_price_limit
+      id: epricelimit
+
+
+  action:
+
+    - choose:
+
+
+        #################################
+        # FULL JSON
+        #################################
+
+        - conditions:
+            - condition: trigger
+              id: full
+            - condition: template
+              value_template: >
+                {{ charging_monitor_id not in ['unknown', 'unavailable', '', none] and
+                   (trigger.platform != 'mqtt' or
+                    (trigger.topic.split('/') | length == 3 and
+                     trigger.topic.split('/')[0] == charging_monitor_mqtt_prefix and
+                     trigger.topic.split('/')[1] == charging_monitor_id)) }}
+
+          sequence:
+
+            - wait_template: >
+                {{ state_attr('sensor.ev_smart_charging_charging', 'current_price')
+                   not in [none, 'unknown', 'unavailable'] }}
+              timeout: "00:02:00"
+              continue_on_timeout: true
+
+            - service: mqtt.publish
+              data:
+                topic: "{{ charging_monitor_mqtt_prefix }}/{{ charging_monitor_id }}/set"
+                retain: true
+                payload: >
+                  {% set start = state_attr('sensor.ev_smart_charging_charging', 'Charging start time') %}
+                  {% set price = state_attr('sensor.ev_smart_charging_charging', 'current_price') %}
+                  {% set e_price_limit = states('number.ev_smart_charging_electricity_price_limit') %}
+                  {
+                    "smartChg": {{ is_state('switch.ev_smart_charging_smart_charging_activated','on') | lower }},
+                    "chgStartTime": "{{ as_timestamp(start) | timestamp_custom('%H:%M') if start else '' }}",
+                    "currEPrice": {{ price if price not in [none,'unknown','unavailable'] else 0 }},
+                    "ePriceLimit": {{ e_price_limit if e_price_limit not in ['unknown','unavailable','none',''] else 0 }}
+                  }
+
+
+
+        #################################
+        # PARTIAL PRICE
+        #################################
+
+        - conditions:
+            - condition: trigger
+              id: price
+            - condition: template
+              value_template: "{{ charging_monitor_id not in ['unknown', 'unavailable', '', none] }}"
+
+          sequence:
+
+            - service: mqtt.publish
+              data:
+                topic: "{{ charging_monitor_mqtt_prefix }}/{{ charging_monitor_id }}/set"
+                retain: true
+                payload: >
+                  {% set price = state_attr('sensor.ev_smart_charging_charging', 'current_price') %}
+                  {"currEPrice": {{ price if price else 0 }} }
+
+
+
+        #################################
+        # PARTIAL START TIME
+        #################################
+
+        - conditions:
+            - condition: trigger
+              id: start
+            - condition: template
+              value_template: "{{ charging_monitor_id not in ['unknown', 'unavailable', '', none] }}"
+
+          sequence:
+
+            - service: mqtt.publish
+              data:
+                topic: "{{ charging_monitor_mqtt_prefix }}/{{ charging_monitor_id }}/set"
+                retain: true
+                payload: >
+                  {% set start = state_attr('sensor.ev_smart_charging_charging', 'Charging start time') %}
+                  {"chgStartTime": "{{ as_timestamp(start) | timestamp_custom('%H:%M') if start else '' }}" }
+
+
+
+        #################################
+        # PARTIAL SMART SWITCH
+        #################################
+
+        - conditions:
+            - condition: trigger
+              id: smart
+            - condition: template
+              value_template: "{{ charging_monitor_id not in ['unknown', 'unavailable', '', none] }}"
+
+          sequence:
+
+            - service: mqtt.publish
+              data:
+                topic: "{{ charging_monitor_mqtt_prefix }}/{{ charging_monitor_id }}/set"
+                retain: true
+                payload: >
+                  {"smartChg": {{ is_state('switch.ev_smart_charging_smart_charging_activated','on') | lower }} }
+
+
+
+        #################################
+        # PARTIAL EPRICE LIMIT
+        #################################
+
+        - conditions:
+            - condition: trigger
+              id: epricelimit
+            - condition: template
+              value_template: "{{ charging_monitor_id not in ['unknown', 'unavailable', '', none] }}"
+
+          sequence:
+
+            - service: mqtt.publish
+              data:
+                topic: "{{ charging_monitor_mqtt_prefix }}/{{ charging_monitor_id }}/set"
+                retain: true
+                payload: >
+                  {% set e_price_limit = states('number.ev_smart_charging_electricity_price_limit') %}
+                  {"ePriceLimit": {{ e_price_limit if e_price_limit not in ['unknown','unavailable','none',''] else 0 }} }

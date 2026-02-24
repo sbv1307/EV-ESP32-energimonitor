@@ -1,8 +1,7 @@
-#define NONE_HEADLESS
-#define DEBUG
-#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
-#define DEBUG_TeslaTelemetry // Enable debug output for Tesla telemetry. Requires NONE_HEADLESS to be defined.
-#define DEBUG_CHARGING_SESSION
+//#define NONE_HEADLESS
+//#define DEBUG
+//#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
+
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -17,6 +16,7 @@
 #include "TeslaSheets.h"
 #include "ChargingSession.h"
 #include "MqttClient.h"
+#include "oled_library.h"
 
 #ifdef NONE_HEADLESS
 #include <wait_for_any_key.h>
@@ -73,8 +73,6 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
                                           uint32_t nextCheckMs,
                                           unsigned long lastStackLog);
 
-
-
 /*
  * ###################################################################################################
  * ###################################################################################################
@@ -95,6 +93,14 @@ void setup() {
                                                               #endif
 
   initializeGlobals( &networkParams );
+
+  OledLibrary::Settings oledSettings;
+  oledSettings.showSplashOnBoot = true;
+  oledSettings.splashText = SKETCH_VERSION;
+  oledSettings.splashDurationMs = 5000;
+  oledSettings.turnOffAfterSplash = true;
+  OledLibrary::begin(oledSettings);
+  OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
 
   /*
    * Start the Pulse Input Task before the Network Task to ensure that pulse counting starts immediately
@@ -135,6 +141,7 @@ void loop() {
   static bool bootTelemetryToSend = true;
   static bool pendingTelemetryToSend = false;
   static float pendingEnergyKwh = 0.0f;
+  float energyKwh = 0.0f;
 
   unsigned long currentMillis = millis();
   
@@ -167,19 +174,38 @@ void loop() {
 
   handleChargingSession(&networkParams);
 
+  if (gDisplayUpdateAvailable) {
+    gDisplayUpdateAvailable = false;
+    if (getLatestEnergyKwh(&energyKwh)) {
+
+      OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging(), gChargeEnergyKwh,
+                                  gSmartChargingActivated, gChargingStartTime, gCurrentEnergyPrice, gEnergyPriceLimit);
+    }
+  } 
+
   /*
    * Preparation for including:
-   *   OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging, chargeEnergyKwh,
-                                smartCharging, chargingStartTime, currentEnergyPrice,
-                                energyPriceAtSessionStart);
-   * energyKwh: float energyKwh = 0.0f;
-                if (getLatestEnergyKwh(&energyKwh)
-   * isChargingSessionCharging: isChargingSessionCharging()
-   * chargeEnergyKwh: In buildTeslaDataPayload() -> float chargeEnergyKwh = energyKwh - gSnapshot.startEnergyKwh;
-   * smartCharging: From MQTT broker?
-   * chargingStartTime: From MQTT broker
-   * currentEnergyPrice: From MQTT broker
-   * energyPriceAtSessionStart: From MQTT broker
+   OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging, chargeEnergyKwh,
+                                smartChargingActivated, chargingStartTime, currentEnergyPrice,
+                                energyPriceLimit);
+  * Options to get these values:
+   * energyKwh:                   float energyKwh = 0.0f;
+                                  if (getLatestEnergyKwh(&energyKwh)
+   * isChargingSessionCharging:   isChargingSessionCharging()
+   * chargeEnergyKwh:             In buildTeslaDataPayload() ->  
+   *                              float chargeEnergyKwh = energyKwh - gSnapshot.startEnergyKwh;
+   * The following would need to be stored in globals and updated from the MQTT data handling 
+   * code when new data is received.
+   * MQTT topic for these values will be "MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SUFFIX_SET" 
+   * with a JSON payload containing a key - value pair for each of these parameters. For example:
+   * {"smartChg": true, "chgStartTime": "12:34", "currEPrice": 1.37, "ePriceLimit": 0.94}
+   * 
+   * smartChargingActivated:    (smartChg)       ev_smart_charging_smart_charging_activated
+   * chargingStartTime:         (chgStartTime)   select.ev_smart_charging_charge_start_time
+   * currentEnergyPrice:        (currEPrice)     sensor.ev_smart_charging_charging.attributes.current_price
+   * energyPriceLimit:          (ePriceLimit)    number.ev_smart_charging_electricity_price_limit
+   * 
+   * smartCharging implementation:
    */
 
   unsigned long nextDelayMs = calculateNextDelayMs(wifiCheckInterval,

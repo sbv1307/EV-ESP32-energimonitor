@@ -12,6 +12,13 @@ volatile UBaseType_t gWifiConnTaskStackHighWater = 0;
 volatile UBaseType_t gPulseInputTaskStackHighWater = 0;
 volatile size_t gInitialFreeHeapSize = 0;
 
+bool gDisplayUpdateAvailable = false;
+bool gSmartChargingActivated = false;
+float gChargeEnergyKwh = 0.0f;
+char gChargingStartTime[6] = {0};
+float gCurrentEnergyPrice = 0.0f;
+float gEnergyPriceLimit = 0.0f;
+
 void initializeGlobals( TaskParams_t* params ) {
 
   Preferences pref;
@@ -20,8 +27,6 @@ void initializeGlobals( TaskParams_t* params ) {
   static unsigned long ptCorrection = pref.getULong("ptCorrection", 0);
   static uint16_t pulse_per_kWh = pref.getUShort("pulse_per_kWh", 100);
   pref.end();
-
-
 
   static String sketchVersion = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
   const char* savedSketchVersion = sketchVersion.c_str();
@@ -39,6 +44,14 @@ void initializeGlobals( TaskParams_t* params ) {
     .ptCorrection   = ptCorrection,
     .pulse_per_kWh  = pulse_per_kWh
   };
+
+  // Initialize global variables for display update and smart charging status
+  gDisplayUpdateAvailable = false;
+  gChargeEnergyKwh = 0.0f;
+  memset(gChargingStartTime, 0, sizeof(gChargingStartTime));
+  gCurrentEnergyPrice = 0.0f;
+  gEnergyPriceLimit = 0.0f;
+  gSmartChargingActivated = false;
 
                                     #ifdef DEBUG
                                       Serial.println("globals: Initialized global parameters:");

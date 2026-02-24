@@ -16,6 +16,10 @@ constexpr char MQTT_LOG_EMAIL_SUFFIX[]          = "/log/email";         // MQTT 
 constexpr char MQTT_SENSOR_ENERGY_ENTITYNAME[]  = "Subtotal";           // name dislayed in HA device. No special chars, no spaces
 constexpr char MQTT_SENSOR_POWER_ENTITYNAME[]   = "Forbrug";            // name dislayed in HA device. No special chars, no spaces
 constexpr char MQTT_NUMBER_ENERGY_ENTITYNAME[]  = "Total";              // name dislayed in HA device. No special chars, no spaces
+constexpr char MQTT_SMART_CHG[]                 = "smartChg";           // JSON key for smart charging activation command
+constexpr char MQTT_CHG_START_TIME[]            = "chgStartTime";       // JSON key for charging start time
+constexpr char MQTT_CURR_E_PRICE[]              = "currEPrice";         // JSON key for current energy price
+constexpr char MQTT_E_PRICE_LIMIT[]             = "ePriceLimit";         // JSON key for energy price limit for smart charging activation
 constexpr char MQTT_DISCOVERY_PREFIX[]          = "homeassistant/";     // include tailing '/' in discovery prefix!
 constexpr char MQTT_SUFFIX_STATE[]              = "state";              // MQTT topic suffix for state messages. OBS no leading '/'
 

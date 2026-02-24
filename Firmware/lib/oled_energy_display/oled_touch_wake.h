@@ -1,0 +1,37 @@
+#pragma once
+
+#include <stdint.h>
+
+#ifndef OLED_TOUCH_WAKE_DEFAULT_INPUT_PIN
+#define OLED_TOUCH_WAKE_DEFAULT_INPUT_PIN 4
+#endif
+
+#ifndef OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS
+#define OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS 30000
+#endif
+
+#ifndef OLED_TOUCH_WAKE_DEFAULT_SAMPLE_INTERVAL_MS
+#define OLED_TOUCH_WAKE_DEFAULT_SAMPLE_INTERVAL_MS 50
+#endif
+
+#ifndef OLED_TOUCH_WAKE_DEFAULT_MIN_DELTA
+#define OLED_TOUCH_WAKE_DEFAULT_MIN_DELTA 12
+#endif
+
+#ifndef OLED_TOUCH_WAKE_DEFAULT_DEBOUNCE_COUNT
+#define OLED_TOUCH_WAKE_DEFAULT_DEBOUNCE_COUNT 2
+#endif
+
+namespace OledTouchWake {
+struct Settings {
+	uint8_t inputPin = OLED_TOUCH_WAKE_DEFAULT_INPUT_PIN;
+	uint32_t displayOnTimeMs = OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS;
+	uint32_t sampleIntervalMs = OLED_TOUCH_WAKE_DEFAULT_SAMPLE_INTERVAL_MS;
+	uint16_t minDelta = OLED_TOUCH_WAKE_DEFAULT_MIN_DELTA;
+	uint8_t debounceCount = OLED_TOUCH_WAKE_DEFAULT_DEBOUNCE_COUNT;
+};
+
+void begin();
+void begin(const Settings& settings);
+void update();
+}

@@ -32,3 +32,11 @@ constexpr int NETWORK_TASK_STACK_SIZE = 3529; // 16KB stack size for the task
 constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2505;
 constexpr int PULSE_INPUT_TASK_STACK_SIZE = 2500; // 8KB stack size for the task
 constexpr int PULSE_ISR_TEST_TASK_STACK_SIZE = 4096;
+
+// Global variables for display update
+extern bool gDisplayUpdateAvailable; // Flag to indicate if a display update is needed
+extern bool gSmartChargingActivated; // Flag to indicate if smart charging is activated. Set based on received MQTT messages, can be used to adjust display or logic accordingly.
+extern float gChargeEnergyKwh; // Energy charged in the current session in kWh, updated at the end of the session
+extern char gChargingStartTime[6];
+extern float gCurrentEnergyPrice;
+extern float gEnergyPriceLimit;

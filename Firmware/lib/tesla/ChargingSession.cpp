@@ -1,4 +1,4 @@
-#define DEBUG_CHARGING_SESSION
+//#define DEBUG_CHARGING_SESSION
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -156,7 +156,8 @@ static String buildTeslaDataPayload(const TeslaTelemetry& endTelemetry, float en
 
   const float endRangeKm = endTelemetry.estimatedBatteryRangeMiles * milesToKm;
   const float endOdometerKm = endTelemetry.odometerMiles * milesToKm;
-  const float chargeEnergyKwh = endEnergyKwh - gSnapshot.startEnergyKwh;
+
+  gChargeEnergyKwh = endEnergyKwh - gSnapshot.startEnergyKwh;
 
   float standbyEnergyKwh = 0.0f;
   bool standbyKnown = false;
@@ -168,7 +169,7 @@ static String buildTeslaDataPayload(const TeslaTelemetry& endTelemetry, float en
   float whPerKm = 0.0f;
   const float distanceKm = endOdometerKm - gSnapshot.startOdometerKm;
   if (distanceKm > 0.001f) {
-    whPerKm = (chargeEnergyKwh * 1000.0f) / distanceKm;
+    whPerKm = (gChargeEnergyKwh * 1000.0f) / distanceKm;
   }
 
   char endDateBuf[11] = {0};
@@ -189,7 +190,7 @@ static String buildTeslaDataPayload(const TeslaTelemetry& endTelemetry, float en
                    String(startTimeBuf) + "," +
                    String(endEnergyKwh, 2) + "," +
                    standbyField + "," +
-                   String(chargeEnergyKwh, 2) + "," +
+                   String(gChargeEnergyKwh, 2) + "," +
                    String(gSnapshot.startBatteryLevelPercent, 1) + "," +
                    String(endTelemetry.batteryLevelPercent, 1) + "," +
                    String(endRangeKm, 2) + "," +
