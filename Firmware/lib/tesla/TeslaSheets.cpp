@@ -9,6 +9,56 @@
 #include "config.h"
 #include "privateConfig.h"
 
+namespace {
+struct TeslaTelemetryQueueItem {
+  TaskParams_t* params = nullptr;
+  float energyKwh = 0.0f;
+};
+
+static QueueHandle_t gTeslaTelemetryQueue = nullptr;
+static TaskHandle_t gTeslaTelemetryTaskHandle = nullptr;
+
+constexpr uint32_t TESLA_TELEMETRY_QUEUE_LENGTH = 6;
+constexpr uint32_t TESLA_TELEMETRY_TASK_STACK_SIZE = 8192;
+constexpr UBaseType_t TESLA_TELEMETRY_TASK_PRIORITY = 1;
+
+static bool ensureTeslaTelemetryQueue() {
+  if (gTeslaTelemetryQueue != nullptr) {
+    return true;
+  }
+
+  gTeslaTelemetryQueue = xQueueCreate(TESLA_TELEMETRY_QUEUE_LENGTH, sizeof(TeslaTelemetryQueueItem));
+  return gTeslaTelemetryQueue != nullptr;
+}
+
+static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
+  (void)pvParameters;
+
+  TeslaTelemetryQueueItem item;
+  while (true) {
+    if (xQueueReceive(gTeslaTelemetryQueue, &item, portMAX_DELAY) == pdTRUE) {
+      sendTeslaTelemetryToGoogleSheets(item.params, item.energyKwh);
+    }
+  }
+}
+
+static bool ensureTeslaTelemetryTaskRunning() {
+  if (gTeslaTelemetryTaskHandle != nullptr && eTaskGetState(gTeslaTelemetryTaskHandle) != eDeleted) {
+    return true;
+  }
+
+  BaseType_t result = xTaskCreate(
+      sendTeslaTelemetryToGoogleSheetsTask,
+      "TeslaSheetsTask",
+      TESLA_TELEMETRY_TASK_STACK_SIZE,
+      nullptr,
+      TESLA_TELEMETRY_TASK_PRIORITY,
+      &gTeslaTelemetryTaskHandle);
+
+  return result == pdPASS;
+}
+}
+
 static bool formatDateTime(char* dateBuf, size_t dateBufLen, char* timeBuf, size_t timeBufLen) {
   struct tm timeinfo;
   bool hasLocalTime = getLocalTime(&timeinfo);
@@ -126,4 +176,20 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
                    String(telemetry.longitude, 6);
 
   return sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaLog, payload);
+}
+
+bool enqueueTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
+  if (!ensureTeslaTelemetryQueue()) {
+    return false;
+  }
+
+  if (!ensureTeslaTelemetryTaskRunning()) {
+    return false;
+  }
+
+  TeslaTelemetryQueueItem item;
+  item.params = params;
+  item.energyKwh = energyKwh;
+
+  return xQueueSend(gTeslaTelemetryQueue, &item, 0) == pdTRUE;
 }

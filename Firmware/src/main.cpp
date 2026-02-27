@@ -314,15 +314,18 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   if (bootTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     float energyKwh = 0.0f;
     if (getLatestEnergyKwh(&energyKwh)) {
-      sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh);
-      bootTelemetryToSend = false;
-      publishMqttLog(MQTT_LOG_SUFFIX, "Boot telemetry sent", false);
+      if (enqueueTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
+        bootTelemetryToSend = false;
+        publishMqttLog(MQTT_LOG_SUFFIX, "Boot telemetry queued", false);
+      }
     }
   }
 
   if (pendingTelemetryToSend && WiFi.status() == WL_CONNECTED) {
-    sendTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh);
-    pendingTelemetryToSend = false;
+    if (enqueueTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh)) {
+      pendingTelemetryToSend = false;
+      publishMqttLog(MQTT_LOG_SUFFIX, "Pending telemetry queued", false);
+    }
   }
 
   if (millis() >= nextCheckMs) {
@@ -332,8 +335,13 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
         float energyKwh = 0.0f;
         if (getLatestEnergyKwh(&energyKwh)) {
           if (WiFi.status() == WL_CONNECTED) {
-            sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh);
-            publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry sent", false);
+            if (enqueueTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
+              publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry queued", false);
+            } else {
+              pendingEnergyKwh = energyKwh;
+              pendingTelemetryToSend = true;
+              publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry pending (queue busy)", false);
+            }
           } else {
             pendingEnergyKwh = energyKwh;
             pendingTelemetryToSend = true;

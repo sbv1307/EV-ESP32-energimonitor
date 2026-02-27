@@ -168,12 +168,6 @@ static String buildTeslaDataPayload(const TeslaTelemetry& endTelemetry, float en
 
   gChargeEnergyKwh = endEnergyKwh - gSnapshot.startEnergyKwh;
 
-
-  /* #####################################################################################
-   * Remove the following after testing phase, where standby energy calculation and logging will be validated and we have confidence it works correctly. This is to avoid keeping potentially incorrect standby energy data in the logs for too long.
-  */
-  gChargeEnergyKwh = gChargeEnergyKwh + 1000.0f; // Temporary addition to easily identify and remove test logs with incorrect standby energy calculation. Remove this line after validation.
-
   float standbyEnergyKwh = 0.0f;
   bool standbyKnown = false;
   if (gHasLastEndEnergy) {
