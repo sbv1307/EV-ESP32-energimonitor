@@ -1,5 +1,5 @@
-//#define NONE_HEADLESS
-//#define DEBUG
+#define NONE_HEADLESS
+#define DEBUG
 //#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
 
 
@@ -143,6 +143,8 @@ void loop() {
   static float pendingEnergyKwh = 0.0f;
   float energyKwh = 0.0f;
 
+  static bool lastChargingSessionCharging = isChargingSessionCharging();
+
   unsigned long currentMillis = millis();
   
   if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
@@ -171,13 +173,13 @@ void loop() {
                        bootTelemetryToSend,
                        pendingTelemetryToSend,
                        pendingEnergyKwh);
-
+                       
   handleChargingSession(&networkParams);
 
-  if (gDisplayUpdateAvailable) {
+  if (gDisplayUpdateAvailable || (isChargingSessionCharging() != lastChargingSessionCharging)) {
     gDisplayUpdateAvailable = false;
+    lastChargingSessionCharging = isChargingSessionCharging();
     if (getLatestEnergyKwh(&energyKwh)) {
-
       OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging(), gChargeEnergyKwh,
                                   gSmartChargingActivated, gChargingStartTime, gCurrentEnergyPrice, gEnergyPriceLimit);
     }

@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <PubSubClient.h>
@@ -531,6 +531,8 @@ void publishMqttConfigurations() {
 */
 void publishMqttEnergy(float powerW, float pulseCounter, float subtotalPulseCounter)
 {
+  gDisplayUpdateAvailable = true;
+
   if (!mqttClient.connected()) {
     return; // Exit if MQTT is not connected
   }

@@ -1,4 +1,4 @@
-//#define DEBUG_CHARGING_SESSION
+#define DEBUG_CHARGING_SESSION
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -145,6 +145,15 @@ static bool createStartSnapshot() {
 
                                                                   #ifdef DEBUG_CHARGING_SESSION
                                                                     Serial.println("Charging start snapshot created");
+                                                                    Serial.print("Start Epoch: ");
+                                                                    Serial.println(gSnapshot.startEpoch);
+                                                                    Serial.print("Start Energy (kWh): ");
+                                                                    Serial.println(gSnapshot.startEnergyKwh, 2);
+                                                                    Serial.print("Start Battery Level (%): ");
+                                                                    Serial.println(gSnapshot.startBatteryLevelPercent, 1);  
+                                                                    Serial.print("Start Odometer (km): ");
+                                                                    Serial.println(gSnapshot.startOdometerKm, 1);
+                                                                    
                                                                   #endif
 
   publishMqttLog(MQTT_LOG_SUFFIX, "Charging start captured", false);
@@ -158,6 +167,12 @@ static String buildTeslaDataPayload(const TeslaTelemetry& endTelemetry, float en
   const float endOdometerKm = endTelemetry.odometerMiles * milesToKm;
 
   gChargeEnergyKwh = endEnergyKwh - gSnapshot.startEnergyKwh;
+
+
+  /* #####################################################################################
+   * Remove the following after testing phase, where standby energy calculation and logging will be validated and we have confidence it works correctly. This is to avoid keeping potentially incorrect standby energy data in the logs for too long.
+  */
+  gChargeEnergyKwh = gChargeEnergyKwh + 1000.0f; // Temporary addition to easily identify and remove test logs with incorrect standby energy calculation. Remove this line after validation.
 
   float standbyEnergyKwh = 0.0f;
   bool standbyKnown = false;
@@ -376,7 +391,15 @@ void handleChargingSession(TaskParams_t* params) {
         if (finalizeChargingSession(params)) {
           gState = ChargingState::Idle;
         } else {
-          gState = ChargingState::Charging;
+          gState = ChargingState::EndCandidate;
+          gCandidateSinceMs = nowMs;
+
+                                                                #ifdef DEBUG_CHARGING_SESSION
+                                                                  Serial.println("Charging end finalization failed; remaining in EndCandidate");
+                                                                #endif
+
+          publishMqttLog(MQTT_LOG_SUFFIX, "Charging end finalization failed; retry pending", false);
+          break;
         }
         gCandidateSinceMs = 0;
       }
@@ -384,8 +407,6 @@ void handleChargingSession(TaskParams_t* params) {
   }
 }
 
-/* ============================================================================
- * ===============  To be used to display charging status ===========================*/
 
 bool isChargingSessionCharging() {
   return gState == ChargingState::Charging;

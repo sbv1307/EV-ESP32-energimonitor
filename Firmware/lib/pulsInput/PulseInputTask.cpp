@@ -1,5 +1,5 @@
-//#define DEBUG
-#define STACK_WATERMARK
+#define DEBUG
+//#define STACK_WATERMARK
 
 #include "PulseInputTask.h"
 #include "MqttClient.h"
