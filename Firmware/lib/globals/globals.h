@@ -31,7 +31,7 @@ extern volatile size_t  gInitialFreeHeapSize;
 constexpr int NETWORK_TASK_STACK_SIZE = 3529; // 16KB stack size for the task
 constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2505;
 constexpr int PULSE_INPUT_TASK_STACK_SIZE = 2500; // 8KB stack size for the task
-constexpr int PULSE_ISR_TEST_TASK_STACK_SIZE = 4096;
+constexpr int PULSE_ISR_TEST_TASK_STACK_SIZE = 4096; // TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
 
 // Global variables for display update
 extern bool gDisplayUpdateAvailable; // Flag to indicate if a display update is needed
