@@ -117,8 +117,6 @@ static void reconnect(TaskParams_t* params) {
 
       mqttEnqueueDeferredCommand(MqttDeferredCommandType::PublishConfigurations);
 
-      //publishMqttEnergy(0.0f, 0, 0);  // Initial publish with zero values
-
       /*************************************************************************************
        *************************************************************************************
        *************************************************************************************
@@ -512,7 +510,7 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
 void publishMqttConfigurations() {
 
   publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_SENSOR_ENERGY_ENTITYNAME, "kWh", MQTT_ENERGY_DEVICECLASS);
-  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_SENSOR_POWER_ENTITYNAME, "W", MQTT_POWER_DEVICECLASS);
+  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_SENSOR_POWER_ENTITYNAME, "kW", MQTT_POWER_DEVICECLASS);
   publishMqttEnergyConfigJson(MQTT_NUMBER_COMPONENT, MQTT_NUMBER_ENERGY_ENTITYNAME, "kWh", MQTT_ENERGY_DEVICECLASS);
 
   float powerW = 0.0f;
@@ -522,7 +520,6 @@ void publishMqttConfigurations() {
     publishMqttEnergy(powerW, energyKwh, subtotalKwh);
   }
 
-  //configurationPublished[device] = true;
 }
 
 /* ###################################################################################################
