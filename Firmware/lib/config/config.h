@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT interface (TEST VERSION) - V1.0.0";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V1.0.0";
 /*
  * About NVS (Non-Volatile Storage)
  * NVS is used to store configuration, pulse counter, and charging session data persistently.
