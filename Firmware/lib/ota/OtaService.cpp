@@ -28,7 +28,8 @@ void otaInit() {
         type = "filesystem";
       }
       publishMqttLogStatus(("OTA start: " + type).c_str(), false);
-      #ifdef DEBUG
+      
+                                                #ifdef DEBUG
                                                 Serial.println("Network Task stopped for OTA update.");
                                                 #endif
     /*

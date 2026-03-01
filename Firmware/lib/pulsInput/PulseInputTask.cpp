@@ -1,5 +1,5 @@
 //#define DEBUG
-//#define STACK_WATERMARK
+#define STACK_WATERMARK
 
 #include "PulseInputTask.h"
 #include "MqttClient.h"
@@ -98,7 +98,7 @@ float calculatePower( TaskParams_t* params,uint32_t deltaUs) {
   // Power calculation logic here
   float powerW = 0.0f;
   if (deltaUs > 0) {
-      powerW = (3600.0f * 1000000.0f) / deltaUs; // Example calculation
+    //  powerW = (3600.0f * 1000000.0f) / deltaUs; // Example calculation
     powerW = round(((float)(60*60*1000) / 
                     (float)(deltaUs +  params->ptCorrection)) / 
                     (float)params->pulse_per_kWh * 1000);
@@ -271,6 +271,7 @@ static void PulseInputTask( void* pvParameters) {
       publishMqttLog(MQTT_LOG_SUFFIX, "Subtotal reset applied", false);
     }
 
+    // Wait for pulse timestamp from ISR
     if (xQueueReceive(PulseInputQueue, &ts, pdMS_TO_TICKS(1000))) {
 
                                           #ifdef DEBUG
@@ -306,15 +307,33 @@ static void PulseInputTask( void* pvParameters) {
       LatestEnergyKwh = energyKwh;
       LatestSubtotalKwh = subtotalKwh;
       portEXIT_CRITICAL(&EnergyKwhMux);
-
     }
 
+    // ---- 3. Power calculation even if no new pulse (to update power to 0 if pulses stop) ----
+    if (lastTs > 0 && powerW > 0.5f && micros() > lastTs) { // If micros < lastTs, micros has overrrun. In that case we keep the last power until next pulse to avoid incorrect 0 reading.
+        uint32_t deltaUs = micros() - lastTs; // Time since last pulse in microseconds
+        float possiblePowerW = calculatePower( (TaskParams_t*)pvParameters, deltaUs);
+
+        // If power has dropped significantly (e.g. more than 50%), update it to reflect possible stop of consumption
+        if ((2 * possiblePowerW) < powerW) { 
+          powerW = possiblePowerW;
+
+          portENTER_CRITICAL(&EnergyKwhMux);
+          LatestPowerW = powerW;
+          portEXIT_CRITICAL(&EnergyKwhMux);
+          publishMqttEnergy(powerW, energyKwh, subtotalKwh);
+
+                                                          #ifdef DEBUG
+                                                            Serial.println("\nNo new pulse but updating power: " + String(powerW) + " W");
+                                                          #endif
+        }
+    }
 
                                                           #ifdef DEBUG
                                                             Serial.print (".");
                                                           #endif  
 
-    // ---- 3. Periodic NVS save ----
+    // ---- 4. Periodic NVS save ----
     if (millis() - lastSaveMs >= SAVE_INTERVAL_MS) {
       bool hasCounterChanges = (pulseCounter != lastSavedPulseCounter) ||
                                (subtotalPulseCounter != lastSavedSubtotalPulseCounter);
@@ -339,8 +358,6 @@ static void PulseInputTask( void* pvParameters) {
                                                               gPulseInputTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
                                                             }
                                                             #endif
-    
-  
 
   }
 

@@ -1,6 +1,6 @@
 //#define NONE_HEADLESS
 //#define DEBUG
-//#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
+#define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
 
 
 #include <Arduino.h>

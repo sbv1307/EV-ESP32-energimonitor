@@ -1,4 +1,4 @@
-#define DEBUG_CHARGING_SESSION
+//#define DEBUG_CHARGING_SESSION
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -126,7 +126,7 @@ static bool createStartSnapshot() {
   if (!getLatestEnergyKwh(&latestEnergyKwh)) {
 
                                                                   #ifdef DEBUG_CHARGING_SESSION
-                                                                    Serial.println("Charging start energy snapshot failed");
+                                                                    Serial.println("Chargingsession.cpp: Charging start energy snapshot failed");
                                                                   #endif
 
     publishMqttLogStatus("Charging start energy snapshot failed", false);
@@ -144,14 +144,14 @@ static bool createStartSnapshot() {
   saveSessionToNvs();
 
                                                                   #ifdef DEBUG_CHARGING_SESSION
-                                                                    Serial.println("Charging start snapshot created");
-                                                                    Serial.print("Start Epoch: ");
+                                                                    Serial.println("Chargingsession.cpp: Charging start snapshot created");
+                                                                    Serial.println("Chargingsession.cpp: Start Epoch: ");
                                                                     Serial.println(gSnapshot.startEpoch);
-                                                                    Serial.print("Start Energy (kWh): ");
+                                                                    Serial.println("Chargingsession.cpp: Start Energy (kWh): ");
                                                                     Serial.println(gSnapshot.startEnergyKwh, 2);
-                                                                    Serial.print("Start Battery Level (%): ");
+                                                                    Serial.println("Chargingsession.cpp: Start Battery Level (%): ");
                                                                     Serial.println(gSnapshot.startBatteryLevelPercent, 1);  
-                                                                    Serial.print("Start Odometer (km): ");
+                                                                    Serial.println("Chargingsession.cpp: Start Odometer (km): ");
                                                                     Serial.println(gSnapshot.startOdometerKm, 1);
                                                                     
                                                                   #endif
@@ -232,14 +232,14 @@ static bool finalizeChargingSession(TaskParams_t* params) {
     gPendingTeslaDataUpload = true;
 
                                                                 #ifdef DEBUG_CHARGING_SESSION
-                                                                  Serial.println("TeslaData upload pending (WiFi/API)");
+                                                                  Serial.println("Chargingsession.cpp: TeslaData upload pending (WiFi/API)");
                                                                 #endif
 
     publishMqttLog(MQTT_LOG_SUFFIX, "TeslaData upload pending (WiFi/API)", false);
   } else {
 
                                                                 #ifdef DEBUG_CHARGING_SESSION
-                                                                  Serial.println("TeslaData upload sent");  
+                                                                  Serial.println("Chargingsession.cpp: TeslaData upload sent");  
                                                                 #endif
 
     publishMqttLog(MQTT_LOG_SUFFIX, "TeslaData upload sent", false);
@@ -287,7 +287,7 @@ void initChargingSession() {
     gState = ChargingState::Charging;
 
                                                                 #ifdef DEBUG_CHARGING_SESSION
-                                                                Serial.println("Charging session restored from NVS");
+                                                                Serial.println("Chargingsession.cpp: Charging session restored from NVS");
                                                                 #endif
 
     publishMqttLog(MQTT_LOG_SUFFIX, "Charging session restored from NVS", false);
@@ -389,7 +389,7 @@ void handleChargingSession(TaskParams_t* params) {
           gCandidateSinceMs = nowMs;
 
                                                                 #ifdef DEBUG_CHARGING_SESSION
-                                                                  Serial.println("Charging end finalization failed; remaining in EndCandidate");
+                                                                  Serial.println("Chargingsession.cpp: Charging end finalization failed; remaining in EndCandidate");
                                                                 #endif
 
           publishMqttLog(MQTT_LOG_SUFFIX, "Charging end finalization failed; retry pending", false);

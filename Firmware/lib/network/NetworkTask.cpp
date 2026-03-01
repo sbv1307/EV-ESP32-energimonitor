@@ -145,8 +145,11 @@ static void wifiConnectionTask(void* pvParameters) {
 
 bool startNetworkTask(TaskParams_t* params) {
 
-  // Debug: Print initialized parameters
-  Serial.println("\nstartNetworkTask: WiFi SSID: " + String(params->wifiSSID) + "\n");  
+                                                  #ifdef DEBUG
+                                                  // Debug: Print initialized parameters
+                                                  Serial.println("\nstartNetworkTask: WiFi SSID: " + String(params->wifiSSID) + "\n");
+                                                  #endif
+
 
   if (wifiConnectionTaskHandle != nullptr) {
     // WiFi connection task is already running
