@@ -30,7 +30,7 @@ extern volatile size_t  gInitialFreeHeapSize;
 // Task stack sizes (in words)
 constexpr int NETWORK_TASK_STACK_SIZE = 3529; // 16KB stack size for the task
 constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2505;
-constexpr int PULSE_INPUT_TASK_STACK_SIZE = 4096; // 8KB stack size for the task
+constexpr int PULSE_INPUT_TASK_STACK_SIZE = 2525; // 8KB stack size for the task
 constexpr int PULSE_ISR_TEST_TASK_STACK_SIZE = 4096; // TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
 // OledUpdateTaskStackSize is defined in oled_library.h since it's only used for the OLED update task, which is defined in that library.
 
