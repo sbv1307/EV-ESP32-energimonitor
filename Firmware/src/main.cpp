@@ -1,11 +1,13 @@
 //#define NONE_HEADLESS
 //#define DEBUG
+//#define VERIFY_LOCAL_TIME
 #define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
 
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Preferences.h>
+#include <time.h>
 
 #include "config.h"
 #include "privateConfig.h"
@@ -69,6 +71,10 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
                                  bool &bootTelemetryToSend,
                                  bool &pendingTelemetryToSend,
                                  float &pendingEnergyKwh);
+
+                                              #ifdef VERIFY_LOCAL_TIME
+                                              static void verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
+                                              #endif
 
 static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
                                           uint32_t nextCheckMs,
@@ -167,6 +173,10 @@ void loop() {
 
   mqttProcessRxQueue();
   mqttProcessDeferredQueue();
+
+                                                    #ifdef VERIFY_LOCAL_TIME
+                                                    verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
+                                                    #endif
 
   handleDailyTelemetry(&networkParams,
                        lastDay,
@@ -391,3 +401,66 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
 
   return nextDelayMs;
 }
+
+                                                    #ifdef VERIFY_LOCAL_TIME
+                                                    /* 
+                                                    * TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
+                                                    * This is useful for verifying that NTP time synchronization is working correctly and that the device 
+                                                    * has a valid local time, which is important for the daily telemetry logic and any time-based functionality.
+                                                    * This function will log the local time and epoch time to MQTT every 60 seconds when WiFi is connected, 
+                                                    * and also immediately after WiFi reconnects. It checks if the year is plausible (>= 2024) to help identify 
+                                                    * if the time is not set correctly (e.g., if it defaults to 1970).
+                                                    */
+
+                                                    static void verifyLocalTimeHealth() {
+                                                      static bool hadConnectedWifi = false;
+                                                      static uint32_t nextLogMs = 0;
+
+                                                      bool wifiConnected = (WiFi.status() == WL_CONNECTED);
+                                                      if (!wifiConnected) {
+                                                        hadConnectedWifi = false;
+                                                        return;
+                                                      }
+
+                                                      uint32_t nowMs = millis();
+                                                      bool logBecauseWifiReconnected = !hadConnectedWifi;
+                                                      bool logBecausePeriodicCheck = nowMs >= nextLogMs;
+                                                      if (!logBecauseWifiReconnected && !logBecausePeriodicCheck) {
+                                                        return;
+                                                      }
+
+                                                      hadConnectedWifi = true;
+                                                      nextLogMs = nowMs + 60000U;
+
+                                                      struct tm timeinfo;
+                                                      if (!getLocalTime(&timeinfo, 1000)) {
+                                                        publishMqttLogStatus("Time verify: getLocalTime failed", false);
+                                                        return;
+                                                      }
+
+                                                      time_t epochNow = 0;
+                                                      time(&epochNow);
+
+                                                      char tzLabel[16] = {0};
+                                                      strftime(tzLabel, sizeof(tzLabel), "%Z", &timeinfo);
+
+                                                      int year = timeinfo.tm_year + 1900;
+                                                      bool plausibleYear = year >= 2024;
+
+                                                      char logMsg[160] = {0};
+                                                      snprintf(logMsg,
+                                                              sizeof(logMsg),
+                                                              "Time verify: %04d-%02d-%02d %02d:%02d:%02d %s, epoch=%ld, plausible=%s",
+                                                              year,
+                                                              timeinfo.tm_mon + 1,
+                                                              timeinfo.tm_mday,
+                                                              timeinfo.tm_hour,
+                                                              timeinfo.tm_min,
+                                                              timeinfo.tm_sec,
+                                                              tzLabel[0] ? tzLabel : "TZ?",
+                                                              (long)epochNow,
+                                                              plausibleYear ? "yes" : "no");
+
+                                                      publishMqttLogStatus(logMsg, false);
+                                                    }
+                                                    #endif

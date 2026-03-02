@@ -271,13 +271,19 @@ bool mqttIsConnected() {
 void publish_sketch_version(TaskParams_t* params)   // Publish only once at every reboot.
 {
   IPAddress ip = WiFi.localIP();
+  char timestamp[32] = {0};
+  formatLogTimestamp(timestamp, sizeof(timestamp));
   String versionTopic = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SKETCH_VERSION;
   String versionMessage = String(params->sketchVersion + String("\nConnected to SSID: \'") +\
                                   String(params->wifiSSID) + String("\' at: ") +\
                                   String(ip[0]) + String(".") +\
                                   String(ip[1]) + String(".") +\
                                   String(ip[2]) + String(".") +\
-                                  String(ip[3]));
+                                  String(ip[3]) +\
+                                  String("\nMQTT Prefix: ") +  MQTT_PREFIX +\
+                                  String(" and MQTT broker: ") +\
+                                  String(params->mqttBrokerIP) + String(":") + String(params->mqttBrokerPort) +\
+                                  String("\nBooted at: ") + String(timestamp));
 
   mqttEnqueuePublish(versionTopic.c_str(), versionMessage.c_str(), RETAINED);
 }

@@ -16,9 +16,10 @@ static TaskHandle_t networkTaskHandle = nullptr;
 static TaskHandle_t wifiConnectionTaskHandle = nullptr;
 
 static void configureTime() {
-  setenv("TZ", "UTC0", 1);
-  tzset();
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov", "time.google.com");
+  configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3",
+               "pool.ntp.org",
+               "time.nist.gov",
+               "time.google.com");
 }
 
 static void networkTask(void* pvParameters) {
