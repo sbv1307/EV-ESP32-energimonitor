@@ -116,7 +116,7 @@ void renderEnergy(float energyKwh, bool charging, float chargeEnergyKwh, bool sm
 
   display.setCursor(0, 56);
   display.print("P N/L: ");
-  display.print(currentEnergyPrice, 2);
+  display.print(currentEnergyPrice, 3);
   display.print(" / ");
   display.print(energyPriceLlimit, 2);
 
