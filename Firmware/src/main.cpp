@@ -196,31 +196,6 @@ void loop() {
     }
   } 
 
-  /*
-   * Preparation for including:
-   OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging, chargeEnergyKwh,
-                                smartChargingActivated, chargingStartTime, currentEnergyPrice,
-                                energyPriceLimit);
-  * Options to get these values:
-   * energyKwh:                   float energyKwh = 0.0f;
-                                  if (getLatestEnergyKwh(&energyKwh)
-   * isChargingSessionCharging:   isChargingSessionCharging()
-   * chargeEnergyKwh:             In buildTeslaDataPayload() ->  
-   *                              float chargeEnergyKwh = energyKwh - gSnapshot.startEnergyKwh;
-   * The following would need to be stored in globals and updated from the MQTT data handling 
-   * code when new data is received.
-   * MQTT topic for these values will be "MQTT_PREFIX + mqttDeviceNameWithMac + MQTT_SUFFIX_SET" 
-   * with a JSON payload containing a key - value pair for each of these parameters. For example:
-   * {"smartChg": true, "chgStartTime": "12:34", "currEPrice": 1.37, "ePriceLimit": 0.94}
-   * 
-   * smartChargingActivated:    (smartChg)       ev_smart_charging_smart_charging_activated
-   * chargingStartTime:         (chgStartTime)   select.ev_smart_charging_charge_start_time
-   * currentEnergyPrice:        (currEPrice)     sensor.ev_smart_charging_charging.attributes.current_price
-   * energyPriceLimit:          (ePriceLimit)    number.ev_smart_charging_electricity_price_limit
-   * 
-   * smartCharging implementation:
-   */
-
   unsigned long nextDelayMs = calculateNextDelayMs(wifiCheckInterval,
                                                    nextCheckMs,
                                                    lastStackLog);
