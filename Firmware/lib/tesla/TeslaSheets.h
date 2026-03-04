@@ -15,6 +15,6 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
 // Returns true on success.
 bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh);
 
-// Enqueues telemetry for asynchronous upload by a background task.
-// Returns false if enqueue/startup failed.
-bool enqueueTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh);
+// Starts a one-shot task for asynchronous telemetry upload.
+// Returns false if task creation failed.
+bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh);

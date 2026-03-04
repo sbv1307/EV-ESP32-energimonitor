@@ -1,4 +1,6 @@
 //#define DEBUG
+#define STACK_WATERMARK
+
 #include <Arduino.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
@@ -9,53 +11,37 @@
 #include "config.h"
 #include "privateConfig.h"
 
+
+#include "globals.h" // TOBE REMOVED after testing TESLA_TELEMETRY_TASK_STACK_SIZE
+
 namespace {
 struct TeslaTelemetryQueueItem {
   TaskParams_t* params = nullptr;
   float energyKwh = 0.0f;
 };
 
-static QueueHandle_t gTeslaTelemetryQueue = nullptr;
-static TaskHandle_t gTeslaTelemetryTaskHandle = nullptr;
-
-constexpr uint32_t TESLA_TELEMETRY_QUEUE_LENGTH = 6;
-constexpr uint32_t TESLA_TELEMETRY_TASK_STACK_SIZE = 8192;
+// constexpr uint32_t TESLA_TELEMETRY_TASK_STACK_SIZE = 8192; // '//'TOBE REMOVED after testing TESLA_TELEMETRY_TASK_STACK_SIZE
 constexpr UBaseType_t TESLA_TELEMETRY_TASK_PRIORITY = 1;
-
-static bool ensureTeslaTelemetryQueue() {
-  if (gTeslaTelemetryQueue != nullptr) {
-    return true;
-  }
-
-  gTeslaTelemetryQueue = xQueueCreate(TESLA_TELEMETRY_QUEUE_LENGTH, sizeof(TeslaTelemetryQueueItem));
-  return gTeslaTelemetryQueue != nullptr;
-}
+static portMUX_TYPE teslaTelemetryTaskStateMux = portMUX_INITIALIZER_UNLOCKED;
+static TaskHandle_t teslaTelemetryTaskHandle = nullptr;
 
 static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
-  (void)pvParameters;
-
-  TeslaTelemetryQueueItem item;
-  while (true) {
-    if (xQueueReceive(gTeslaTelemetryQueue, &item, portMAX_DELAY) == pdTRUE) {
-      sendTeslaTelemetryToGoogleSheets(item.params, item.energyKwh);
-    }
-  }
-}
-
-static bool ensureTeslaTelemetryTaskRunning() {
-  if (gTeslaTelemetryTaskHandle != nullptr && eTaskGetState(gTeslaTelemetryTaskHandle) != eDeleted) {
-    return true;
+  TeslaTelemetryQueueItem* item = static_cast<TeslaTelemetryQueueItem*>(pvParameters);
+  if (item != nullptr) {
+    sendTeslaTelemetryToGoogleSheets(item->params, item->energyKwh);
+    delete item;
   }
 
-  BaseType_t result = xTaskCreate(
-      sendTeslaTelemetryToGoogleSheetsTask,
-      "TeslaSheetsTask",
-      TESLA_TELEMETRY_TASK_STACK_SIZE,
-      nullptr,
-      TESLA_TELEMETRY_TASK_PRIORITY,
-      &gTeslaTelemetryTaskHandle);
+                                                            #ifdef STACK_WATERMARK
+                                                            gTeslaTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+                                                            #endif
 
-  return result == pdPASS;
+
+  portENTER_CRITICAL(&teslaTelemetryTaskStateMux);
+  teslaTelemetryTaskHandle = nullptr;
+  portEXIT_CRITICAL(&teslaTelemetryTaskStateMux);
+
+  vTaskDelete(nullptr);
 }
 }
 
@@ -178,18 +164,55 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
   return sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaLog, payload);
 }
 
-bool enqueueTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
-  if (!ensureTeslaTelemetryQueue()) {
+bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
+  portENTER_CRITICAL(&teslaTelemetryTaskStateMux);
+  if (teslaTelemetryTaskHandle != nullptr) {
+    portEXIT_CRITICAL(&teslaTelemetryTaskStateMux);
+    return false;
+  }
+  portEXIT_CRITICAL(&teslaTelemetryTaskStateMux);
+
+  TeslaTelemetryQueueItem* item = new TeslaTelemetryQueueItem;
+  /* Note: If the allocation fails, it returns nullptr. We should check for that before proceeding.
+   * item can be nullptr only if allocation fails (or a custom allocator returns null).
+   * 
+   * Most likely causes on ESP32/Arduino:
+   * 
+   * Heap exhausted: not enough free RAM when new runs.
+   * Heap fragmentation: total free heap exists, but no contiguous block large enough.
+   * Transient memory pressure: other tasks/allocations briefly consume heap at that moment.
+   * Allocator/heap corruption: prior out-of-bounds write or double-free breaks allocator state.
+   * Custom operator new behavior: in many embedded builds, new is non-throwing and may return nullptr on OOM.
+   * 
+   * It might be rare to hit this in practice unless the system is under heavy memory pressure or fragmentation, 
+   * but it's good to check to avoid dereferencing a null pointer and crashing. 
+   * If allocation fails, we return false to indicate we couldn't enqueue the telemetry.
+   * 
+   * It might be worth adding logging here in debug builds to help identify if/when this happens, 
+   * as it could indicate memory issues that need to be addressed.
+   */
+  if (item == nullptr) {
     return false;
   }
 
-  if (!ensureTeslaTelemetryTaskRunning()) {
+  item->params = params;
+  item->energyKwh = energyKwh;
+
+  BaseType_t result = xTaskCreate(
+      sendTeslaTelemetryToGoogleSheetsTask,
+      "TeslaSheetsTask",
+      TESLA_TELEMETRY_TASK_STACK_SIZE,
+      item,
+      TESLA_TELEMETRY_TASK_PRIORITY,
+      &teslaTelemetryTaskHandle);
+
+  if (result != pdPASS) {
+    delete item;
+    portENTER_CRITICAL(&teslaTelemetryTaskStateMux);
+    teslaTelemetryTaskHandle = nullptr;
+    portEXIT_CRITICAL(&teslaTelemetryTaskStateMux);
     return false;
   }
 
-  TeslaTelemetryQueueItem item;
-  item.params = params;
-  item.energyKwh = energyKwh;
-
-  return xQueueSend(gTeslaTelemetryQueue, &item, 0) == pdTRUE;
+  return true;
 }

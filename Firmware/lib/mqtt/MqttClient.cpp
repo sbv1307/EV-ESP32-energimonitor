@@ -25,6 +25,7 @@ static QueueHandle_t mqttRxQueue = nullptr;
 static QueueHandle_t mqttDeferredQueue = nullptr;
 static volatile bool mqttPaused = false;
 static TaskParams_t* mqttParams = nullptr;
+static char bootTimestamp[32] = {0};
 
 struct MqttRxMessage {
   char topic[MQTT_TOPIC_LEN];
@@ -55,7 +56,7 @@ static void formatLogTimestamp(char* buffer, size_t bufferSize) {
   }
 
   struct tm timeinfo;
-  if (getLocalTime(&timeinfo)) {
+  if (getLocalTime(&timeinfo)) { 
     snprintf(buffer,
              bufferSize,
              "%04d-%02d-%02d %02d:%02d:%02d",
@@ -65,6 +66,12 @@ static void formatLogTimestamp(char* buffer, size_t bufferSize) {
              timeinfo.tm_hour,
              timeinfo.tm_min,
              timeinfo.tm_sec);
+
+    if (bootTimestamp[0] == '\0') {
+      strncpy(bootTimestamp, buffer, sizeof(bootTimestamp) - 1);
+      bootTimestamp[sizeof(bootTimestamp) - 1] = '\0';
+    }
+
     return;
   }
 
@@ -283,7 +290,7 @@ void publish_sketch_version(TaskParams_t* params)   // Publish only once at ever
                                   String("\nMQTT Prefix: ") +  MQTT_PREFIX +\
                                   String(" and MQTT broker: ") +\
                                   String(params->mqttBrokerIP) + String(":") + String(params->mqttBrokerPort) +\
-                                  String("\nBooted at: ") + String(timestamp));
+                                  String("\nBooted at: ") + String(bootTimestamp));
 
   mqttEnqueuePublish(versionTopic.c_str(), versionMessage.c_str(), RETAINED);
 }
@@ -363,18 +370,21 @@ void mqttProcessRxQueue() {
       }
 
       for (JsonPair kv : doc.as<JsonObject>()) {
-        String key = kv.key().c_str();
-        String value = kv.value().as<String>();
+        const char* key = kv.key().c_str();
+        const char* valueText = kv.value().as<const char*>();
 
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Processing command - Key: ");
-                                                                    Serial.print(key);
+                                                                    Serial.print(key ? key : "(null)");
                                                                     Serial.print(", Value: ");
-                                                                    Serial.println(value);
+                                                                    Serial.println(valueText ? valueText : "(non-text)");
                                                                     #endif
 
-        if (key == MQTT_NUMBER_ENERGY_ENTITYNAME) {
-          float newEnergyValue = value.toFloat();
+        bool isTrueText = valueText &&
+                          (strcmp(valueText, "true") == 0 || strcmp(valueText, "True") == 0);
+
+        if (strcmp(key, MQTT_NUMBER_ENERGY_ENTITYNAME) == 0) {
+          float newEnergyValue = kv.value().as<float>();
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Setting new energy value to: ");
                                                                     Serial.println(newEnergyValue);
@@ -384,26 +394,24 @@ void mqttProcessRxQueue() {
             uint32_t newPulseCounter = (uint32_t)(newEnergyValue * mqttParams->pulse_per_kWh + 0.5f);
             setPulseCounterFromMqtt(newPulseCounter);
           }
-        } else if (key == MQTT_SENSOR_ENERGY_ENTITYNAME) {
-          if (value.equalsIgnoreCase("true")) {
+        } else if (strcmp(key, MQTT_SENSOR_ENERGY_ENTITYNAME) == 0) {
+          if (isTrueText) {
             requestSubtotalReset();
           }
-        } else if (key == MQTT_SMART_CHG) {
-          if (value.equalsIgnoreCase("true")) {
-            gSmartChargingActivated = true;
-          } else {
-            gSmartChargingActivated = false;
+        } else if (strcmp(key, MQTT_SMART_CHG) == 0) {
+          gSmartChargingActivated = isTrueText;
+          gDisplayUpdateAvailable = true; // Trigger display update
+        } else if (strcmp(key, MQTT_CHG_START_TIME) == 0) {
+          if (valueText) {
+            strncpy(gChargingStartTime, valueText, sizeof(gChargingStartTime) - 1);
+            gChargingStartTime[sizeof(gChargingStartTime) - 1] = '\0'; // Ensure null-termination
+            gDisplayUpdateAvailable = true; // Trigger display update
           }
+        } else if (strcmp(key, MQTT_CURR_E_PRICE) == 0) {
+          gCurrentEnergyPrice = kv.value().as<float>();
           gDisplayUpdateAvailable = true; // Trigger display update
-        } else if (key == MQTT_CHG_START_TIME) {
-          strncpy(gChargingStartTime, value.c_str(), sizeof(gChargingStartTime) - 1);
-          gChargingStartTime[sizeof(gChargingStartTime) - 1] = '\0'; // Ensure null-termination
-          gDisplayUpdateAvailable = true; // Trigger display update
-        } else if (key == MQTT_CURR_E_PRICE) {
-          gCurrentEnergyPrice = value.toFloat();
-          gDisplayUpdateAvailable = true; // Trigger display update
-        } else if (key == MQTT_E_PRICE_LIMIT) {
-          gEnergyPriceLimit = value.toFloat();
+        } else if (strcmp(key, MQTT_E_PRICE_LIMIT) == 0) {
+          gEnergyPriceLimit = kv.value().as<float>();
           gDisplayUpdateAvailable = true; // Trigger display update
         }
       }

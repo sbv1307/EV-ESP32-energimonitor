@@ -66,7 +66,7 @@ lib/
   */
  
 static void handleDailyTelemetry(TaskParams_t *networkParams,
-                                 int &lastDay,
+                                 int &lastDateKey,
                                  uint32_t &nextCheckMs,
                                  bool &bootTelemetryToSend,
                                  bool &pendingTelemetryToSend,
@@ -143,7 +143,7 @@ void loop() {
   static unsigned long lastWiFiCheck = 0;
   const unsigned long wifiCheckInterval = 5000; // Check every 5 seconds
   static unsigned long lastStackLog = 0;
-  static int lastDay = -1;
+  static int lastDateKey = -1;
   static uint32_t nextCheckMs = 0;
   static bool bootTelemetryToSend = true;
   static bool pendingTelemetryToSend = false;
@@ -179,7 +179,7 @@ void loop() {
                                                     #endif
 
   handleDailyTelemetry(&networkParams,
-                       lastDay,
+                       lastDateKey,
                        nextCheckMs,
                        bootTelemetryToSend,
                        pendingTelemetryToSend,
@@ -209,6 +209,7 @@ void loop() {
                                                                           static uint32_t maxOptimalNetworkTaskStackSize = 0;
                                                                           static uint32_t maxOptimalWifiConnTaskStackSize = 0;
                                                                           static uint32_t maxOptimalPulseInputTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalTeslaTaskStackSize = 0;
 
                                                                           if (gNetworkTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = NETWORK_TASK_STACK_SIZE - gNetworkTaskStackHighWater;
@@ -219,7 +220,7 @@ void loop() {
                                                                               char logMsg[128] = {0};
                                                                               snprintf(logMsg,
                                                                                        sizeof(logMsg),
-                                                                                       "Change networkTaskStackSize from: %u to: %u words",
+                                                                                       "Change NETWORK_TASK_STACK_SIZE from: %u to: %u words",
                                                                                        (unsigned)NETWORK_TASK_STACK_SIZE,
                                                                                        (unsigned)optimalNetworkTaskStackSize);
                                                                               publishMqttLog("log/stack/network", logMsg, false);
@@ -234,7 +235,7 @@ void loop() {
                                                                               char logMsg[128] = {0};
                                                                               snprintf(logMsg,
                                                                                        sizeof(logMsg),
-                                                                                       "Change wifiConnectionTaskStackSize from: %u to: %u words",
+                                                                                       "Change WIFI_CONNECTION_TASK_STACK_SIZE from: %u to: %u words",
                                                                                        (unsigned)WIFI_CONNECTION_TASK_STACK_SIZE,
                                                                                        (unsigned)optimalWifiConnTaskStackSize);
                                                                               publishMqttLog("log/stack/wifiConnection", logMsg, false);
@@ -249,10 +250,25 @@ void loop() {
                                                                               char logMsg[128] = {0};
                                                                               snprintf(logMsg,
                                                                                        sizeof(logMsg),
-                                                                                       "Change pulseInputTaskStackSize from: %u to: %u words",
+                                                                                       "Change PULSE_INPUT_TASK_STACK_SIZE from: %u to: %u words",
                                                                                        (unsigned)PULSE_INPUT_TASK_STACK_SIZE,
                                                                                        (unsigned)optimalPulseInputTaskStackSize);
                                                                               publishMqttLog("log/stack/pulseInput", logMsg, false);
+                                                                            }
+                                                                          }
+                                                                          if (gTeslaTaskStackHighWater > 0) {
+                                                                            uint32_t usedStack = TESLA_TELEMETRY_TASK_STACK_SIZE - gTeslaTaskStackHighWater;
+                                                                            uint32_t optimalTeslaTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
+                                                                            bool significantDiff = abs((int)TESLA_TELEMETRY_TASK_STACK_SIZE - (int)optimalTeslaTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalTeslaTaskStackSize > maxOptimalTeslaTaskStackSize) {
+                                                                              maxOptimalTeslaTaskStackSize = optimalTeslaTaskStackSize;
+                                                                              char logMsg[128] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change TESLA_TELEMETRY_TASK_STACK_SIZE from: %u to: %u words",
+                                                                                       (unsigned)TESLA_TELEMETRY_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalTeslaTaskStackSize);
+                                                                              publishMqttLog("log/stack/teslaTelemetry", logMsg, false);
                                                                             }
                                                                           }
                                                                           /*
@@ -290,17 +306,18 @@ void loop() {
  */
 
 static void handleDailyTelemetry(TaskParams_t *networkParams,
-                                 int &lastDay,
+                                 int &lastDateKey,
                                  uint32_t &nextCheckMs,
                                  bool &bootTelemetryToSend,
                                  bool &pendingTelemetryToSend,
                                  float &pendingEnergyKwh) {
   static uint32_t lastTimeFailLogMs = 0;
+  static int lastProcessedDailyTelemetryDateKey = -1;
 
   if (bootTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     float energyKwh = 0.0f;
     if (getLatestEnergyKwh(&energyKwh)) {
-      if (enqueueTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
+      if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
         bootTelemetryToSend = false;
         publishMqttLog(MQTT_LOG_SUFFIX, "Boot telemetry queued", false);
       }
@@ -308,7 +325,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   }
 
   if (pendingTelemetryToSend && WiFi.status() == WL_CONNECTED) {
-    if (enqueueTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh)) {
+    if (passTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh)) {
       pendingTelemetryToSend = false;
       publishMqttLog(MQTT_LOG_SUFFIX, "Pending telemetry queued", false);
     }
@@ -317,11 +334,15 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   if (millis() >= nextCheckMs) {
     struct tm timeinfo;
     if (getLocalTime(&timeinfo)) {
-      if (lastDay != -1 && timeinfo.tm_mday != lastDay) {
+      int year = timeinfo.tm_year + 1900;
+      int currentDateKey = (year * 1000) + timeinfo.tm_yday;
+      bool dayChanged = (lastDateKey != -1 && currentDateKey != lastDateKey);
+
+      if (dayChanged && currentDateKey > lastProcessedDailyTelemetryDateKey) {
         float energyKwh = 0.0f;
         if (getLatestEnergyKwh(&energyKwh)) {
           if (WiFi.status() == WL_CONNECTED) {
-            if (enqueueTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
+            if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
               publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry queued", false);
             } else {
               pendingEnergyKwh = energyKwh;
@@ -336,8 +357,9 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
         }
         requestSubtotalReset();
         publishMqttLog(MQTT_LOG_SUFFIX, "Day changed, subtotal reset requested", false);
+        lastProcessedDailyTelemetryDateKey = currentDateKey;
       }
-      lastDay = timeinfo.tm_mday;
+      lastDateKey = currentDateKey;
 
       uint32_t secsUntilMidnight = (23 - timeinfo.tm_hour) * 3600 +
                                    (59 - timeinfo.tm_min) * 60 +
