@@ -2,7 +2,7 @@
 #include <ArduinoOTA.h>
 
 #include "OtaService.h"
-#include "../network/NetworkTask.h"
+#include "MqttClient.h"
 
 void otaInit() {
 

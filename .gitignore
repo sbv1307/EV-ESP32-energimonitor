@@ -13,3 +13,7 @@ Developer/*
 build_timestamp.h
 assistant-format.md
 privateConfig.h
+
+mqtt-trace.log
+mosquitto.log
+mosquitto.db

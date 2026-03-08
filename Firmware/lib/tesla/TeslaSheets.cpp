@@ -11,9 +11,6 @@
 #include "config.h"
 #include "privateConfig.h"
 
-
-#include "globals.h" // TOBE REMOVED after testing TESLA_TELEMETRY_TASK_STACK_SIZE
-
 namespace {
 struct TeslaTelemetryQueueItem {
   TaskParams_t* params = nullptr;

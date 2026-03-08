@@ -1,3 +1,4 @@
+//#define BOOT_DIAGNOSTICS_LOGGING // Enable logging of boot diagnostics (reset reason, boot count, uptime) to MQTT. Requires WiFi connection and may delay the first telemetry if the MQTT broker is not reachable at startup.
 #pragma once
 
 #include <Arduino.h>
@@ -22,6 +23,11 @@ constexpr char MQTT_CURR_E_PRICE[]              = "currEPrice";         // JSON 
 constexpr char MQTT_E_PRICE_LIMIT[]             = "ePriceLimit";         // JSON key for energy price limit for smart charging activation
 constexpr char MQTT_DISCOVERY_PREFIX[]          = "homeassistant/";     // include tailing '/' in discovery prefix!
 constexpr char MQTT_SUFFIX_STATE[]              = "state";              // MQTT topic suffix for state messages. OBS no leading '/'
+
+                                                                        #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                                        constexpr char MQTT_RESET_REASON_SUFFIX[]       = "/reset_reason";      // MQTT topic suffix for last reset reason (retained). Include leading '/'
+                                                                        constexpr char MQTT_LAST_BOOT_TIME_SUFFIX[]     = "/last_boot_time";    // MQTT topic suffix for last boot time (retained). Include leading '/'
+                                                                        #endif
 
 /*  MQTT publication definitions
  *  These definitions are used when publishing MQTT messages.
@@ -57,7 +63,6 @@ bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain);
 void mqttInit( TaskParams_t* params );
 void mqttLoop( TaskParams_t* params );
 void mqttProcessRxQueue();
-void mqttProcessDeferredQueue();
 void mqttCallback(char*, byte*, unsigned int);
 void mqttPause();
 void mqttResume();
@@ -67,4 +72,9 @@ void publishMqttEnergy(float, float, float);
 bool publishMqttLog(const char* topicSuffix, const char* message, bool retain = false);
 bool publishMqttLogStatus(const char* message, bool retain = false);
 bool publishMqttLogEmail(const char* message, bool retain = false);
+
+#ifdef BOOT_DIAGNOSTICS_LOGGING
+bool publishMqttResetReason(const char* message, bool retain = true);
+bool publishMqttBootTime(const char* message, bool retain = true);
+#endif
 

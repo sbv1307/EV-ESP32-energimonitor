@@ -1,13 +1,16 @@
 //#define NONE_HEADLESS
 //#define DEBUG
 //#define VERIFY_LOCAL_TIME
+//#define BOOT_DIAGNOSTICS_LOGGING // Enable logging of boot diagnostics (reset reason, boot count, uptime) to MQTT. Requires WiFi connection and may delay the first telemetry if the MQTT broker is not reachable at startup.
 #define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
-
 
 #include <Arduino.h>
 #include <WiFi.h>
-#include <Preferences.h>
 #include <time.h>
+
+                                                          #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                          #include <esp_system.h>
+                                                          #endif
 
 #include "config.h"
 #include "privateConfig.h"
@@ -21,10 +24,10 @@
 
 #include "PulseInputIsrTest.h" //TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
 
-#ifdef NONE_HEADLESS
-#include <wait_for_any_key.h>
-#include "build_timestamp.h"
-#endif
+                                                          #ifdef NONE_HEADLESS
+                                                          #include <wait_for_any_key.h>
+                                                          #include "build_timestamp.h"
+                                                          #endif
 
 
 /*
@@ -35,6 +38,10 @@
  * #################################################################################################
  */
 static TaskParams_t networkParams;
+
+                                                                  #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                                  RTC_DATA_ATTR static uint32_t sBootCount = 0;
+                                                                  #endif
 
 /*
  * ##################################################################################################
@@ -72,13 +79,18 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
                                  bool &pendingTelemetryToSend,
                                  float &pendingEnergyKwh);
 
-                                              #ifdef VERIFY_LOCAL_TIME
-                                              static void verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
-                                              #endif
+                                                              #ifdef VERIFY_LOCAL_TIME
+                                                              static void verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
+                                                              #endif
 
 static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
                                           uint32_t nextCheckMs,
                                           unsigned long lastStackLog);
+
+                                                              #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                              static const char* resetReasonToString(esp_reset_reason_t reason);
+                                                              static void publishBootDiagnosticsOnce();
+                                                              #endif
 
 /*
  * ###################################################################################################
@@ -128,6 +140,10 @@ void setup() {
   startNetworkTask( &networkParams );
 
   initChargingSession();
+
+                                                            #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                            sBootCount++;
+                                                            #endif
 }
 
 /*
@@ -172,11 +188,14 @@ void loop() {
   startPulseInputIsrTestTask();
 
   mqttProcessRxQueue();
-  mqttProcessDeferredQueue();
 
-                                                    #ifdef VERIFY_LOCAL_TIME
-                                                    verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
-                                                    #endif
+                                                                    #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                                    publishBootDiagnosticsOnce();
+                                                                    #endif
+
+                                                                    #ifdef VERIFY_LOCAL_TIME
+                                                                    verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
+                                                                    #endif
 
   handleDailyTelemetry(&networkParams,
                        lastDateKey,
@@ -210,6 +229,20 @@ void loop() {
                                                                           static uint32_t maxOptimalWifiConnTaskStackSize = 0;
                                                                           static uint32_t maxOptimalPulseInputTaskStackSize = 0;
                                                                           static uint32_t maxOptimalTeslaTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalConfigurationTaskStackSize = 0;
+                                                                          static UBaseType_t minLoopTaskStackHighWater = 0;
+
+                                                                          UBaseType_t loopTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+                                                                          if (loopTaskStackHighWater > 0 &&
+                                                                              (minLoopTaskStackHighWater == 0 || loopTaskStackHighWater < minLoopTaskStackHighWater)) {
+                                                                            minLoopTaskStackHighWater = loopTaskStackHighWater;
+                                                                            char logMsg[128] = {0};
+                                                                            snprintf(logMsg,
+                                                                                     sizeof(logMsg),
+                                                                                     "loop() min free stack watermark: %u words",
+                                                                                     (unsigned)minLoopTaskStackHighWater);
+                                                                            publishMqttLog("log/stack/loop", logMsg, false);
+                                                                          }
 
                                                                           if (gNetworkTaskStackHighWater > 0) {
                                                                             uint32_t usedStack = NETWORK_TASK_STACK_SIZE - gNetworkTaskStackHighWater;
@@ -269,6 +302,21 @@ void loop() {
                                                                                        (unsigned)TESLA_TELEMETRY_TASK_STACK_SIZE,
                                                                                        (unsigned)optimalTeslaTaskStackSize);
                                                                               publishMqttLog("log/stack/teslaTelemetry", logMsg, false);
+                                                                            }
+                                                                          }
+                                                                          if (gConfigurationTaskStackHighWater > 0) {
+                                                                            uint32_t usedStack = CONFIGURATION_TASK_STACK_SIZE - gConfigurationTaskStackHighWater;
+                                                                            uint32_t optimalConfigurationTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
+                                                                            bool significantDiff = abs((int)CONFIGURATION_TASK_STACK_SIZE - (int)optimalConfigurationTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalConfigurationTaskStackSize > maxOptimalConfigurationTaskStackSize) {
+                                                                              maxOptimalConfigurationTaskStackSize = optimalConfigurationTaskStackSize;
+                                                                              char logMsg[128] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change CONFIGURATION_TASK_STACK_SIZE from: %u to: %u words",
+                                                                                       (unsigned)CONFIGURATION_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalConfigurationTaskStackSize);
+                                                                              publishMqttLog("log/stack/configuration", logMsg, false);
                                                                             }
                                                                           }
                                                                           /*
@@ -398,6 +446,84 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
 
   return nextDelayMs;
 }
+
+                                                    #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                    static const char* resetReasonToString(esp_reset_reason_t reason) {
+                                                      switch (reason) {
+                                                        case ESP_RST_UNKNOWN:   return "UNKNOWN";
+                                                        case ESP_RST_POWERON:   return "POWERON";
+                                                        case ESP_RST_EXT:       return "EXT";
+                                                        case ESP_RST_SW:        return "SW";
+                                                        case ESP_RST_PANIC:     return "PANIC";
+                                                        case ESP_RST_INT_WDT:   return "INT_WDT";
+                                                        case ESP_RST_TASK_WDT:  return "TASK_WDT";
+                                                        case ESP_RST_WDT:       return "WDT";
+                                                        case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+                                                        case ESP_RST_BROWNOUT:  return "BROWNOUT";
+                                                        case ESP_RST_SDIO:      return "SDIO";
+                                                        default:                return "OTHER";
+                                                      }
+                                                    }
+
+                                                    static void publishBootDiagnosticsOnce() {
+                                                      static bool bootDiagnosticsPublished = false;
+                                                      if (bootDiagnosticsPublished) {
+                                                        return;
+                                                      }
+
+                                                      if (WiFi.status() != WL_CONNECTED) {
+                                                        return;
+                                                      }
+
+                                                      esp_reset_reason_t reason = esp_reset_reason();
+                                                      unsigned long uptimeSeconds = millis() / 1000UL;
+
+                                                      char logMsg[180] = {0};
+                                                      snprintf(logMsg,
+                                                              sizeof(logMsg),
+                                                              "Boot diagnostics: reset_reason=%s(%d), boot_count=%lu, uptime_s=%lu",
+                                                              resetReasonToString(reason),
+                                                              (int)reason,
+                                                              (unsigned long)sBootCount,
+                                                              uptimeSeconds);
+
+                                                      char resetReasonPayload[96] = {0};
+                                                      snprintf(resetReasonPayload,
+                                                              sizeof(resetReasonPayload),
+                                                              "%s(%d),boot_count=%lu,uptime_s=%lu",
+                                                              resetReasonToString(reason),
+                                                              (int)reason,
+                                                              (unsigned long)sBootCount,
+                                                              uptimeSeconds);
+
+                                                      char bootTimePayload[64] = {0};
+                                                      struct tm timeinfo;
+                                                      if (getLocalTime(&timeinfo)) {
+                                                        snprintf(bootTimePayload,
+                                                                sizeof(bootTimePayload),
+                                                                "%04d-%02d-%02d %02d:%02d:%02d",
+                                                                timeinfo.tm_year + 1900,
+                                                                timeinfo.tm_mon + 1,
+                                                                timeinfo.tm_mday,
+                                                                timeinfo.tm_hour,
+                                                                timeinfo.tm_min,
+                                                                timeinfo.tm_sec);
+                                                      } else {
+                                                        snprintf(bootTimePayload,
+                                                                sizeof(bootTimePayload),
+                                                                "time-unavailable uptime_s=%lu",
+                                                                uptimeSeconds);
+                                                      }
+
+                                                      bool statusLogged = publishMqttLogStatus(logMsg, false);
+                                                      bool resetReasonPublished = publishMqttResetReason(resetReasonPayload, true);
+                                                      bool bootTimePublished = publishMqttBootTime(bootTimePayload, true);
+
+                                                      if (statusLogged && resetReasonPublished && bootTimePublished) {
+                                                        bootDiagnosticsPublished = true;
+                                                      }
+                                                    }
+                                                    #endif
 
                                                     #ifdef VERIFY_LOCAL_TIME
                                                     /* 

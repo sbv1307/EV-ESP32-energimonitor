@@ -1,6 +1,8 @@
 //#define DEBUG
+//#define BOOT_DIAGNOSTICS_LOGGING // Enable logging of boot diagnostics (reset reason, boot count, uptime) to MQTT. Requires WiFi connection and may delay the first telemetry if the MQTT broker is not reachable at startup.
+#define STACK_WATERMARK
+
 #include <ArduinoJson.h>
-#include <Preferences.h>
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <time.h>
@@ -22,10 +24,10 @@ static PubSubClient mqttClient(wifiClient);
 
 static QueueHandle_t mqttQueue = nullptr;
 static QueueHandle_t mqttRxQueue = nullptr;
-static QueueHandle_t mqttDeferredQueue = nullptr;
 static volatile bool mqttPaused = false;
 static TaskParams_t* mqttParams = nullptr;
 static char bootTimestamp[32] = {0};
+static TaskHandle_t mqttPublishConfigTaskHandle = nullptr;
 
 struct MqttRxMessage {
   char topic[MQTT_TOPIC_LEN];
@@ -33,21 +35,38 @@ struct MqttRxMessage {
   uint16_t length;
 };
 
-enum class MqttDeferredCommandType : uint8_t {
-  PublishConfigurations = 1
-};
+static void mqttPublishConfigurationsTask(void* parameter) {
+  (void)parameter;
 
-struct MqttDeferredCommand {
-  MqttDeferredCommandType type;
-};
+  publishMqttConfigurations();
 
-static bool mqttEnqueueDeferredCommand(MqttDeferredCommandType type) {
-  if (!mqttDeferredQueue) {
+  #ifdef STACK_WATERMARK
+  gConfigurationTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+  #endif
+
+  mqttPublishConfigTaskHandle = nullptr;
+  vTaskDelete(nullptr);
+}
+
+static bool mqttTriggerConfigurationPublishTask() {
+  if (mqttPublishConfigTaskHandle != nullptr) {
+    return true;
+  }
+
+  BaseType_t created = xTaskCreate(
+      mqttPublishConfigurationsTask,
+      "mqtt_cfg_pub",
+      CONFIGURATION_TASK_STACK_SIZE,
+      nullptr,
+      1,
+      &mqttPublishConfigTaskHandle);
+
+  if (created != pdPASS) {
+    mqttPublishConfigTaskHandle = nullptr;
     return false;
   }
 
-  MqttDeferredCommand cmd{type};
-  return xQueueSend(mqttDeferredQueue, &cmd, 0) == pdTRUE;
+  return true;
 }
 
 static void formatLogTimestamp(char* buffer, size_t bufferSize) {
@@ -122,7 +141,7 @@ static void reconnect(TaskParams_t* params) {
 
       publish_sketch_version( params);
 
-      mqttEnqueueDeferredCommand(MqttDeferredCommandType::PublishConfigurations);
+      mqttTriggerConfigurationPublishTask();
 
       /*************************************************************************************
        *************************************************************************************
@@ -178,10 +197,6 @@ void mqttInit(TaskParams_t* params) {
     Serial.println("MqttClient: MQTT RX queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
   }
 
-  mqttDeferredQueue = xQueueCreate(2, sizeof(MqttDeferredCommand));
-  if (!mqttDeferredQueue) {
-    Serial.println("MqttClient: MQTT deferred queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
-  }
 }
 
 /* ###################################################################################################
@@ -228,6 +243,26 @@ bool publishMqttLogStatus(const char* message, bool retain) {
 bool publishMqttLogEmail(const char* message, bool retain) {
   return publishMqttLog(MQTT_LOG_EMAIL_SUFFIX, message, retain);
 }
+
+                                                            #ifdef BOOT_DIAGNOSTICS_LOGGING
+                                                            bool publishMqttResetReason(const char* message, bool retain) {
+                                                              if (!message || !mqttQueue) {
+                                                                return false;
+                                                              }
+
+                                                              String topic = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_RESET_REASON_SUFFIX;
+                                                              return mqttEnqueuePublish(topic.c_str(), message, retain);
+                                                            }
+
+                                                            bool publishMqttBootTime(const char* message, bool retain) {
+                                                              if (!message || !mqttQueue) {
+                                                                return false;
+                                                              }
+
+                                                              String topic = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_LAST_BOOT_TIME_SUFFIX;
+                                                              return mqttEnqueuePublish(topic.c_str(), message, retain);
+                                                            }
+                                                            #endif
 
 /* ###################################################################################################
  *                  M Q T T   L O O P
@@ -415,23 +450,6 @@ void mqttProcessRxQueue() {
           gDisplayUpdateAvailable = true; // Trigger display update
         }
       }
-    }
-  }
-}
-
-void mqttProcessDeferredQueue() {
-  if (!mqttDeferredQueue) {
-    return;
-  }
-
-  MqttDeferredCommand cmd;
-  while (xQueueReceive(mqttDeferredQueue, &cmd, 0) == pdTRUE) {
-    switch (cmd.type) {
-      case MqttDeferredCommandType::PublishConfigurations:
-        publishMqttConfigurations();
-        break;
-      default:
-        break;
     }
   }
 }

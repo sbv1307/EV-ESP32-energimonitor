@@ -241,14 +241,8 @@ static void PulseInputTask( void* pvParameters) {
     portEXIT_CRITICAL(&SubtotalResetMux);
 
     if (shouldResetSubtotal) {
-
-      char resetMsg[128] = {0};
-      snprintf(resetMsg,
-               sizeof(resetMsg),
-               "Subtotal reset handling: total=%lu subtotal=%u",
-               (unsigned long)pulseCounter,
-               (unsigned)subtotalPulseCounter);
-      publishMqttLogStatus(resetMsg, false);
+      // Avoid stack-heavy MQTT log formatting in this task.
+      // PulseInputTask has a tighter stack budget, and this path is time-critical.
 
       bool subtotalChanged = subtotalPulseCounter != 0;
       subtotalPulseCounter = 0;
@@ -263,8 +257,6 @@ static void PulseInputTask( void* pvParameters) {
       float subtotalKwh = 0.0f;
       updateLatestEnergySnapshot(powerW, energyKwh, subtotalKwh);
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
-
-      publishMqttLog(MQTT_LOG_SUFFIX, "Subtotal reset applied", false);
     }
 
     // Wait for pulse timestamp from ISR
