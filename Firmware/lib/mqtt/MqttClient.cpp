@@ -443,7 +443,7 @@ void mqttProcessRxQueue() {
             gDisplayUpdateAvailable = true; // Trigger display update
           }
         } else if (strcmp(key, MQTT_MAX_E_PRICE) == 0) {
-          gCurrentEnergyRef = kv.value().as<float>();
+          gEnergyPriceRef = kv.value().as<float>();
           gDisplayUpdateAvailable = true; // Trigger display update
         } else if (strcmp(key, MQTT_E_PRICE_LIMIT) == 0) {
           gEnergyPriceLimit = kv.value().as<float>();

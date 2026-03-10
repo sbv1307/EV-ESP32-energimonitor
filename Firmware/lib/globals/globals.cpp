@@ -19,7 +19,7 @@ bool gDisplayUpdateAvailable = true;
 bool gSmartChargingActivated = false;
 float gChargeEnergyKwh = 0.0f;
 char gChargingStartTime[6] = {0};
-float gCurrentEnergyRef = 0.0f;
+float gEnergyPriceRef = 0.0f;
 float gEnergyPriceLimit = 0.0f;
 
 void initializeGlobals( TaskParams_t* params ) {
