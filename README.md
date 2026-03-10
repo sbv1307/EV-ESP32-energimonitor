@@ -39,6 +39,10 @@ The energy meter connected to the ESP32 MQTT interface, will have a pulse output
 
 ### Enhangements
 
+#### Publish lowest price for the comming energyprices
+
+
+
 #### Publish energy prise as charge start time:
 
 Asking GithubPilot:
