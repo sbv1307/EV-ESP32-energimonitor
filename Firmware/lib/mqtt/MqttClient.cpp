@@ -442,8 +442,8 @@ void mqttProcessRxQueue() {
             gChargingStartTime[sizeof(gChargingStartTime) - 1] = '\0'; // Ensure null-termination
             gDisplayUpdateAvailable = true; // Trigger display update
           }
-        } else if (strcmp(key, MQTT_CURR_E_PRICE) == 0) {
-          gCurrentEnergyPrice = kv.value().as<float>();
+        } else if (strcmp(key, MQTT_MAX_E_PRICE) == 0) {
+          gCurrentEnergyRef = kv.value().as<float>();
           gDisplayUpdateAvailable = true; // Trigger display update
         } else if (strcmp(key, MQTT_E_PRICE_LIMIT) == 0) {
           gEnergyPriceLimit = kv.value().as<float>();

@@ -113,14 +113,6 @@ void setup() {
 
   initializeGlobals( &networkParams );
 
-  OledLibrary::Settings oledSettings;
-  oledSettings.showSplashOnBoot = true;
-  oledSettings.splashText = SKETCH_VERSION;
-  oledSettings.splashDurationMs = 5000;
-  oledSettings.turnOffAfterSplash = true;
-  OledLibrary::begin(oledSettings);
-  OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
-
   /*
    * Start the Pulse Input Task before the Network Task to ensure that pulse counting starts immediately
    * and is not delayed by network connection attempts. The Network Task will run in parallel and handle 
@@ -130,6 +122,10 @@ void setup() {
   */
   startPulseInputTask( &networkParams );
 
+  /*
+   * Wait for the Pulse Input Task to be ready before proceeding. This ensures that pulse counting starts immediately
+   * and is not delayed by other tasks. The Pulse Input Task must be ready before attaching the interrupt.
+  */
   waitForPulseInputReady(0);
   if (PULSE_INPUT_GPIO >= 0) {
     while (!attachPulseInputInterrupt(PULSE_INPUT_GPIO, PULSE_INPUT_INTERRUPT_MODE)) {
@@ -137,6 +133,23 @@ void setup() {
     }
   }
   
+  /*
+   * Initialize the OLED display with the specified settings. The display will show a splash screen on boot 
+   * with the sketch version, and then turn off after the splash duration. The background updater is started 
+   * to allow for asynchronous updates to the display when new energy data is available or when the charging 
+   * state changes.
+   * Initializing the display before starting the Network Task allows for immediate feedback on the device 
+   * status (e.g., showing the splash screen) without waiting for network connectivity, which can enhance 
+   * the user experience during startup.
+  */
+  OledLibrary::Settings oledSettings;
+  oledSettings.showSplashOnBoot = true;
+  oledSettings.splashText = SKETCH_VERSION;
+  oledSettings.splashDurationMs = 5000;
+  oledSettings.turnOffAfterSplash = true;
+  OledLibrary::begin(oledSettings);
+  OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
+
   startNetworkTask( &networkParams );
 
   initChargingSession();
@@ -211,7 +224,7 @@ void loop() {
     lastChargingSessionCharging = isChargingSessionCharging();
     if (getLatestEnergyKwh(&energyKwh)) {
       OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging(), gChargeEnergyKwh,
-                                  gSmartChargingActivated, gChargingStartTime, gCurrentEnergyPrice, gEnergyPriceLimit);
+                                  gSmartChargingActivated, gChargingStartTime, gCurrentEnergyRef, gEnergyPriceLimit);
     }
   } 
 

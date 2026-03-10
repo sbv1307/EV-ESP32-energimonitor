@@ -44,5 +44,5 @@ extern bool gDisplayUpdateAvailable; // Flag to indicate if a display update is 
 extern bool gSmartChargingActivated; // Flag to indicate if smart charging is activated. Set based on received MQTT messages, can be used to adjust display or logic accordingly.
 extern float gChargeEnergyKwh; // Energy charged in the current session in kWh, updated at the end of the session
 extern char gChargingStartTime[6];
-extern float gCurrentEnergyPrice;
+extern float gCurrentEnergyRef;
 extern float gEnergyPriceLimit;
