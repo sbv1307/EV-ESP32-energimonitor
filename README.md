@@ -16,8 +16,11 @@ The energy meter connected to the ESP32 MQTT interface, will have a pulse output
 
 ### An OLED Desplay will show:
 - Energy meter reading
-- charge start time / Not charge plannde
-- price at start time
+- charge start time / No charge plannde
+- Smart charging activated
+- Charging active.
+- Highest price in a 3 hour block having the lowest prices (useful to set electricity price limit)
+- Smart Charging Electricity price limit
 
 
 ### Commands 
@@ -26,7 +29,7 @@ The energy meter connected to the ESP32 MQTT interface, will have a pulse output
 - set electricity price limit
 
 ### Configuration
-- Initial configuration via Bluetooth
+- Initial configuration via Bluetooth.<br>**Can not be implemented because bluetooth library is too large.**
 - Pushbutton funktion til reset ig initial bluetooth configuration
 - Online Configuration WEB link og/eller MQTT?
 
@@ -37,5 +40,4 @@ The energy meter connected to the ESP32 MQTT interface, will have a pulse output
 ### Release reminder
 - Before release, search for `TEST_ONLY_PULSE_ISR_INTERVAL` and remove any temporary test-only code blocks.
 
-### Enhangements
 

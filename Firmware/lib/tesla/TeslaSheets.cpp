@@ -21,6 +21,8 @@ struct TeslaTelemetryQueueItem {
 constexpr UBaseType_t TESLA_TELEMETRY_TASK_PRIORITY = 1;
 static portMUX_TYPE teslaTelemetryTaskStateMux = portMUX_INITIALIZER_UNLOCKED;
 static TaskHandle_t teslaTelemetryTaskHandle = nullptr;
+constexpr size_t TESLA_PAYLOAD_BUFFER_SIZE = 192;
+constexpr size_t TESLA_URL_BUFFER_SIZE = 640;
 
 static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
   TeslaTelemetryQueueItem* item = static_cast<TeslaTelemetryQueueItem*>(pvParameters);
@@ -32,7 +34,6 @@ static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
                                                             #ifdef STACK_WATERMARK
                                                             gTeslaTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
                                                             #endif
-
 
   portENTER_CRITICAL(&teslaTelemetryTaskStateMux);
   teslaTelemetryTaskHandle = nullptr;
@@ -70,17 +71,32 @@ static bool formatDateTime(char* dateBuf, size_t dateBufLen, char* timeBuf, size
   return hasLocalTime;
 }
 
-bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget target, const String& payload) {
+bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget target, const char* payload) {
   (void)params;
 
   const char* sheetParamName = (target == TeslaSheetTarget::TeslaData)
                                   ? TESLA_GSHEET_PARAM_NAME_DATA
                                   : TESLA_GSHEET_PARAM_NAME_LOG;
 
-  String url = String(TESLA_GSHEET_WEBAPP_URL_PREFIX) +
-               TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID +
-               TESLA_GSHEET_WEBAPP_URL_SUFFIX +
-               "?" + sheetParamName + "=" + payload;
+  char url[TESLA_URL_BUFFER_SIZE] = {0};
+  const int urlLen = snprintf(
+      url,
+      sizeof(url),
+      "%s%s%s?%s=%s",
+      TESLA_GSHEET_WEBAPP_URL_PREFIX,
+      TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID,
+      TESLA_GSHEET_WEBAPP_URL_SUFFIX,
+      sheetParamName,
+      payload);
+
+  if (urlLen < 0 || static_cast<size_t>(urlLen) >= sizeof(url)) {
+
+                                                            #ifdef DEBUG
+                                                            Serial.println("Google Sheets upload failed: URL buffer overflow");
+                                                            #endif
+
+    return false;
+  }
 
                                                             #ifdef DEBUG
                                                             Serial.print("Uploading to Google Sheets: ");
@@ -114,7 +130,8 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
   if (httpCode != HTTP_CODE_OK) {
 
                                                               #ifdef DEBUG
-                                                              Serial.println(String("Google Sheets upload failed: HTTP GET failed with code ") + httpCode);
+                                                              Serial.print("Google Sheets upload failed: HTTP GET failed with code ");
+                                                              Serial.println(httpCode);
                                                               #endif
 
     http.end();
@@ -131,7 +148,8 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
   if (!teslaGetTelemetry(&telemetry, &errorMessage)) {
 
                                                   #ifdef DEBUG
-                                                  Serial.println(String("Tesla telemetry fetch failed: ") + errorMessage);
+                                                  Serial.print("Tesla telemetry fetch failed: ");
+                                                  Serial.println(errorMessage);
                                                   #endif
 
     return false;
@@ -149,14 +167,28 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
   const float rangeKm = telemetry.estimatedBatteryRangeMiles * milesToKm;
   const float odometerKm = telemetry.odometerMiles * milesToKm;
 
-  String payload = String(dateBuf) + "," +
-                   String(timeBuf) + "," +
-                   String(telemetry.batteryLevelPercent, 1) + "," +
-                   String(rangeKm, 2) + "," +
-                   String(odometerKm, 0) + "," +
-                   String(energyKwh, 2) + "," +
-                   String(telemetry.latitude, 6) + "," +
-                   String(telemetry.longitude, 6);
+  char payload[TESLA_PAYLOAD_BUFFER_SIZE] = {0};
+  const int payloadLen = snprintf(
+      payload,
+      sizeof(payload),
+      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f",
+      dateBuf,
+      timeBuf,
+      telemetry.batteryLevelPercent,
+      rangeKm,
+      odometerKm,
+      energyKwh,
+      telemetry.latitude,
+      telemetry.longitude);
+
+  if (payloadLen < 0 || static_cast<size_t>(payloadLen) >= sizeof(payload)) {
+
+                                                  #ifdef DEBUG
+                                                  Serial.println("Google Sheets upload failed: payload buffer overflow");
+                                                  #endif
+
+    return false;
+  }
 
   return sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaLog, payload);
 }

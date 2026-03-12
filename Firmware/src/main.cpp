@@ -93,14 +93,14 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
                                                               #endif
 
 /*
- * ###################################################################################################
- * ###################################################################################################
- * ###################################################################################################
- * ###################   S E T U P      B e g i n     ################################################
- * ###################################################################################################
- * ###################################################################################################
- * ###################################################################################################
- */
+* ###################################################################################################
+* ###################################################################################################
+* ###################################################################################################
+* ###################   S E T U P      B e g i n     ################################################
+* ###################################################################################################
+* ###################################################################################################
+* ###################################################################################################
+*/
 void setup() {
 
                                                               #ifdef NONE_HEADLESS
@@ -134,13 +134,13 @@ void setup() {
   }
   
   /*
-   * Initialize the OLED display with the specified settings. The display will show a splash screen on boot 
-   * with the sketch version, and then turn off after the splash duration. The background updater is started 
-   * to allow for asynchronous updates to the display when new energy data is available or when the charging 
-   * state changes.
-   * Initializing the display before starting the Network Task allows for immediate feedback on the device 
-   * status (e.g., showing the splash screen) without waiting for network connectivity, which can enhance 
-   * the user experience during startup.
+  * Initialize the OLED display with the specified settings. The display will show a splash screen on boot 
+  * with the sketch version, and then turn off after the splash duration. The background updater is started 
+  * to allow for asynchronous updates to the display when new energy data is available or when the charging 
+  * state changes.
+  * Initializing the display before starting the Network Task allows for immediate feedback on the device 
+  * status (e.g., showing the splash screen) without waiting for network connectivity, which can enhance 
+  * the user experience during startup.
   */
   OledLibrary::Settings oledSettings;
   oledSettings.showSplashOnBoot = true;
@@ -150,6 +150,11 @@ void setup() {
   OledLibrary::begin(oledSettings);
   OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
 
+  /*
+  * Start the Network Task to handle WiFi connectivity and MQTT communication. This will run in parallel with the Pulse Input Task.
+  * Starting the Network Task after initializing the display allows for any immediate visual feedback (like the splash screen) to be shown without delay, while still ensuring that network connectivity is established as soon as possible for telemetry and remote monitoring.
+  * The Network Task will also handle sending telemetry data to Google Sheets and updating the OLED display when new data is available.
+  */
   startNetworkTask( &networkParams );
 
   initChargingSession();
@@ -183,6 +188,9 @@ void loop() {
 
   unsigned long currentMillis = millis();
   
+  /*
+  * Check WiFi connectivity at regular intervals. If the device is not connected to WiFi, attempt to reconnect.
+  */
   if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
     lastWiFiCheck = currentMillis;
     
@@ -197,7 +205,8 @@ void loop() {
   // Ensure Pulse Count Task is running. If already running, this does nothing.
   startPulseInputTask( &networkParams );
 
-  //TOBE REMOVED Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. This will only start if not already running.
+  //TOBE REMOVED Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. 
+  // This will only start if not already running.
   startPulseInputIsrTestTask();
 
   mqttProcessRxQueue();

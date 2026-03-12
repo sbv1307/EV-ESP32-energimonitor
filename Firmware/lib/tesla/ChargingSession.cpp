@@ -227,7 +227,7 @@ static bool finalizeChargingSession(TaskParams_t* params) {
 
   String payload = buildTeslaDataPayload(endTelemetry, endEnergyKwh);
 
-  if (!sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaData, payload)) {
+  if (!sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaData, payload.c_str())) {
     gPendingTeslaDataPayload = payload;
     gPendingTeslaDataUpload = true;
 
@@ -263,7 +263,7 @@ static void trySendPendingTeslaData(TaskParams_t* params) {
     return;
   }
 
-  if (sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaData, gPendingTeslaDataPayload)) {
+  if (sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaData, gPendingTeslaDataPayload.c_str())) {
     gPendingTeslaDataUpload = false;
     gPendingTeslaDataPayload = "";
     publishMqttLog(MQTT_LOG_SUFFIX, "Pending TeslaData upload sent", false);
