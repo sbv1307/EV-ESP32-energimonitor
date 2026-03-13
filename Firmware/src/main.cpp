@@ -387,7 +387,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   if (bootTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     float energyKwh = 0.0f;
     if (getLatestEnergyKwh(&energyKwh)) {
-      if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
+      if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "BootTelemetry")) {
         bootTelemetryToSend = false;
         publishMqttLog(MQTT_LOG_SUFFIX, "Boot telemetry queued", false);
       }

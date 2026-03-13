@@ -16,8 +16,8 @@ inline bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarge
 
 // Sends timestamp + Tesla telemetry + energy counter to Google Sheets.
 // Returns true on success.
-bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh);
+bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment = nullptr);
 
 // Starts a one-shot task for asynchronous telemetry upload.
 // Returns false if task creation failed.
-bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh);
+bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment = nullptr);

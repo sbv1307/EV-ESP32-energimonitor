@@ -12,22 +12,25 @@
 #include "privateConfig.h"
 
 namespace {
+constexpr size_t TESLA_COMMENT_BUFFER_SIZE = 16;
+
 struct TeslaTelemetryQueueItem {
   TaskParams_t* params = nullptr;
   float energyKwh = 0.0f;
+  char comment[TESLA_COMMENT_BUFFER_SIZE] = {0};
 };
 
 // constexpr uint32_t TESLA_TELEMETRY_TASK_STACK_SIZE = 8192; // '//'TOBE REMOVED after testing TESLA_TELEMETRY_TASK_STACK_SIZE
 constexpr UBaseType_t TESLA_TELEMETRY_TASK_PRIORITY = 1;
 static portMUX_TYPE teslaTelemetryTaskStateMux = portMUX_INITIALIZER_UNLOCKED;
 static TaskHandle_t teslaTelemetryTaskHandle = nullptr;
-constexpr size_t TESLA_PAYLOAD_BUFFER_SIZE = 192;
+constexpr size_t TESLA_PAYLOAD_BUFFER_SIZE = 224;
 constexpr size_t TESLA_URL_BUFFER_SIZE = 640;
 
 static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
   TeslaTelemetryQueueItem* item = static_cast<TeslaTelemetryQueueItem*>(pvParameters);
   if (item != nullptr) {
-    sendTeslaTelemetryToGoogleSheets(item->params, item->energyKwh);
+    sendTeslaTelemetryToGoogleSheets(item->params, item->energyKwh, item->comment);
     delete item;
   }
 
@@ -142,7 +145,7 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
   return true;
 }
 
-bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
+bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment) {
   TeslaTelemetry telemetry;
   String errorMessage;
   if (!teslaGetTelemetry(&telemetry, &errorMessage)) {
@@ -166,12 +169,14 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
   const float milesToKm = 1.609344f;
   const float rangeKm = telemetry.estimatedBatteryRangeMiles * milesToKm;
   const float odometerKm = telemetry.odometerMiles * milesToKm;
+  char telemetryComment[TESLA_COMMENT_BUFFER_SIZE] = {0};
+  snprintf(telemetryComment, sizeof(telemetryComment), "%s", (comment != nullptr) ? comment : "");
 
   char payload[TESLA_PAYLOAD_BUFFER_SIZE] = {0};
   const int payloadLen = snprintf(
       payload,
       sizeof(payload),
-      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f",
+      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f,%s",
       dateBuf,
       timeBuf,
       telemetry.batteryLevelPercent,
@@ -179,7 +184,8 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
       odometerKm,
       energyKwh,
       telemetry.latitude,
-      telemetry.longitude);
+      telemetry.longitude,
+      telemetryComment);
 
   if (payloadLen < 0 || static_cast<size_t>(payloadLen) >= sizeof(payload)) {
 
@@ -193,7 +199,11 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
   return sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaLog, payload);
 }
 
-bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
+/*
+ * NOTE: const char* comment has a limit in number of characters defined by TESLA_COMMENT_BUFFER_SIZE.
+ * Further comment does not accept spaces or any special characters! Use e.g. BootTelemetrty or Boot_Telemetry instead
+*/
+bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment) {
   portENTER_CRITICAL(&teslaTelemetryTaskStateMux);
   if (teslaTelemetryTaskHandle != nullptr) {
     portEXIT_CRITICAL(&teslaTelemetryTaskStateMux);
@@ -226,6 +236,7 @@ bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh) {
 
   item->params = params;
   item->energyKwh = energyKwh;
+  snprintf(item->comment, sizeof(item->comment), "%s", (comment != nullptr) ? comment : "");
 
   BaseType_t result = xTaskCreate(
       sendTeslaTelemetryToGoogleSheetsTask,
