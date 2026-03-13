@@ -130,11 +130,17 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
   }
 
   int httpCode = http.GET();
-  if (httpCode != HTTP_CODE_OK) {
+  String responseBody = http.getString();
+  responseBody.trim();
+  bool requestSucceeded = (httpCode == HTTP_CODE_OK) && responseBody.equalsIgnoreCase("OK");
+
+  if (!requestSucceeded) {
 
                                                               #ifdef DEBUG
                                                               Serial.print("Google Sheets upload failed: HTTP GET failed with code ");
                                                               Serial.println(httpCode);
+                                                              Serial.print("Response body: ");
+                                                              Serial.println(responseBody);
                                                               #endif
 
     http.end();

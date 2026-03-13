@@ -1,0 +1,87 @@
+/**
+Author:  Steen Vemmelund
+E-mail:  pr.@eltt.dk
+Publish: 12-07-2020
+Descriotion: This code addes data from a htts GET request into a specific sheet depending on the parameters
+GET request syntax:
+https://script.google.com/macros/s/<gscript id>/exec?'TeslaLog' | 'TeslaData'=<data in column A>,<data in column B>,<data in column C>,...
+
+Cretids to:
+//-----------------------------------------------
+// Trieu Le
+// Email: lethanhtrieuk36@gmail.com
+for:
+// Publish date: 07-Oct-2015
+// Description: This code for demonstration send data from ESP8266 into Google Spreadsheet
+// GET request syntax:
+// https://script.google.com/macros/s/<gscript id>/exec?header_here=data_here
+//-----------------------------------------------
+
+Spreadsheets: (Remember to copy Sheet ID into code)
+https://docs.google.com/spreadsheets/d/1ZEuph0qC2g888Cwx_DAvy05H4SUWS1i9nK8UIlCG24k/edit#gid=0
+https://docs.google.com/spreadsheets/d/1ZEuph0qC2g888Cwx_DAvy05H4SUWS1i9nK8UIlCG24k/edit#gid=1630320012
+
+
+web app URL:
+https://script.google.com/macros/s/AKfycbwHU_jIZmsCn4oAfjn2Ju6dhlJPAT2U9yQxi3d82yIyBu18W5Cm/exec
+
+web app URL parameters:
+https://script.google.com/macros/s/AKfycbwHU_jIZmsCn4oAfjn2Ju6dhlJPAT2U9yQxi3d82yIyBu18W5Cm/exec?TeslaLog=2020-07-10,23:59,70.0,362.81,84619.67,11482.07,55.706833,9.603364
+https://script.google.com/macros/s/AKfycbwHU_jIZmsCn4oAfjn2Ju6dhlJPAT2U9yQxi3d82yIyBu18W5Cm/exec?TeslaData=2020-07-10,23:59,2:01,11482.34,0.05,7.89,69,70,80.0,362.81,84619.67
+
+web app URL Examples
+?TeslaLog=2020-07-10,23:59,70.0,362.81,84619.67,11482.07
+?TeslaData=2020-07-10,23:59,2:01,11482.34,0.05,7.89,69,70,80.0,362.81,84619.67
+*/
+
+/**
+* Function doGet: Parse received data from GET request, 
+  get and store data which is corresponding with header row in Google Spreadsheet
+*/
+function doGet(e) { 
+  Logger.log( JSON.stringify(e) );  // view parameters
+  var result = 'OK-V4'; // assume success
+  if (e.parameter == 'undefined') {
+    result = 'No Parameters';
+  }
+  else {
+    var sheet_id = '1ZEuph0qC2g888Cwx_DAvy05H4SUWS1i9nK8UIlCG24k'; 		// Spreadsheet ID
+    var rowData = [];
+    var rowContent = new Array();
+    
+    for (var param in e.parameter) {
+      Logger.log('In for loop, param=' + param);
+      var value = stripQuotes(e.parameter[param]);
+      Logger.log(param + ':' + e.parameter[param]);
+      switch (param) {
+        case 'TeslaLog': //Parameter
+          var sheet = SpreadsheetApp.openById(sheet_id).getSheetByName("TeslaLog");		// get Active sheet
+          rowData = value.split(",");
+          break;
+        case 'TeslaData': //Parameter
+          var sheet = SpreadsheetApp.openById(sheet_id).getSheetByName("TeslaData");		// get Active sheet
+          rowData = value.split(",");
+          break;
+        default:
+          result += "Unsupported parameters: " + param;
+      }
+    }
+    Logger.log(JSON.stringify(rowData));
+    // Write new row below
+    var newRow = sheet.getLastRow() + 1;						
+    var newRange = sheet.getRange(newRow, 1, 1, rowData.length);
+    newRange.setValues([rowData]);
+  }
+  // Return result of operation
+  if (result != 'OK-V4')
+    return ContentService.createTextOutput(result);
+}
+/**
+* Remove leading and trailing single or double quotes
+*/
+function stripQuotes( value ) {
+  return value.replace(/^["']|['"]$/g, "");
+}
+//-----------------------------------------------
+// End of file
+//-----------------------------------------------
