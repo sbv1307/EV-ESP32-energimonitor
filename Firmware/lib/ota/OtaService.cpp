@@ -21,13 +21,6 @@ void otaInit() {
   ArduinoOTA
     .onStart([]() {
       mqttPause();  // Stop MQTT operations during OTA
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH) {
-        type = "sketch";
-      } else {  // U_SPIFFS
-        type = "filesystem";
-      }
-      publishMqttLogStatus(("OTA start: " + type).c_str(), false);
       
                                                 #ifdef DEBUG
                                                 Serial.println("Network Task stopped for OTA update.");
@@ -37,20 +30,26 @@ void otaInit() {
     */                                            
     })
     .onEnd([]() {
-      publishMqttLogStatus("OTA end", false);
       mqttResume();  // Resume MQTT after OTA completes
+
+                                                #ifdef DEBUG
+                                                Serial.println("OTA update completed. Network Task resumed.");
+                                                #endif
+
     })
+    /*
     .onProgress([](unsigned int progress, unsigned int total) {
       char msg[48] = {0};
       unsigned int pct = (total == 0) ? 0 : (progress / (total / 100));
       snprintf(msg, sizeof(msg), "OTA progress: %u%%", pct);
       publishMqttLogStatus(msg, false);
     })
+    */
     .onError([](ota_error_t error) {
+      mqttResume();  // Ensure MQTT resumes even on error
       char msg[32] = {0};
       snprintf(msg, sizeof(msg), "OTA error: %u", (unsigned)error);
       publishMqttLogStatus(msg, false);
-      mqttResume();  // Ensure MQTT resumes even on error
     });
 
   ArduinoOTA.begin();
