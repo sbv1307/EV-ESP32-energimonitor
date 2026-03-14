@@ -120,6 +120,8 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
 
   HTTPClient http;
   http.setTimeout(20000);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  http.setRedirectLimit(5);
   if (!http.begin(client, url)) {
 
                                                               #ifdef DEBUG

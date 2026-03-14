@@ -34,53 +34,71 @@ web app URL Examples
 ?TeslaData=2020-07-10,23:59,2:01,11482.34,0.05,7.89,69,70,80.0,362.81,84619.67
 */
 
+
 /**
-* Function doGet: Parse received data from GET request, 
-  get and store data which is corresponding with header row in Google Spreadsheet
-*/
-function doGet(e) { 
-  Logger.log( JSON.stringify(e) );  // view parameters
-  var result = 'OK-V4'; // assume success
-  if (e.parameter == 'undefined') {
-    result = 'No Parameters';
-  }
-  else {
-    var sheet_id = '1ZEuph0qC2g888Cwx_DAvy05H4SUWS1i9nK8UIlCG24k'; 		// Spreadsheet ID
-    var rowData = [];
-    var rowContent = new Array();
-    
-    for (var param in e.parameter) {
-      Logger.log('In for loop, param=' + param);
-      var value = stripQuotes(e.parameter[param]);
-      Logger.log(param + ':' + e.parameter[param]);
-      switch (param) {
-        case 'TeslaLog': //Parameter
-          var sheet = SpreadsheetApp.openById(sheet_id).getSheetByName("TeslaLog");		// get Active sheet
-          rowData = value.split(",");
-          break;
-        case 'TeslaData': //Parameter
-          var sheet = SpreadsheetApp.openById(sheet_id).getSheetByName("TeslaData");		// get Active sheet
-          rowData = value.split(",");
-          break;
-        default:
-          result += "Unsupported parameters: " + param;
-      }
+ * doGet: Receive TeslaLog or TeslaData query parameter and append CSV row to matching sheet.
+ * Always returns a text response.
+ */
+function doGet(e) {
+  try {
+    Logger.log(JSON.stringify(e));
+
+    var sheetId = '1ZEuph0qC2g888Cwx_DAvy05H4SUWS1i9nK8UIlCG24k';
+    var params = (e && e.parameter) ? e.parameter : {};
+    var keys = Object.keys(params);
+
+    if (keys.length === 0) {
+      return ContentService
+        .createTextOutput('ERR:No Parameters')
+        .setMimeType(ContentService.MimeType.TEXT);
     }
-    Logger.log(JSON.stringify(rowData));
-    // Write new row below
-    var newRow = sheet.getLastRow() + 1;						
-    var newRange = sheet.getRange(newRow, 1, 1, rowData.length);
-    newRange.setValues([rowData]);
+
+    var targetParam = null;
+    if (params.TeslaLog !== undefined) {
+      targetParam = 'TeslaLog';
+    } else if (params.TeslaData !== undefined) {
+      targetParam = 'TeslaData';
+    } else {
+      return ContentService
+        .createTextOutput('ERR:Unsupported parameters')
+        .setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    var sheet = SpreadsheetApp.openById(sheetId).getSheetByName(targetParam);
+    if (!sheet) {
+      return ContentService
+        .createTextOutput('ERR:Sheet not found:' + targetParam)
+        .setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    var value = stripQuotes(params[targetParam] || '');
+    if (!value) {
+      return ContentService
+        .createTextOutput('ERR:Empty payload')
+        .setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    var rowData = value.split(',');
+    var newRow = sheet.getLastRow() + 1;
+    sheet.getRange(newRow, 1, 1, rowData.length).setValues([rowData]);
+
+    return ContentService
+      .createTextOutput('OK')
+      .setMimeType(ContentService.MimeType.TEXT);
+
+  } catch (err) {
+    Logger.log('ERROR: ' + err);
+    return ContentService
+      .createTextOutput('ERR:' + err.message)
+      .setMimeType(ContentService.MimeType.TEXT);
   }
-  // Return result of operation
-  if (result != 'OK-V4')
-    return ContentService.createTextOutput(result);
 }
+
 /**
-* Remove leading and trailing single or double quotes
-*/
-function stripQuotes( value ) {
-  return value.replace(/^["']|['"]$/g, "");
+ * Remove leading and trailing single or double quotes
+ */
+function stripQuotes(value) {
+  return String(value).replace(/^[\"']|[\"']$/g, '');
 }
 //-----------------------------------------------
 // End of file
