@@ -244,6 +244,14 @@ bool publishMqttLogEmail(const char* message, bool retain) {
   return publishMqttLog(MQTT_LOG_EMAIL_SUFFIX, message, retain);
 }
 
+bool publishMqttSetCommand(const char* jsonPayload, bool retain) {
+  if (!jsonPayload || !mqttQueue || mqttDeviceNameWithMac.length() == 0) {
+    return false;
+  }
+  String topic = String(MQTT_DISCOVERY_PREFIX) + mqttDeviceNameWithMac + "/" + MQTT_PREFIX + "botton" + MQTT_SUFFIX_SET;
+  return mqttEnqueuePublish(topic.c_str(), jsonPayload, retain);
+}
+
                                                             #ifdef BOOT_DIAGNOSTICS_LOGGING
                                                             bool publishMqttResetReason(const char* message, bool retain) {
                                                               if (!message || !mqttQueue) {

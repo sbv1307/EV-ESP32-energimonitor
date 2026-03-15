@@ -73,6 +73,7 @@ void publishMqttEnergy(float, float, float);
 bool publishMqttLog(const char* topicSuffix, const char* message, bool retain = false);
 bool publishMqttLogStatus(const char* message, bool retain = false);
 bool publishMqttLogEmail(const char* message, bool retain = false);
+bool publishMqttSetCommand(const char* jsonPayload, bool retain = false);
 
 #ifdef BOOT_DIAGNOSTICS_LOGGING
 bool publishMqttResetReason(const char* message, bool retain = true);

@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "OtaService.h"
 #include "MqttClient.h"
+#include "PushButtonTask.h"
 
 
 
@@ -33,6 +34,7 @@ static void networkTask(void* pvParameters) {
   for (;;) {
     otaHandle();
     mqttLoop((TaskParams_t*)pvParameters);
+    processPushButtonCommands();
 
     vTaskDelay(pdMS_TO_TICKS(10));
 

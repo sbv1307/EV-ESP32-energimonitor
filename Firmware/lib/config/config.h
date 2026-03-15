@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V1.1.0";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V1.2.0";
 /*
  * About NVS (Non-Volatile Storage)
  * NVS is used to store configuration, pulse counter, and charging session data persistently.
@@ -39,3 +39,13 @@ constexpr int CHARGING_ANALOG_HYSTERESIS = 100; // Hysteresis value to prevent r
 constexpr uint32_t CHARGING_START_CONFIRM_SECONDS = 10; // Number of seconds the analog value must continuously indicate charging start before confirming session start
 constexpr uint32_t CHARGING_END_CONFIRM_SECONDS = 10; // Number of seconds the analog value must continuously indicate charging end before confirming session end
 constexpr uint32_t CHARGING_ANALOG_SAMPLE_INTERVAL_MS = 1000; // Interval in milliseconds between analog samples for charging detection
+
+// Push-button GPIO assignments (-1 = disabled)
+constexpr int BUTTON_EV_CHARGING_TOGGLE_GPIO    = 25;  // GPIO for EV charging start/stop toggle button
+constexpr int BUTTON_SMART_CHARGING_TOGGLE_GPIO = 26;  // GPIO for smart charging on/off toggle button
+constexpr int BUTTON_PRICE_LIMIT_INCREASE_GPIO  = 27;  // GPIO for price-limit increase button
+constexpr int BUTTON_PRICE_LIMIT_DECREASE_GPIO  = 32;  // GPIO for price-limit decrease button
+
+constexpr bool     BUTTON_ACTIVE_LOW      = true;   // true = INPUT_PULLUP, interrupt on FALLING edge
+constexpr uint32_t BUTTON_DEBOUNCE_MS     = 40;     // Minimum ms between accepted button presses
+constexpr float    BUTTON_PRICE_LIMIT_STEP = 0.10f; // Price-limit increment/decrement per button press

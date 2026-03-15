@@ -21,6 +21,7 @@
 #include "ChargingSession.h"
 #include "MqttClient.h"
 #include "oled_library.h"
+#include "PushButtonTask.h"
 
 #include "PulseInputIsrTest.h" //TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
 
@@ -156,6 +157,8 @@ void setup() {
   * The Network Task will also handle sending telemetry data to Google Sheets and updating the OLED display when new data is available.
   */
   startNetworkTask( &networkParams );
+
+  initPushButtons();
 
   initChargingSession();
 
