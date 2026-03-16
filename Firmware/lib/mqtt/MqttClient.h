@@ -36,6 +36,7 @@ constexpr char MQTT_SUFFIX_STATE[]              = "state";              // MQTT 
 const bool    RETAINED                      = true;                 // MQTT retained flag
 // MQTT Subscription topics
 constexpr char MQTT_SUFFIX_SET[]            = "/set";               // MQTT topic suffix for set commands. Include leading '/'  
+constexpr char MQTT_SUFFIX_BUTTON[]         = "button";            // MQTT topic suffix for button commands. Include leading '/'
 
 
 

@@ -1,3 +1,5 @@
+#define STACK_WATERMARK
+
 #include "PushButtonTask.h"
 
 #include <freertos/FreeRTOS.h>
@@ -84,26 +86,29 @@ static void publishButtonCommandTask(void* param) {
   switch (cmd) {
     case BTN_CMD_EV_CHARGING_TOGGLE:
       snprintf(payload, sizeof(payload),
-               "{\"ev_charging\":\"%s\"}",
+               "{\"%s\":\"%s\"}",
+               BUTTON_EV_CHARGING,
                isChargingSessionCharging() ? "stop" : "start");
       break;
 
     case BTN_CMD_SMART_CHARGING_TOGGLE:
       snprintf(payload, sizeof(payload),
-               "{\"smart_charging_activated\":\"%s\"}",
+               "{\"%s\":\"%s\"}",
+               BUTTON_SMART_CHARGING_ACTIVATED,
                gSmartChargingActivated ? "off" : "on");
       break;
 
     case BTN_CMD_PRICE_LIMIT_INCREASE:
       snprintf(payload, sizeof(payload),
-               "{\"price_limit\":%.3f}",
+               "{\"%s\":%.3f}",
+               BUTTON_PRICE_LIMIT,
                gEnergyPriceLimit + BUTTON_PRICE_LIMIT_STEP);
       break;
 
     case BTN_CMD_PRICE_LIMIT_DECREASE: {
       float newLimit = gEnergyPriceLimit - BUTTON_PRICE_LIMIT_STEP;
       if (newLimit < 0.0f) newLimit = 0.0f;
-      snprintf(payload, sizeof(payload), "{\"price_limit\":%.3f}", newLimit);
+      snprintf(payload, sizeof(payload), "{\"%s\":%.3f}", BUTTON_PRICE_LIMIT, newLimit);
       break;
     }
 
@@ -112,7 +117,12 @@ static void publishButtonCommandTask(void* param) {
       return;
   }
 
-  publishMqttSetCommand(payload);
+  publishMqttSetCommand(payload, false);
+
+  #ifdef STACK_WATERMARK
+  gButtonPublishTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+  #endif
+
   vTaskDelete(nullptr);
 }
 
@@ -154,7 +164,7 @@ void processPushButtonCommands() {
   while (xQueueReceive(sButtonQueue, &cmd, 0) == pdTRUE) {
     xTaskCreate(publishButtonCommandTask,
                 "btnPublish",
-                2048,
+                BUTTON_PUBLISH_TASK_STACK_SIZE,
                 (void*)(uintptr_t)cmd,
                 1,
                 nullptr);

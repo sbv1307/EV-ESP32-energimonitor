@@ -255,6 +255,7 @@ void loop() {
                                                                           static uint32_t maxOptimalPulseInputTaskStackSize = 0;
                                                                           static uint32_t maxOptimalTeslaTaskStackSize = 0;
                                                                           static uint32_t maxOptimalConfigurationTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalButtonPublishTaskStackSize = 0;
                                                                           static UBaseType_t minLoopTaskStackHighWater = 0;
 
                                                                           UBaseType_t loopTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
@@ -342,6 +343,21 @@ void loop() {
                                                                                        (unsigned)CONFIGURATION_TASK_STACK_SIZE,
                                                                                        (unsigned)optimalConfigurationTaskStackSize);
                                                                               publishMqttLog("log/stack/configuration", logMsg, false);
+                                                                            }
+                                                                          }
+                                                                          if (gButtonPublishTaskStackHighWater > 0) {
+                                                                            uint32_t usedStack = BUTTON_PUBLISH_TASK_STACK_SIZE - gButtonPublishTaskStackHighWater;
+                                                                            uint32_t optimalButtonPublishTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
+                                                                            bool significantDiff = abs((int)BUTTON_PUBLISH_TASK_STACK_SIZE - (int)optimalButtonPublishTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalButtonPublishTaskStackSize > maxOptimalButtonPublishTaskStackSize) {
+                                                                              maxOptimalButtonPublishTaskStackSize = optimalButtonPublishTaskStackSize;
+                                                                              char logMsg[160] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change BUTTON_PUBLISH_TASK_STACK_SIZE from: %u to: %u words",
+                                                                                       (unsigned)BUTTON_PUBLISH_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalButtonPublishTaskStackSize);
+                                                                              publishMqttLog("log/stack/buttonPublish", logMsg, false);
                                                                             }
                                                                           }
                                                                           /*

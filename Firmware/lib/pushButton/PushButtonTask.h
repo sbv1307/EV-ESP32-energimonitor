@@ -2,6 +2,10 @@
 
 #include <Arduino.h>
 
+constexpr char BUTTON_EV_CHARGING[] = "ev_charging";
+constexpr char BUTTON_SMART_CHARGING_ACTIVATED[] = "smart_charging_activated";
+constexpr char BUTTON_PRICE_LIMIT[] = "price_limit";
+
 /*
  * Push-button library for EV-ESP32-energimonitor.
  *

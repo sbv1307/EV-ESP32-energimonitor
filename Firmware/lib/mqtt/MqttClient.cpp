@@ -248,7 +248,7 @@ bool publishMqttSetCommand(const char* jsonPayload, bool retain) {
   if (!jsonPayload || !mqttQueue || mqttDeviceNameWithMac.length() == 0) {
     return false;
   }
-  String topic = String(MQTT_DISCOVERY_PREFIX) + mqttDeviceNameWithMac + "/" + MQTT_PREFIX + "botton" + MQTT_SUFFIX_SET;
+  String topic = String(MQTT_DISCOVERY_PREFIX) + mqttDeviceNameWithMac + "/" + MQTT_PREFIX + MQTT_SUFFIX_BUTTON;
   return mqttEnqueuePublish(topic.c_str(), jsonPayload, retain);
 }
 
