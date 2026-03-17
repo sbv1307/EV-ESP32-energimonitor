@@ -22,6 +22,7 @@
 #include "MqttClient.h"
 #include "oled_library.h"
 #include "PushButtonTask.h"
+#include "LedTask.h"
 
 #include "PulseInputIsrTest.h" //TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
 
@@ -112,6 +113,8 @@ void setup() {
                                                               gInitialFreeHeapSize = xPortGetFreeHeapSize();
                                                               #endif
 
+  sendLedCommand("TurnOn");
+
   initializeGlobals( &networkParams );
 
   /*
@@ -198,10 +201,17 @@ void loop() {
     lastWiFiCheck = currentMillis;
     
     if (WiFi.status() != WL_CONNECTED) {
+      sendLedCommand("TurnOn");
                                                                       #ifdef DEBUG
                                                                       Serial.println("Main: WiFi disconnected. Attempting to reconnect...");
                                                                       #endif
       startNetworkTask( &networkParams );
+    } else {
+      sendLedCommand("TurnOff");
+
+                                                                      #ifdef DEBUG
+                                                                      Serial.println("Main: WiFi connected.");
+                                                                      #endif
     }
   }
 

@@ -188,14 +188,20 @@ void mqttInit(TaskParams_t* params) {
 
 
   mqttQueue = xQueueCreate(10, sizeof(MqttMessage));
-  if (!mqttQueue) {
-    Serial.println("MqttClient: MQTT queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
-  }
+
+                                                          #ifdef DEBUG
+                                                          if (!mqttQueue) {
+                                                            Serial.println("MqttClient: MQTT queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
+                                                          }
+                                                          #endif
 
   mqttRxQueue = xQueueCreate(6, sizeof(MqttRxMessage));
-  if (!mqttRxQueue) {
-    Serial.println("MqttClient: MQTT RX queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
-  }
+
+                                                          #ifdef DEBUG
+                                                          if (!mqttRxQueue) {
+                                                            Serial.println("MqttClient: MQTT RX queue creation failed!: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
+                                                          }
+                                                          #endif
 
 }
 

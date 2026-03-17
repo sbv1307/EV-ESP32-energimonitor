@@ -10,6 +10,8 @@
 #include "MqttClient.h"
 #include "PulseInputTask.h"
 #include "config.h"
+#include "LedTask.h"
+
 
 namespace {
 enum class ChargingState {
@@ -285,6 +287,7 @@ void initChargingSession() {
 
   if (gSnapshot.active) {
     gState = ChargingState::Charging;
+    sendLedCommand("TurnOn");
 
                                                                 #ifdef DEBUG_CHARGING_SESSION
                                                                 Serial.println("Chargingsession.cpp: Charging session restored from NVS");
@@ -293,6 +296,12 @@ void initChargingSession() {
     publishMqttLog(MQTT_LOG_SUFFIX, "Charging session restored from NVS", false);
   } else {
     gState = ChargingState::Idle;
+    sendLedCommand("TurnOff");
+
+                                                                #ifdef DEBUG_CHARGING_SESSION
+                                                                Serial.println("Chargingsession.cpp: No active charging session in NVS; starting in Idle state");
+                                                                #endif
+
   }
 
   gSessionInitialized = true;
@@ -399,6 +408,13 @@ void handleChargingSession(TaskParams_t* params) {
       }
       break;
   }
+
+  if (gState == ChargingState::Charging) {
+    sendLedCommand("TurnOn");
+  } else {
+    sendLedCommand("TurnOff");
+  }
+
 }
 
 

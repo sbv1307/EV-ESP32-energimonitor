@@ -5,6 +5,7 @@
 #include "MqttClient.h"
 #include "TeslaSheets.h"
 #include "config.h"
+#include "LedTask.h"
 
 #include <Preferences.h>
 
@@ -177,7 +178,6 @@ static void PulseInputTask( void* pvParameters) {
 
   updateLatestEnergySnapshot(powerW, energyKwh, subtotalKwh);
 
-
   uint32_t lastSaveMs = millis();
   uint32_t lastSavedPulseCounter = pulseCounter;
   uint16_t lastSavedSubtotalPulseCounter = subtotalPulseCounter;
@@ -262,6 +262,7 @@ static void PulseInputTask( void* pvParameters) {
     // Wait for pulse timestamp from ISR
     if (xQueueReceive(PulseInputQueue, &ts, pdMS_TO_TICKS(1000))) {
 
+      sendLedCommand("Blink");
                                           #ifdef DEBUG
                                           Serial.println("\nProcessing pulse count and timestamp: " + String(ts) + "\n");
                                           #endif

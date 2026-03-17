@@ -57,11 +57,11 @@ static void networkTask(void* pvParameters) {
 static void wifiConnectionTask(void* pvParameters) {
   TaskParams_t* params = (TaskParams_t*)pvParameters;
 
-  // Debug: Print initialized parameters
-  Serial.println("wifiConnectionTask: WiFi SSID: " + String(params->wifiSSID) + "\n");  
+                                                    #ifdef DEBUG
+                                                    // Debug: Print initialized parameters
+                                                    Serial.println("wifiConnectionTask: WiFi SSID: " + String(params->wifiSSID) + "\n");  
+                                                    #endif
 
-
-  
   stopNetworkTask();  // Ensure any existing network task is stopped
 
                                                     #ifdef DEBUG
@@ -99,21 +99,19 @@ static void wifiConnectionTask(void* pvParameters) {
 
     attempts++;
   }
-  
+
   if (WiFi.status() != WL_CONNECTED) {
 
                                                     #ifdef DEBUG
                                                     Serial.println("\nWifiConnectionTask: WiFi connection failed. WiFi status: " + String(WiFi.status()) + "\n");
                                                     #endif
-    publishMqttLog(MQTT_LOG_SUFFIX, "WiFi connection failed", false);
+    // Connection failed, clean up and exit task
     wifiConnectionTaskHandle = nullptr;
     vTaskDelete(NULL); // Delete this task
     return;
   }
-  
-  vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to settle WiFi connection
 
-  publishMqttLog(MQTT_LOG_SUFFIX, "WiFi connected", false);
+  vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to settle WiFi connection
 
                                                   #ifdef DEBUG
                                                   Serial.println("\nwifiConnectionTask: WiFi connected successfully.");
@@ -123,9 +121,6 @@ static void wifiConnectionTask(void* pvParameters) {
 
   configureTime();
 
-  publishMqttLog(MQTT_LOG_SUFFIX, "Time configured (NTP)", false);
-                                                  
-  
   // Create the network task
   xTaskCreatePinnedToCore(
     networkTask,
@@ -136,7 +131,7 @@ static void wifiConnectionTask(void* pvParameters) {
     &networkTaskHandle,
     0   // Core 0 (Wi-Fi)
   );
-  
+
                                                   #ifdef STACK_WATERMARK
                                                   gWifiConnTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
                                                   #endif
