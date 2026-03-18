@@ -38,7 +38,10 @@ static void PulseInputIsrTestTask(void* pvParameters) {
     if ((nowTick - lastPulseTick) >= intervalTicks) {
       PulseInputISR();
       publishMqttLog(MQTT_LOG_SUFFIX, "PulseInputIsrTestTask simulated pulse", false);
-      lastPulseTick = nowTick;
+      lastPulseTick += intervalTicks;
+      if ((nowTick - lastPulseTick) >= intervalTicks) {
+        lastPulseTick = nowTick;
+      }
       continue;
     }
 

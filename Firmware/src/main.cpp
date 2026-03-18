@@ -208,10 +208,6 @@ void loop() {
       startNetworkTask( &networkParams );
     } else {
       sendLedCommand("TurnOff");
-
-                                                                      #ifdef DEBUG
-                                                                      Serial.println("Main: WiFi connected.");
-                                                                      #endif
     }
   }
 
@@ -424,7 +420,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   }
 
   if (pendingTelemetryToSend && WiFi.status() == WL_CONNECTED) {
-    if (passTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh)) {
+    if (passTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh, "PendingTelemetry")) {
       pendingTelemetryToSend = false;
       publishMqttLog(MQTT_LOG_SUFFIX, "Pending telemetry queued", false);
     }
@@ -441,7 +437,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
         float energyKwh = 0.0f;
         if (getLatestEnergyKwh(&energyKwh)) {
           if (WiFi.status() == WL_CONNECTED) {
-            if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh)) {
+            if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "DailyTelemetry")) {
               publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry queued", false);
             } else {
               pendingEnergyKwh = energyKwh;
