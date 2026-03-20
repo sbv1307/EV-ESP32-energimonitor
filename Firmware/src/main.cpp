@@ -201,13 +201,16 @@ void loop() {
     lastWiFiCheck = currentMillis;
     
     if (WiFi.status() != WL_CONNECTED) {
+      gMqttConnected = false;
       sendLedCommand("TurnOn");
                                                                       #ifdef DEBUG
                                                                       Serial.println("Main: WiFi disconnected. Attempting to reconnect...");
                                                                       #endif
       startNetworkTask( &networkParams );
+    } else if (!gMqttConnected) {
+      sendLedCommand("Toggle");      // WiFi OK but MQTT down = blink
     } else {
-      sendLedCommand("TurnOff");
+      sendLedCommand("TurnOff");     // Both OK = off
     }
   }
 

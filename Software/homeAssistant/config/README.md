@@ -97,3 +97,24 @@ Current automations:
             "current_price": {{ price if price is not none else 0 }}
           }
 
+
+Pushbotton automations
+
+In Home Assistant automation I need automations to handle the following MQTT payloads which is in JSON format:
+- {"ev_charging":"stop"}
+- {"ev_charging":"start"}
+- {"smart_charging_activated":"off"}
+- {"smart_charging_activated":"on"}
+- {"price_limit": n.nnn}
+
+The automations are to be added into the existng automations file C:\Users\Steen\Documents\4-Projects\EV-ESP32-energimonitor\Software\homeAssistant\config\automations_charging_monitor.yaml.
+
+This automations .yaml file opertes with two globals: 'charging_monitor_mqtt_prefix' and 'charging_monitor_id'.
+
+The MQTT topic for the payloads is homeassistant/<charging_monitor_id>/<charging_monitor_mqtt_prefix>/button
+
+The payload key 'ev_charging' will "push" the button.ev_smart_charging_manually_start_charging when the value is "start" and "push" the button button ev_smart_charging_manually_stop_charging when the value is "stop".
+
+The payload key 'smart_charging_activated' will set switch.ev_smart_charging_smart_charging_activated "on" / "off".
+
+The payload key 'price_limit' will set number.ev_smart_charging_electricity_price_limit to value provided by the key.

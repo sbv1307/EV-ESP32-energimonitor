@@ -136,6 +136,8 @@ static void reconnect(TaskParams_t* params) {
                             RETAINED, "False")) 
     {
 
+      gMqttConnected = true;
+
       // Once connected, publish will message and 
       mqttEnqueuePublish(will.c_str(), "True", RETAINED);
 
@@ -159,6 +161,7 @@ static void reconnect(TaskParams_t* params) {
                                                               #endif
 
     } else {
+      gMqttConnected = false;
 
                                                               #ifdef DEBUG
                                                               Serial.print("MqttClient: MQTT failed, rc=");

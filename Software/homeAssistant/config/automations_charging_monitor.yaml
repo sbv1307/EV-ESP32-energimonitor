@@ -326,3 +326,107 @@
                 payload: >
                   {{ {"maxEPrice": max_price | float(0)} | tojson }}
 
+- id: ev_charging_mqtt_commands
+  alias: EV Charging MQTT Commands
+  description: >
+    Handle incoming MQTT commands from the ESP32 device to control charging and settings.
+    MQTT Topic: homeassistant/<charging_monitor_id>/<charging_monitor_mqtt_prefix>/button
+    Supported payloads:
+    - {"ev_charging":"start"} - Press manually start charging button
+    - {"ev_charging":"stop"} - Press manually stop charging button
+    - {"smart_charging_activated":"on"} - Enable smart charging
+    - {"smart_charging_activated":"off"} - Disable smart charging
+    - {"price_limit":n.nnn} - Set electricity price limit
+
+  variables:
+    <<: *ev_globals
+
+  trigger:
+    - platform: mqtt
+      topic: "homeassistant/+/+/button"
+      id: mqtt_command
+
+  condition:
+    - condition: template
+      value_template: >
+        {% set topic_parts = trigger.topic.split('/') %}
+        {% set topic_charger_id = topic_parts[1] %}
+        {% set topic_prefix = topic_parts[2] %}
+        {{ topic_charger_id == charging_monitor_id and
+           topic_prefix == charging_monitor_mqtt_prefix and
+           charging_monitor_id not in ['unknown', 'unavailable', '', none] and
+           charging_monitor_mqtt_prefix not in ['unknown', 'unavailable', '', none] }}
+
+  action:
+    - variables:
+        payload_data: "{{ trigger.payload | from_json(default={}) }}"
+
+    - choose:
+
+        #################################
+        # EV CHARGING - START
+        #################################
+
+        - conditions:
+            - condition: template
+              value_template: "{{ payload_data.get('ev_charging') == 'start' }}"
+
+          sequence:
+            - service: button.press
+              target:
+                entity_id: button.ev_smart_charging_manually_start_charging
+
+        #################################
+        # EV CHARGING - STOP
+        #################################
+
+        - conditions:
+            - condition: template
+              value_template: "{{ payload_data.get('ev_charging') == 'stop' }}"
+
+          sequence:
+            - service: button.press
+              target:
+                entity_id: button.ev_smart_charging_manually_stop_charging
+
+        #################################
+        # SMART CHARGING - ON
+        #################################
+
+        - conditions:
+            - condition: template
+              value_template: "{{ payload_data.get('smart_charging_activated') == 'on' }}"
+
+          sequence:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.ev_smart_charging_smart_charging_activated
+
+        #################################
+        # SMART CHARGING - OFF
+        #################################
+
+        - conditions:
+            - condition: template
+              value_template: "{{ payload_data.get('smart_charging_activated') == 'off' }}"
+
+          sequence:
+            - service: switch.turn_off
+              target:
+                entity_id: switch.ev_smart_charging_smart_charging_activated
+
+        #################################
+        # PRICE LIMIT
+        #################################
+
+        - conditions:
+            - condition: template
+              value_template: "{{ payload_data.get('price_limit') is not none }}"
+
+          sequence:
+            - service: number.set_value
+              target:
+                entity_id: number.ev_smart_charging_electricity_price_limit
+              data:
+                value: "{{ payload_data.get('price_limit') | float(0) }}"
+

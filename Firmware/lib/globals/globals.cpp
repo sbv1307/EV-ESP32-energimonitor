@@ -22,6 +22,7 @@ float gChargeEnergyKwh = 0.0f;
 char gChargingStartTime[6] = {0};
 float gEnergyPriceRef = 0.0f;
 float gEnergyPriceLimit = 0.0f;
+bool gMqttConnected = false;
 
 void initializeGlobals( TaskParams_t* params ) {
 

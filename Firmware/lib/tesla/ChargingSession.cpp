@@ -409,14 +409,15 @@ void handleChargingSession(TaskParams_t* params) {
       break;
   }
 
-  if (gState == ChargingState::Charging) {
-    sendLedCommand("TurnOn");
-  } else {
-    sendLedCommand("TurnOff");
+  if (gMqttConnected) {
+    if (gState == ChargingState::Charging) {
+      sendLedCommand("TurnOn");
+    } else {
+      sendLedCommand("TurnOff");
+    }
   }
 
 }
-
 
 bool isChargingSessionCharging() {
   return gState == ChargingState::Charging;
