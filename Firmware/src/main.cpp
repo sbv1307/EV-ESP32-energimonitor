@@ -104,8 +104,7 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
 * ###################################################################################################
 */
 void setup() {
-
-                                                              #ifdef NONE_HEADLESS
+                                                             #ifdef NONE_HEADLESS
                                                               wait_for_any_key( SKETCH_VERSION + String(". Build at: ") + String(BUILD_TIMESTAMP));
                                                               #endif
 
@@ -200,13 +199,15 @@ void loop() {
   if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
     lastWiFiCheck = currentMillis;
     
-    if (WiFi.status() != WL_CONNECTED) {
+    if (isWifiReconnectNeeded()) {
       gMqttConnected = false;
       sendLedCommand("TurnOn");
                                                                       #ifdef DEBUG
                                                                       Serial.println("Main: WiFi disconnected. Attempting to reconnect...");
                                                                       #endif
       startNetworkTask( &networkParams );
+    } else if (WiFi.status() == WL_IDLE_STATUS) {
+      sendLedCommand("Toggle");
     } else if (!gMqttConnected) {
       sendLedCommand("Toggle");      // WiFi OK but MQTT down = blink
     } else {

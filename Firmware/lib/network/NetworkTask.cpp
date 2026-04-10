@@ -15,6 +15,12 @@
 
 static TaskHandle_t networkTaskHandle = nullptr;
 static TaskHandle_t wifiConnectionTaskHandle = nullptr;
+static constexpr BaseType_t kNetworkTaskCore = 1;
+
+static bool isWiFiConnectionActive() {
+  wl_status_t status = WiFi.status();
+  return status == WL_CONNECTED || status == WL_IDLE_STATUS || wifiConnectionTaskHandle != nullptr;
+}
 
 static void configureTime() {
   configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3",
@@ -75,35 +81,16 @@ static void wifiConnectionTask(void* pvParameters) {
   }
 
   // Connect to WiFi
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(params->wifiSSID, params->wifiPassword);
-  
-  int attempts = 0;
-  const int maxAttempts = 20; // 10 seconds timeout (20 * 500ms)
-  
-  /*
-   * Key difference:
-   * WiFi.status()               - Returns the current WiFi status immediately (non-blocking)
-   * WiFi.waitForConnectResult() - Blocks and waits for the connection attempt to complete 
-   *                               before returning.
-   * The problem:
-   * Using WiFi.waitForConnectResult() in the loop defeats the purpose of your manual timeout mechanism.
-   * It will block for the entire connection attempt duration on each iteration, making your attempts
-   * counter and delay(500) ineffective.
-   */
-  while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
-    vTaskDelay(pdMS_TO_TICKS(500));
 
-                                                  #ifdef DEBUG
-                                                      Serial.print(".");
-                                                  #endif
-
-    attempts++;
-  }
-
-  if (WiFi.status() != WL_CONNECTED) {
+  uint8_t connectResult = WiFi.waitForConnectResult(10000);
+  if (connectResult != WL_CONNECTED && WiFi.status() != WL_CONNECTED) {
 
                                                     #ifdef DEBUG
-                                                    Serial.println("\nWifiConnectionTask: WiFi connection failed. WiFi status: " + String(WiFi.status()) + "\n");
+                                                    Serial.println("\nWifiConnectionTask: WiFi connection failed. waitForConnectResult: " + String(connectResult) + ", WiFi status: " + String(WiFi.status()) + "\n");
                                                     #endif
     // Connection failed, clean up and exit task
     wifiConnectionTaskHandle = nullptr;
@@ -129,7 +116,7 @@ static void wifiConnectionTask(void* pvParameters) {
     params,
     1,
     &networkTaskHandle,
-    0   // Core 0 (Wi-Fi)
+    kNetworkTaskCore
   );
 
                                                   #ifdef STACK_WATERMARK
@@ -153,6 +140,11 @@ bool startNetworkTask(TaskParams_t* params) {
     // WiFi connection task is already running
     return false;
   }
+
+  if (isWiFiConnectionActive()) {
+    return false;
+  }
+
   // Create the WiFi connection task
   xTaskCreatePinnedToCore(
     wifiConnectionTask,
@@ -161,7 +153,7 @@ bool startNetworkTask(TaskParams_t* params) {
     params,
     2,  // Higher priority to ensure WiFi connects first
     &wifiConnectionTaskHandle,  // Store the handle to avoid multiple instances
-    0   // Core 0 (Wi-Fi)
+    kNetworkTaskCore
   );
   return true;
 }
@@ -171,4 +163,9 @@ void stopNetworkTask() {
     vTaskDelete(networkTaskHandle);
     networkTaskHandle = nullptr;
   }
+}
+
+bool isWifiReconnectNeeded() {
+  wl_status_t status = WiFi.status();
+  return !isWiFiConnectionActive() && status != WL_NO_SHIELD;
 }

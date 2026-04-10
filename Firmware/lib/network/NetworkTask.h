@@ -4,3 +4,4 @@
 
 bool startNetworkTask(TaskParams_t* params);
 void stopNetworkTask();
+bool isWifiReconnectNeeded();
