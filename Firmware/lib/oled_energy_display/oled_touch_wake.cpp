@@ -70,6 +70,7 @@ void update() {
 
     if (consecutiveTouchHits >= activeSettings.debounceCount) {
       displayWakeUntilMs = now + activeSettings.displayOnTimeMs;
+      OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Energy);
       if (!OledEnergyDisplay::isOn()) {
         OledEnergyDisplay::turnOn();
       }
@@ -77,7 +78,7 @@ void update() {
   }
 
   const bool displayOn = OledEnergyDisplay::isOn();
-  if (displayOn && static_cast<int32_t>(now - displayWakeUntilMs) >= 0) {
+  if (displayWakeUntilMs != 0 && displayOn && static_cast<int32_t>(now - displayWakeUntilMs) >= 0) {
     OledEnergyDisplay::turnOff();
   }
 }

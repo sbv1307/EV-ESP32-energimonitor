@@ -23,6 +23,9 @@ Main integration API:
 Display data API:
 
 - `void OledEnergyDisplay::showEnergy(...);`
+- `void OledEnergyDisplay::showMonitorLine(const char* text);`
+- `void OledEnergyDisplay::clearMonitorLines();`
+- `void OledEnergyDisplay::setMode(OledEnergyDisplay::Mode mode);`
 - `void OledEnergyDisplay::turnOn();`
 - `void OledEnergyDisplay::turnOff();`
 - `bool OledEnergyDisplay::isOn();`
@@ -193,6 +196,47 @@ Display defaults (`oled_energy_display.h`):
 - `OLED_ENERGY_DISPLAY_DEFAULT_I2C_SCL`
 - `OLED_ENERGY_DISPLAY_DEFAULT_I2C_ADDRESS`
 - `OLED_ENERGY_DISPLAY_DEFAULT_CHARGING_ICON_BLINK_MS`
+- `OLED_ENERGY_DISPLAY_DEFAULT_MONITOR_LINE_CAPACITY`
+- `OLED_ENERGY_DISPLAY_DEFAULT_MONITOR_CHARS_PER_LINE`
+- `OLED_ENERGY_DISPLAY_DEFAULT_MONITOR_FREEZE_MS`
+- `OLED_ENERGY_DISPLAY_DEFAULT_MONITOR_SCROLL_STEP_MS`
+
+## Monitor Mode
+
+The OLED can now buffer a rolling set of short text lines for boot/status/error/debug output.
+
+Behavior:
+
+- The monitor buffer keeps the last configured number of lines.
+- Each new line is shown immediately and frozen for `freezeDurationMs`.
+- After the freeze period, the OLED starts at the oldest line, adds one line per `scrollStepMs`, and then scrolls down one line at a time until the newest lines are visible.
+- A touch wake event switches the OLED into energy mode and turns the display on if needed.
+
+Configuration is part of `OledEnergyDisplay::Settings`:
+
+```cpp
+OledLibrary::Settings settings;
+settings.energyDisplay.initialMode = OledEnergyDisplay::Mode::Monitor;
+settings.energyDisplay.monitor.lineCapacity = 10;
+settings.energyDisplay.monitor.charsPerLine = 21;
+settings.energyDisplay.monitor.freezeDurationMs = 5000;
+settings.energyDisplay.monitor.scrollStepMs = 1000;
+settings.turnOffAfterSplash = false;
+```
+
+Adding monitor lines:
+
+```cpp
+OledEnergyDisplay::showMonitorLine("Boot OK");
+OledEnergyDisplay::showMonitorLine("WiFi reconnect");
+```
+
+If you need to force a mode explicitly:
+
+```cpp
+OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Monitor);
+OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Energy);
+```
 
 Touch defaults (`oled_touch_wake.h`):
 

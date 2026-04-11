@@ -89,6 +89,8 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
                                           uint32_t nextCheckMs,
                                           unsigned long lastStackLog);
 
+static void showBootMonitorMessage(const char* text);
+
                                                               #ifdef BOOT_DIAGNOSTICS_LOGGING
                                                               static const char* resetReasonToString(esp_reset_reason_t reason);
                                                               static void publishBootDiagnosticsOnce();
@@ -149,9 +151,12 @@ void setup() {
   oledSettings.showSplashOnBoot = true;
   oledSettings.splashText = SKETCH_VERSION;
   oledSettings.splashDurationMs = 5000;
-  oledSettings.turnOffAfterSplash = true;
+  oledSettings.turnOffAfterSplash = false;
+  oledSettings.energyDisplay.initialMode = OledEnergyDisplay::Mode::Monitor;
+  oledSettings.energyDisplay.monitor.lineCapacity = 10;
   OledLibrary::begin(oledSettings);
   OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
+  showBootMonitorMessage("Boot OK");
 
   /*
   * Start the Network Task to handle WiFi connectivity and MQTT communication. This will run in parallel with the Pulse Input Task.
@@ -159,10 +164,13 @@ void setup() {
   * The Network Task will also handle sending telemetry data to Google Sheets and updating the OLED display when new data is available.
   */
   startNetworkTask( &networkParams );
+  showBootMonitorMessage("Network start");
 
   initPushButtons();
+  showBootMonitorMessage("Buttons ready");
 
   initChargingSession();
+  showBootMonitorMessage("Charge init");
 
                                                             #ifdef BOOT_DIAGNOSTICS_LOGGING
                                                             sBootCount++;
@@ -202,12 +210,13 @@ void loop() {
     if (isWifiReconnectNeeded()) {
       gMqttConnected = false;
       sendLedCommand("TurnOn");
+      showBootMonitorMessage("WiFi reconnect");
                                                                       #ifdef DEBUG
                                                                       Serial.println("Main: WiFi disconnected. Attempting to reconnect...");
                                                                       #endif
       startNetworkTask( &networkParams );
     } else if (WiFi.status() == WL_IDLE_STATUS) {
-      sendLedCommand("Toggle");
+      sendLedCommand("TurnOn");
     } else if (!gMqttConnected) {
       sendLedCommand("Toggle");      // WiFi OK but MQTT down = blink
     } else {
@@ -218,7 +227,7 @@ void loop() {
   // Ensure Pulse Count Task is running. If already running, this does nothing.
   startPulseInputTask( &networkParams );
 
-  //TOBE REMOVED Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. 
+  //TOBE REMOVED Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  During Development and testing, this task generates pulses in a loop to test the pulse counting logic and display updates without needing actual pulses from the energy meter. This should be removed for production use when real pulse counting from the energy meter is implemented via an ISR and the Pulse Input Task.
   // This will only start if not already running.
   startPulseInputIsrTestTask();
 
@@ -496,6 +505,10 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
   }
 
   return nextDelayMs;
+}
+
+static void showBootMonitorMessage(const char* text) {
+  OledEnergyDisplay::showMonitorLine(text);
 }
 
                                                     #ifdef BOOT_DIAGNOSTICS_LOGGING
