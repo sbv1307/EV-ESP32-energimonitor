@@ -210,7 +210,9 @@ Behavior:
 - The monitor buffer keeps the last configured number of lines.
 - Each new line is shown immediately and frozen for `freezeDurationMs`.
 - After the freeze period, the OLED starts at the oldest line, adds one line per `scrollStepMs`, and then scrolls down one line at a time until the newest lines are visible.
-- A touch wake event switches the OLED into energy mode and turns the display on if needed.
+- A touch on `OLED_TOUCH_WAKE_DEFAULT_INPUT_PIN` toggles between monitor mode and energy mode when the OLED is already on and showing one of those modes.
+- If the OLED is off, the same touch input only wakes the display and keeps the current mode unchanged.
+- Each touch is latched so one press produces one mode switch.
 
 Configuration is part of `OledEnergyDisplay::Settings`:
 

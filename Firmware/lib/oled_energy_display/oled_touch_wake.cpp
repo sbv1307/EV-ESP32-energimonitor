@@ -10,6 +10,7 @@ uint16_t touchBaseline = 0;
 uint32_t displayWakeUntilMs = 0;
 uint32_t lastTouchSampleMs = 0;
 uint8_t consecutiveTouchHits = 0;
+bool touchEventLatched = false;
 
 uint16_t readTouchValue() {
   int raw = touchRead(activeSettings.inputPin);
@@ -46,6 +47,7 @@ void begin(const Settings& settings) {
   displayWakeUntilMs = 0;
   lastTouchSampleMs = millis();
   consecutiveTouchHits = 0;
+  touchEventLatched = false;
 }
 
 void update() {
@@ -62,16 +64,25 @@ void update() {
 
   if (touchValue > computeTouchThreshold(touchBaseline)) {
     consecutiveTouchHits = 0;
+    touchEventLatched = false;
     touchBaseline = static_cast<uint16_t>((touchBaseline * 15U + touchValue) / 16U);
   } else {
     if (consecutiveTouchHits < activeSettings.debounceCount) {
       consecutiveTouchHits++;
     }
 
-    if (consecutiveTouchHits >= activeSettings.debounceCount) {
+    if (!touchEventLatched && consecutiveTouchHits >= activeSettings.debounceCount) {
+      touchEventLatched = true;
       displayWakeUntilMs = now + activeSettings.displayOnTimeMs;
-      OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Energy);
-      if (!OledEnergyDisplay::isOn()) {
+      const bool displayOn = OledEnergyDisplay::isOn();
+      if (displayOn) {
+        const OledEnergyDisplay::Mode currentMode = OledEnergyDisplay::getMode();
+        const OledEnergyDisplay::Mode nextMode =
+            (currentMode == OledEnergyDisplay::Mode::Monitor)
+                ? OledEnergyDisplay::Mode::Energy
+                : OledEnergyDisplay::Mode::Monitor;
+        OledEnergyDisplay::setMode(nextMode);
+      } else {
         OledEnergyDisplay::turnOn();
       }
     }
