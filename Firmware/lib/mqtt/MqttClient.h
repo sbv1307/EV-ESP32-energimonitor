@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#include "globals.h"
+#include "../globals/globals.h"
 
 constexpr char MQTT_PREFIX[]                    = "ev-e-charging/";     // include tailing '/' in prefix!
 constexpr char MQTT_DEVICE_NAME[]               = "esp32-doit_";        // MQTT device name prefix Incl. trailing underscore

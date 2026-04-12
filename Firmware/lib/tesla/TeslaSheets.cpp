@@ -9,6 +9,8 @@
 #include "TeslaSheets.h"
 #include "TeslaApi.h"
 #include "config.h"
+#include "oled_energy_display.h"
+#include "OtaService.h"
 #include "privateConfig.h"
 
 namespace {
@@ -77,6 +79,10 @@ static bool formatDateTime(char* dateBuf, size_t dateBufLen, char* timeBuf, size
 bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget target, const char* payload) {
   (void)params;
 
+  if (isOtaInProgress()) {
+    return false;
+  }
+
   const char* sheetParamName = (target == TeslaSheetTarget::TeslaData)
                                   ? TESLA_GSHEET_PARAM_NAME_DATA
                                   : TESLA_GSHEET_PARAM_NAME_LOG;
@@ -93,6 +99,7 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
       payload);
 
   if (urlLen < 0 || static_cast<size_t>(urlLen) >= sizeof(url)) {
+    OledEnergyDisplay::showMonitorLine("GS fail URL ovf");
 
                                                             #ifdef DEBUG
                                                             Serial.println("Google Sheets upload failed: URL buffer overflow");
@@ -101,12 +108,15 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
     return false;
   }
 
+  //OledEnergyDisplay::showMonitorLine("GS upload start");
+
                                                             #ifdef DEBUG
                                                             Serial.print("Uploading to Google Sheets: ");
                                                             Serial.println(url);
                                                             #endif 
 
   if (WiFi.status() != WL_CONNECTED) {
+    OledEnergyDisplay::showMonitorLine("GS WiFi offline");
 
                                                             #ifdef DEBUG
                                                             Serial.println("Google Sheets upload failed: WiFi not connected");
@@ -124,6 +134,10 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
   http.setRedirectLimit(5);
   if (!http.begin(client, url)) {
 
+                                                                #ifdef HEADLESS_DEBUG
+                                                                OledEnergyDisplay::showMonitorLine("GS HTTP begin");
+                                                                #endif
+
                                                               #ifdef DEBUG
                                                               Serial.println("Google Sheets upload failed: HTTP begin failed");
                                                               #endif
@@ -137,6 +151,8 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
   bool requestSucceeded = (httpCode == HTTP_CODE_OK) && responseBody.equalsIgnoreCase("OK");
 
   if (!requestSucceeded) {
+    OledEnergyDisplay::showMonitorLine("GS fail HTTP: " + String(httpCode));
+    OledEnergyDisplay::showMonitorLine("GS resp: " + responseBody);
 
                                                               #ifdef DEBUG
                                                               Serial.print("Google Sheets upload failed: HTTP GET failed with code ");
@@ -154,9 +170,15 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
 }
 
 bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment) {
+  if (isOtaInProgress()) {
+    return false;
+  }
+
   TeslaTelemetry telemetry;
   String errorMessage;
   if (!teslaGetTelemetry(&telemetry, &errorMessage)) {
+    OledEnergyDisplay::showMonitorLine("Tesla tel fail");
+    OledEnergyDisplay::showMonitorLine("Tel err: " + errorMessage);
 
                                                   #ifdef DEBUG
                                                   Serial.print("Tesla telemetry fetch failed: ");
@@ -169,6 +191,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
   char dateBuf[11] = {0};
   char timeBuf[6] = {0};
   if (!formatDateTime(dateBuf, sizeof(dateBuf), timeBuf, sizeof(timeBuf))) {
+    OledEnergyDisplay::showMonitorLine("Time fallback");
                                                   #ifdef DEBUG
                                                   Serial.println("Failed to get local time for telemetry payload; using epoch time");
                                                   #endif
@@ -196,6 +219,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
       telemetryComment);
 
   if (payloadLen < 0 || static_cast<size_t>(payloadLen) >= sizeof(payload)) {
+    OledEnergyDisplay::showMonitorLine("GS payload ovf");
 
                                                   #ifdef DEBUG
                                                   Serial.println("Google Sheets upload failed: payload buffer overflow");
@@ -212,6 +236,10 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
  * Further comment does not accept spaces or any special characters! Use e.g. BootTelemetrty or Boot_Telemetry instead
 */
 bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment) {
+  if (isOtaInProgress()) {
+    return false;
+  }
+
   portENTER_CRITICAL(&teslaTelemetryTaskStateMux);
   if (teslaTelemetryTaskHandle != nullptr) {
     portEXIT_CRITICAL(&teslaTelemetryTaskStateMux);

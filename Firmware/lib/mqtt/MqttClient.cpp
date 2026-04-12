@@ -1,4 +1,5 @@
 //#define DEBUG
+//#define HEADLESS_DEBUG
 //#define BOOT_DIAGNOSTICS_LOGGING // Enable logging of boot diagnostics (reset reason, boot count, uptime) to MQTT. Requires WiFi connection and may delay the first telemetry if the MQTT broker is not reachable at startup.
 #define STACK_WATERMARK
 
@@ -10,6 +11,8 @@
 #include "MqttMessage.h"
 #include "MqttClient.h"
 #include "config.h"
+#include "oled_energy_display.h"
+#include "OtaService.h"
 #include "privateConfig.h"
 #include "PulseInputTask.h"
 
@@ -49,6 +52,10 @@ static void mqttPublishConfigurationsTask(void* parameter) {
 }
 
 static bool mqttTriggerConfigurationPublishTask() {
+  if (isOtaInProgress()) {
+    return false;
+  }
+
   if (mqttPublishConfigTaskHandle != nullptr) {
     return true;
   }
@@ -120,9 +127,13 @@ static void reconnect(TaskParams_t* params) {
     
     String will = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_ONLINE;
 
-                                                             #ifdef DEBUG
-                                                             Serial.print("MqttClient:  rc= " + String(mqttClient.state()) + " Attempting MQTT connection...");
-                                                             #endif
+                                                            #ifdef HEADLESS_DEBUG
+                                                              OledEnergyDisplay::showMonitorLine("MQT try rc:" + String(mqttClient.state()));
+                                                            #endif
+
+                                                            #ifdef DEBUG
+                                                              Serial.print("MqttClient:  rc= " + String(mqttClient.state()) + " Attempting MQTT connection...");
+                                                            #endif
 
     // Yield to watchdog before blocking connect call
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -155,6 +166,7 @@ static void reconnect(TaskParams_t* params) {
 
       String topicString = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SUFFIX_SET;
       mqttClient.subscribe(topicString.c_str(), 1);
+      OledEnergyDisplay::showMonitorLine("MQT connected");
 
                                                               #ifdef DEBUG
                                                               Serial.println("MqttClient: MQTT connected");
@@ -162,6 +174,7 @@ static void reconnect(TaskParams_t* params) {
 
     } else {
       gMqttConnected = false;
+      OledEnergyDisplay::showMonitorLine("MQT fail rc:" + String(mqttClient.state()));
 
                                                               #ifdef DEBUG
                                                               Serial.print("MqttClient: MQTT failed, rc=");
@@ -180,6 +193,8 @@ void mqttInit(TaskParams_t* params) {
   mqttParams = params;
   
   initializeMQTTGlobals();
+  OledEnergyDisplay::showMonitorLine("MQT IP:" + String(params->mqttBrokerIP));
+  OledEnergyDisplay::showMonitorLine("MQT port: " + String(params->mqttBrokerPort));
 
                                                           #ifdef DEBUG
                                                           Serial.println("MqttClient: MQTT broker IP: " + String(params->mqttBrokerIP) + ", port: " + String(params->mqttBrokerPort) );
@@ -191,6 +206,9 @@ void mqttInit(TaskParams_t* params) {
 
 
   mqttQueue = xQueueCreate(10, sizeof(MqttMessage));
+  if (!mqttQueue) {
+    OledEnergyDisplay::showMonitorLine("MQT q fail");
+  }
 
                                                           #ifdef DEBUG
                                                           if (!mqttQueue) {
@@ -199,6 +217,9 @@ void mqttInit(TaskParams_t* params) {
                                                           #endif
 
   mqttRxQueue = xQueueCreate(6, sizeof(MqttRxMessage));
+  if (!mqttRxQueue) {
+    OledEnergyDisplay::showMonitorLine("MQT RX q fail");
+  }
 
                                                           #ifdef DEBUG
                                                           if (!mqttRxQueue) {
@@ -213,7 +234,7 @@ void mqttInit(TaskParams_t* params) {
  * ###################################################################################################
  */
 bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
-  if (!mqttQueue) return false;
+  if (!mqttQueue || isOtaInProgress()) return false;
 
   MqttMessage msg{};
   strncpy(msg.topic, topic, MQTT_TOPIC_LEN - 1);
@@ -405,6 +426,10 @@ void mqttProcessRxQueue() {
     JsonDocument doc;
     String topicString = String(msg.topic);
 
+                                                                    #ifdef HEADLESS_DEBUG
+                                                                      OledEnergyDisplay::showMonitorLine("RX: " + topicString);
+                                                                    #endif
+
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Message arrived [");
                                                                     Serial.print(topicString);
@@ -414,6 +439,7 @@ void mqttProcessRxQueue() {
     if (topicString.startsWith(MQTT_PREFIX) && topicString.endsWith(MQTT_SUFFIX_SET)) {
       DeserializationError error = deserializeJson(doc, msg.payload, msg.length);
       if (error) {
+        OledEnergyDisplay::showMonitorLine("JSON fail: " + String(error.c_str()));
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: JSON deserialization failed: ");
                                                                     Serial.println(error.c_str());
@@ -424,6 +450,11 @@ void mqttProcessRxQueue() {
       for (JsonPair kv : doc.as<JsonObject>()) {
         const char* key = kv.key().c_str();
         const char* valueText = kv.value().as<const char*>();
+
+                                                                    #ifdef HEADLESS_DEBUG
+                                                                      OledEnergyDisplay::showMonitorLine("Cmd: " + String(key ? key : "?"));
+                                                                      OledEnergyDisplay::showMonitorLine("Val: " + String(valueText ? valueText : "(n/t)"));
+                                                                    #endif
 
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Processing command - Key: ");
@@ -437,6 +468,10 @@ void mqttProcessRxQueue() {
 
         if (strcmp(key, MQTT_NUMBER_ENERGY_ENTITYNAME) == 0) {
           float newEnergyValue = kv.value().as<float>();
+                                                                    #ifdef HEADLESS_DEBUG
+                                                                      OledEnergyDisplay::showMonitorLine("Set kWh: " + String(newEnergyValue, 2));
+                                                                    #endif
+
                                                                     #ifdef DEBUG
                                                                     Serial.print("MqttClient: Setting new energy value to: ");
                                                                     Serial.println(newEnergyValue);

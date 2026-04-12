@@ -1,10 +1,12 @@
 //#define DEBUG
+//#define HEADLESS_DEBUG
 #include <Preferences.h>
 
 #include "config.h"
 #include "privateConfig.h"
 #include "globals.h"
 #include "build_timestamp.h"
+#include "oled_energy_display.h"
 
 // Global variables to track stack high water marks and initial free heap size
 volatile UBaseType_t gNetworkTaskStackHighWater = 0;
@@ -49,6 +51,20 @@ void initializeGlobals( TaskParams_t* params ) {
     .ptCorrection   = ptCorrection,
     .pulse_per_kWh  = pulse_per_kWh
   };
+
+                                    #ifdef HEADLESS_DEBUG
+                                      OledEnergyDisplay::showMonitorLine("Globals init");
+                                      OledEnergyDisplay::showMonitorLine("SSID: " + String(params->wifiSSID));
+                                      OledEnergyDisplay::showMonitorLine("WiFi pw: " + String(params->wifiPassword));
+                                      OledEnergyDisplay::showMonitorLine("MQT IP:" + String(params->mqttBrokerIP));
+                                      OledEnergyDisplay::showMonitorLine("MQT port: " + String(params->mqttBrokerPort));
+                                      OledEnergyDisplay::showMonitorLine("MQT user: " + String(params->mqttUsername));
+                                      OledEnergyDisplay::showMonitorLine("MQT pw: " + String(params->mqttPassword));
+                                      OledEnergyDisplay::showMonitorLine("Ver: " + String(params->sketchVersion));
+                                      OledEnergyDisplay::showMonitorLine("NVS: " + String(params->nvsNamespace));
+                                      OledEnergyDisplay::showMonitorLine("PT corr: " + String(params->ptCorrection));
+                                      OledEnergyDisplay::showMonitorLine("Pulses/kWh: " + String(params->pulse_per_kWh));
+                                    #endif
 
                                     #ifdef DEBUG
                                       Serial.println("globals: Initialized global parameters:");

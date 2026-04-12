@@ -5,6 +5,7 @@
 #include "PulseInputTask.h"
 #include "MqttClient.h"
 #include "ChargingSession.h"
+#include "OtaService.h"
 
 static TaskHandle_t PulseInputIsrTestTaskHandle = nullptr;
 
@@ -16,6 +17,12 @@ static void PulseInputIsrTestTask(void* pvParameters) {
   bool wasReady = false;
 
   while (true) {
+    if (isOtaInProgress()) {
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      lastPulseTick = xTaskGetTickCount();
+      continue;
+    }
+
     while (!isPulseInputReady()) {
       uint32_t nowMs = millis();
       if (nowMs - lastNotReadyLogMs >= 60000U) {
@@ -50,6 +57,10 @@ static void PulseInputIsrTestTask(void* pvParameters) {
 }
 
 void startPulseInputIsrTestTask() {
+  if (isOtaInProgress()) {
+    return;
+  }
+
   if (PulseInputIsrTestTaskHandle != nullptr && eTaskGetState(PulseInputIsrTestTaskHandle) != eDeleted) {
     return;
   }

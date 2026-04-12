@@ -67,6 +67,8 @@ void showEnergy(float energyKwh, bool charging = false, float chargeEnergyKwh = 
 void showMonitorLine(const char* text);
 void showMonitorLine(const String& text);
 void clearMonitorLines();
+void setMonitorRenderingEnabled(bool enabled);
+bool isMonitorRenderingEnabled();
 void setMode(Mode mode);
 Mode getMode();
 void update();

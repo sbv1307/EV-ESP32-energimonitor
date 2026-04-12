@@ -35,6 +35,7 @@ uint32_t chargingIconLastToggleMs = 0;
 char monitorLines[MONITOR_MAX_LINES][MONITOR_MAX_CHARS + 1] = {};
 uint8_t monitorLineCount = 0;
 uint8_t monitorWriteIndex = 0;
+bool monitorRenderingEnabled = true;
 uint32_t monitorFreezeUntilMs = 0;
 uint32_t monitorLastScrollStepMs = 0;
 uint32_t monitorScrollStep = 0;
@@ -302,6 +303,7 @@ bool begin(const Settings& settings) {
   chargingIconLastToggleMs = 0;
   monitorLineCount = 0;
   monitorWriteIndex = 0;
+  monitorRenderingEnabled = true;
   monitorFreezeUntilMs = 0;
   monitorLastScrollStepMs = 0;
   monitorScrollStep = 0;
@@ -396,7 +398,7 @@ void showMonitorLine(const char* text) {
   storeMonitorLine(text);
   resetMonitorScrollWindow();
 
-  if (displayOn && activeMode == Mode::Monitor) {
+  if (monitorRenderingEnabled && displayOn && activeMode == Mode::Monitor) {
     renderMonitorLatestWindow();
   }
 
@@ -427,6 +429,29 @@ void clearMonitorLines() {
   }
 
   unlockDisplay();
+}
+
+void setMonitorRenderingEnabled(bool enabled) {
+  if (!lockDisplay()) {
+    return;
+  }
+
+  monitorRenderingEnabled = enabled;
+  if (initialized && displayOn && activeMode == Mode::Monitor && monitorRenderingEnabled) {
+    renderActiveMode();
+  }
+
+  unlockDisplay();
+}
+
+bool isMonitorRenderingEnabled() {
+  if (!lockDisplay()) {
+    return monitorRenderingEnabled;
+  }
+
+  const bool result = monitorRenderingEnabled;
+  unlockDisplay();
+  return result;
 }
 
 void setMode(Mode mode) {
@@ -463,6 +488,11 @@ void update() {
 
   const uint32_t now = millis();
   if (activeMode == Mode::Monitor) {
+    if (!monitorRenderingEnabled) {
+      unlockDisplay();
+      return;
+    }
+
     if (monitorFreezeUntilMs != 0 && static_cast<int32_t>(now - monitorFreezeUntilMs) < 0) {
       unlockDisplay();
       return;

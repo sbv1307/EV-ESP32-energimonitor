@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "OtaService.h"
 #include "MqttClient.h"
+#include "oled_energy_display.h"
 #include "PushButtonTask.h"
 
 
@@ -32,6 +33,7 @@ static void configureTime() {
 static void networkTask(void* pvParameters) {
   otaInit();
   mqttInit( (TaskParams_t*)pvParameters );
+  OledEnergyDisplay::showMonitorLine("Net task init");
 
                                                     #ifdef DEBUG
                                                     Serial.println("NetworkTask: Network Task initializing...\n");
@@ -62,13 +64,14 @@ static void networkTask(void* pvParameters) {
  */
 static void wifiConnectionTask(void* pvParameters) {
   TaskParams_t* params = (TaskParams_t*)pvParameters;
-
+ 
                                                     #ifdef DEBUG
                                                     // Debug: Print initialized parameters
                                                     Serial.println("wifiConnectionTask: WiFi SSID: " + String(params->wifiSSID) + "\n");  
                                                     #endif
 
   stopNetworkTask();  // Ensure any existing network task is stopped
+  OledEnergyDisplay::showMonitorLine("Join: " + String(params->wifiSSID));
 
                                                     #ifdef DEBUG
                                                     Serial.println("wifiConnectionTask: Connecting to WiFi SSID: " + String(params->wifiSSID) + " ... \n");
@@ -88,7 +91,8 @@ static void wifiConnectionTask(void* pvParameters) {
 
   uint8_t connectResult = WiFi.waitForConnectResult(10000);
   if (connectResult != WL_CONNECTED && WiFi.status() != WL_CONNECTED) {
-
+    OledEnergyDisplay::showMonitorLine("WiFi conn fail" + String(connectResult));
+    OledEnergyDisplay::showMonitorLine("WiFi status: " + String(WiFi.status()));
                                                     #ifdef DEBUG
                                                     Serial.println("\nWifiConnectionTask: WiFi connection failed. waitForConnectResult: " + String(connectResult) + ", WiFi status: " + String(WiFi.status()) + "\n");
                                                     #endif
@@ -99,6 +103,8 @@ static void wifiConnectionTask(void* pvParameters) {
   }
 
   vTaskDelay(pdMS_TO_TICKS(1000));  // Give some time to settle WiFi connection
+  OledEnergyDisplay::showMonitorLine("WiFi connected");
+  OledEnergyDisplay::showMonitorLine("IP: " + WiFi.localIP().toString());
 
                                                   #ifdef DEBUG
                                                   Serial.println("\nwifiConnectionTask: WiFi connected successfully.");
@@ -135,6 +141,7 @@ bool startNetworkTask(TaskParams_t* params) {
                                                   Serial.println("\nstartNetworkTask: WiFi SSID: " + String(params->wifiSSID) + "\n");
                                                   #endif
 
+  
 
   if (wifiConnectionTaskHandle != nullptr) {
     // WiFi connection task is already running

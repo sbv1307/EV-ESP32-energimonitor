@@ -10,6 +10,7 @@
 #include "globals.h"
 #include "ChargingSession.h"
 #include "MqttClient.h"
+#include "OtaService.h"
 
 // ---------------------------------------------------------------------------
 //  Command enum – one value per physical button action.
@@ -158,7 +159,7 @@ void initPushButtons() {
 }
 
 void processPushButtonCommands() {
-  if (!sButtonQueue) return;
+  if (!sButtonQueue || isOtaInProgress()) return;
 
   ButtonCommand cmd;
   while (xQueueReceive(sButtonQueue, &cmd, 0) == pdTRUE) {

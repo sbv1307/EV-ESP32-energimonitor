@@ -1,5 +1,6 @@
 //#define NONE_HEADLESS
 //#define DEBUG
+//#define HEADLESS_DEBUG
 //#define VERIFY_LOCAL_TIME
 //#define BOOT_DIAGNOSTICS_LOGGING // Enable logging of boot diagnostics (reset reason, boot count, uptime) to MQTT. Requires WiFi connection and may delay the first telemetry if the MQTT broker is not reachable at startup.
 #define STACK_WATERMARK // Enable stack watermarking debug output. Requires NONE_HEADLESS to be defined.
@@ -21,6 +22,7 @@
 #include "ChargingSession.h"
 #include "MqttClient.h"
 #include "oled_library.h"
+#include "OtaService.h"
 #include "PushButtonTask.h"
 #include "LedTask.h"
 
@@ -164,13 +166,13 @@ void setup() {
   * The Network Task will also handle sending telemetry data to Google Sheets and updating the OLED display when new data is available.
   */
   startNetworkTask( &networkParams );
-  showBootMonitorMessage("Network start");
+  //showBootMonitorMessage("Network start");
 
   initPushButtons();
-  showBootMonitorMessage("Buttons ready");
+  //showBootMonitorMessage("Buttons ready");
 
   initChargingSession();
-  showBootMonitorMessage("Charge init");
+  //showBootMonitorMessage("Charge init");
 
                                                             #ifdef BOOT_DIAGNOSTICS_LOGGING
                                                             sBootCount++;
@@ -210,7 +212,11 @@ void loop() {
     if (isWifiReconnectNeeded()) {
       gMqttConnected = false;
       sendLedCommand("TurnOn");
-      showBootMonitorMessage("WiFi reconnect");
+
+                                                                      #ifdef HEADLESS_DEBUG
+                                                                      showBootMonitorMessage("WiFi reconnect");
+                                                                      #endif
+
                                                                       #ifdef DEBUG
                                                                       Serial.println("Main: WiFi disconnected. Attempting to reconnect...");
                                                                       #endif
@@ -229,26 +235,38 @@ void loop() {
 
   //TOBE REMOVED Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  During Development and testing, this task generates pulses in a loop to test the pulse counting logic and display updates without needing actual pulses from the energy meter. This should be removed for production use when real pulse counting from the energy meter is implemented via an ISR and the Pulse Input Task.
   // This will only start if not already running.
-  startPulseInputIsrTestTask();
+  if (!isOtaInProgress()) {
+    startPulseInputIsrTestTask();
+  }
 
-  mqttProcessRxQueue();
+  if (!isOtaInProgress()) {
+    mqttProcessRxQueue();
+  }
 
                                                                     #ifdef BOOT_DIAGNOSTICS_LOGGING
-                                                                    publishBootDiagnosticsOnce();
+                                                                    if (!isOtaInProgress()) {
+                                                                      publishBootDiagnosticsOnce();
+                                                                    }
                                                                     #endif
 
                                                                     #ifdef VERIFY_LOCAL_TIME
-                                                                    verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
+                                                                    if (!isOtaInProgress()) {
+                                                                      verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
+                                                                    }
                                                                     #endif
 
-  handleDailyTelemetry(&networkParams,
-                       lastDateKey,
-                       nextCheckMs,
-                       bootTelemetryToSend,
-                       pendingTelemetryToSend,
-                       pendingEnergyKwh);
+  if (!isOtaInProgress()) {
+    handleDailyTelemetry(&networkParams,
+                         lastDateKey,
+                         nextCheckMs,
+                         bootTelemetryToSend,
+                         pendingTelemetryToSend,
+                         pendingEnergyKwh);
+  }
                        
-  handleChargingSession(&networkParams);
+  if (!isOtaInProgress()) {
+    handleChargingSession(&networkParams);
+  }
 
   if (gDisplayUpdateAvailable || (isChargingSessionCharging() != lastChargingSessionCharging)) {
     gDisplayUpdateAvailable = false;

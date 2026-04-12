@@ -1,4 +1,5 @@
 //#define DEBUG
+//#define HEADLESS_DEBUG
 #define STACK_WATERMARK
 
 #include "PulseInputTask.h"
@@ -6,6 +7,8 @@
 #include "TeslaSheets.h"
 #include "config.h"
 #include "LedTask.h"
+#include "OtaService.h"
+#include "oled_energy_display.h"
 
 #include <Preferences.h>
 
@@ -99,6 +102,28 @@ void saveToNVS(uint32_t pulseCounter, uint16_t subtotalPulseCounter) {
   pref.end();
 }
 
+static bool trySaveToNVS(uint32_t pulseCounter,
+                         uint16_t subtotalPulseCounter,
+                         uint32_t& lastSavedPulseCounter,
+                         uint16_t& lastSavedSubtotalPulseCounter,
+                         uint32_t& lastSaveMs,
+                         bool& saveDeferredDuringOta) {
+  if (isOtaInProgress()) {
+    if (!saveDeferredDuringOta) {
+      OledEnergyDisplay::showMonitorLine("NVS save deferred");
+      saveDeferredDuringOta = true;
+    }
+    return false;
+  }
+
+  saveToNVS(pulseCounter, subtotalPulseCounter);
+  lastSavedPulseCounter = pulseCounter;
+  lastSavedSubtotalPulseCounter = subtotalPulseCounter;
+  lastSaveMs = millis();
+  saveDeferredDuringOta = false;
+  return true;
+}
+
 /* ###################################################################################################
  *               P O W E R    C A L C U L A T I O N
  * ###################################################################################################
@@ -181,12 +206,21 @@ static void PulseInputTask( void* pvParameters) {
   uint32_t lastSaveMs = millis();
   uint32_t lastSavedPulseCounter = pulseCounter;
   uint16_t lastSavedSubtotalPulseCounter = subtotalPulseCounter;
+  bool saveDeferredDuringOta = false;
+
+                                                    #ifdef HEADLESS_DEBUG
+                                                      OledEnergyDisplay::showMonitorLine("Pulse task init");
+                                                    #endif
 
                                                     #ifdef DEBUG
                                                     Serial.println("Pulse Input Task initializing...\n");
                                                     #endif
 
   if (PulseInputQueue == nullptr) {
+
+                                                    #ifdef HEADLESS_DEBUG
+                                                      OledEnergyDisplay::showMonitorLine("Pulse q not init");
+                                                    #endif
 
                                                     #ifdef DEBUG
                                                     Serial.println("Pulse count queue not initialized!");
@@ -198,6 +232,15 @@ static void PulseInputTask( void* pvParameters) {
   }
 
   PulseInputTaskReady = true;
+
+                                                    #ifdef HEADLESS_DEBUG
+                                                      OledEnergyDisplay::showMonitorLine("Pulse task ready");
+                                                      OledEnergyDisplay::showMonitorLine("Pulse task start");
+                                                      OledEnergyDisplay::showMonitorLine("NVS count: " + String(pulseCounter));
+                                                      OledEnergyDisplay::showMonitorLine("PT corr: " + String(((TaskParams_t*)pvParameters)->ptCorrection));
+                                                      OledEnergyDisplay::showMonitorLine("Pulses/kWh: " + String(((TaskParams_t*)pvParameters)->pulse_per_kWh));
+                                                      OledEnergyDisplay::showMonitorLine("Wait pulses");
+                                                    #endif
  
                                                     #ifdef DEBUG
                                                     Serial.println("Pulse Input Task started with following parameters:\n");
@@ -225,10 +268,12 @@ static void PulseInputTask( void* pvParameters) {
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
 
       if (pulseCounter != previousPulseCounter) {
-        saveToNVS(pulseCounter, subtotalPulseCounter);
-        lastSavedPulseCounter = pulseCounter;
-        lastSavedSubtotalPulseCounter = subtotalPulseCounter;
-        lastSaveMs = millis();
+        trySaveToNVS(pulseCounter,
+                     subtotalPulseCounter,
+                     lastSavedPulseCounter,
+                     lastSavedSubtotalPulseCounter,
+                     lastSaveMs,
+                     saveDeferredDuringOta);
       }
     }
 
@@ -247,10 +292,12 @@ static void PulseInputTask( void* pvParameters) {
       bool subtotalChanged = subtotalPulseCounter != 0;
       subtotalPulseCounter = 0;
       if (subtotalChanged) {
-        saveToNVS(pulseCounter, subtotalPulseCounter);
-        lastSavedPulseCounter = pulseCounter;
-        lastSavedSubtotalPulseCounter = subtotalPulseCounter;
-        lastSaveMs = millis();
+        trySaveToNVS(pulseCounter,
+                     subtotalPulseCounter,
+                     lastSavedPulseCounter,
+                     lastSavedSubtotalPulseCounter,
+                     lastSaveMs,
+                     saveDeferredDuringOta);
       }
 
       float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
@@ -263,6 +310,11 @@ static void PulseInputTask( void* pvParameters) {
     if (xQueueReceive(PulseInputQueue, &ts, pdMS_TO_TICKS(1000))) {
 
       sendLedCommand("Blink");
+
+                                          #ifdef HEADLESS_DEBUG
+                                            OledEnergyDisplay::showMonitorLine("Pulse ts: " + String(ts));
+                                          #endif
+      
                                           #ifdef DEBUG
                                           Serial.println("\nProcessing pulse count and timestamp: " + String(ts) + "\n");
                                           #endif
@@ -270,6 +322,10 @@ static void PulseInputTask( void* pvParameters) {
       // ---- 1. Pulse counting ----
       pulseCounter++;
       subtotalPulseCounter++;
+
+                                          #ifdef HEADLESS_DEBUG
+                                            OledEnergyDisplay::showMonitorLine("Cnt: " + String(pulseCounter) + " Sub:" + String(subtotalPulseCounter));
+                                          #endif
 
                                           #ifdef DEBUG
                                           Serial.println("\nPulse Count: " + String(pulseCounter) + " Subtotal Pulse Count: " + String(subtotalPulseCounter));
@@ -279,6 +335,10 @@ static void PulseInputTask( void* pvParameters) {
       if (lastTs > 0) {
           uint32_t deltaUs = ts - lastTs;
           powerW = calculatePower( (TaskParams_t*)pvParameters, deltaUs);
+
+                                                          #ifdef HEADLESS_DEBUG
+                                                            OledEnergyDisplay::showMonitorLine("Pwr: " + String(powerW, 0) + "W");
+                                                          #endif
 
                                                           #ifdef DEBUG
                                                             Serial.println("\nDelta U sec: " + String(deltaUs) + " Pulse Count: " + String(pulseCounter) + " Power: " + String(powerW) + " W");
@@ -306,6 +366,10 @@ static void PulseInputTask( void* pvParameters) {
           updateLatestEnergySnapshot(powerW, energyKwh, subtotalKwh);
           publishMqttEnergy(powerW, energyKwh, subtotalKwh);
 
+                                                          #ifdef HEADLESS_DEBUG
+                                                            OledEnergyDisplay::showMonitorLine("Pwr upd: " + String(powerW, 0) + "W");
+                                                          #endif
+
                                                           #ifdef DEBUG
                                                             Serial.println("\nNo new pulse but updating power: " + String(powerW) + " W");
                                                           #endif
@@ -327,10 +391,12 @@ static void PulseInputTask( void* pvParameters) {
                                           Serial.println("\nSaving pulse count to NVS: " + String(pulseCounter) + "\n");
                                           #endif
 
-        saveToNVS(pulseCounter, subtotalPulseCounter);
-        lastSavedPulseCounter = pulseCounter;
-        lastSavedSubtotalPulseCounter = subtotalPulseCounter;
-        lastSaveMs = millis();
+        trySaveToNVS(pulseCounter,
+                     subtotalPulseCounter,
+                     lastSavedPulseCounter,
+                     lastSavedSubtotalPulseCounter,
+                     lastSaveMs,
+                     saveDeferredDuringOta);
       }
     }
 
