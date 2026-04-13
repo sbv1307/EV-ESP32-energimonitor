@@ -175,6 +175,18 @@ void resetMonitorScrollWindow() {
   monitorScrollStep = 0;
 }
 
+void activateMonitorMode(uint32_t now, bool freezeLatestWindow) {
+  activeMode = OledEnergyDisplay::Mode::Monitor;
+  if (freezeLatestWindow) {
+    resetMonitorScrollWindow();
+  } else {
+    monitorFreezeUntilMs = 0;
+    monitorLastScrollStepMs = 0;
+    monitorScrollStep = 0;
+  }
+  monitorLastMessageMs = now;
+}
+
 void storeMonitorLine(const char* text) {
   const uint8_t capacity = getMonitorLineCapacity();
   const uint8_t charsPerLine = getMonitorCharsPerLine();
@@ -398,15 +410,9 @@ void showMonitorLine(const char* text) {
     return;
   }
 
+  const uint32_t now = millis();
   storeMonitorLine(text);
-  monitorLastMessageMs = millis();  // Track when this message was added
-  resetMonitorScrollWindow();
-
-  // Auto-switch to Monitor mode if currently showing Energy display
-  if (activeMode == Mode::Energy) {
-    activeMode = Mode::Monitor;
-    monitorScrollStep = 0;  // Start scroll animation from beginning
-  }
+  activateMonitorMode(now, true);
 
   if (monitorRenderingEnabled && displayOn && activeMode == Mode::Monitor) {
     renderMonitorLatestWindow();
@@ -470,7 +476,12 @@ void setMode(Mode mode) {
     return;
   }
 
-  activeMode = mode;
+  if (mode == Mode::Monitor) {
+    activateMonitorMode(millis(), false);
+  } else {
+    activeMode = mode;
+  }
+
   if (initialized && displayOn) {
     renderActiveMode();
   }
@@ -506,6 +517,7 @@ void update() {
         // Switch back to Energy display
         activeMode = Mode::Energy;
         monitorLastMessageMs = 0;
+        OledTouchWake::armDisplayOnTimer();
         if (hasLastEnergy) {
           renderLastEnergy();
         } else {
@@ -599,6 +611,9 @@ void turnOn() {
 
   display.ssd1306_command(SSD1306_DISPLAYON);
   displayOn = true;
+  if (activeMode == Mode::Monitor) {
+    activateMonitorMode(millis(), false);
+  }
   renderActiveMode();
   unlockDisplay();
 }

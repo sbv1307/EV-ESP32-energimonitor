@@ -50,6 +50,10 @@ void begin(const Settings& settings) {
   touchEventLatched = false;
 }
 
+void armDisplayOnTimer() {
+  displayWakeUntilMs = millis() + activeSettings.displayOnTimeMs;
+}
+
 void update() {
   const uint32_t now = millis();
   if (now - lastTouchSampleMs < activeSettings.sampleIntervalMs) {
@@ -73,7 +77,7 @@ void update() {
 
     if (!touchEventLatched && consecutiveTouchHits >= activeSettings.debounceCount) {
       touchEventLatched = true;
-      displayWakeUntilMs = now + activeSettings.displayOnTimeMs;
+      armDisplayOnTimer();
       const bool displayOn = OledEnergyDisplay::isOn();
       if (displayOn) {
         const OledEnergyDisplay::Mode currentMode = OledEnergyDisplay::getMode();

@@ -33,5 +33,6 @@ struct Settings {
 
 void begin();
 void begin(const Settings& settings);
+void armDisplayOnTimer();
 void update();
 }
