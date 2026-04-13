@@ -5,6 +5,7 @@
 #include "MqttClient.h"
 #include "oled_energy_display.h"
 #include "oled_library.h"
+#include "PulseInputTask.h"
 
 namespace {
 volatile bool sOtaInProgress = false;
@@ -33,6 +34,7 @@ void otaInit() {
   ArduinoOTA
     .onStart([]() {
       sOtaInProgress = true;
+      suspendPulseInputISR();  // Stop pulse ISR to avoid unnecessary work during OTA
       mqttPause();  // Stop MQTT operations during OTA
       sRestartOledUpdaterAfterOta = OledLibrary::isBackgroundUpdaterRunning();
       if (sRestartOledUpdaterAfterOta) {
@@ -49,17 +51,12 @@ void otaInit() {
     */                                            
     })
     .onEnd([]() {
-      sOtaInProgress = false;
-      mqttResume();  // Resume MQTT after OTA completes
-      if (sRestartOledUpdaterAfterOta) {
-        OledLibrary::startBackgroundUpdater();
-        sRestartOledUpdaterAfterOta = false;
-      }
-      OledEnergyDisplay::setMonitorRenderingEnabled(true);
-      OledEnergyDisplay::showMonitorLine("OTA done");
+      // Keep OTA mode active until reboot to avoid non-OTA traffic/work
+      // interfering with espota final result handshake.
+      OledEnergyDisplay::showMonitorLine("OTA done, reboot");
 
                                                 #ifdef DEBUG
-                                                Serial.println("OTA update completed. Network Task resumed.");
+                                                Serial.println("OTA update completed. Rebooting.");
                                                 #endif
 
     })
@@ -73,6 +70,7 @@ void otaInit() {
     */
     .onError([](ota_error_t error) {
       sOtaInProgress = false;
+      resumePulseInputISR();   // Re-enable pulse ISR on OTA error
       mqttResume();  // Ensure MQTT resumes even on error
       if (sRestartOledUpdaterAfterOta) {
         OledLibrary::startBackgroundUpdater();

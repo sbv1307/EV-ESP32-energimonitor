@@ -173,14 +173,30 @@ bool waitForPulseInputReady(uint32_t timeoutMs) {
   return true;
 }
 
+static int sPulseInputGpio = -1;
+static int sPulseInputMode = -1;
+
 bool attachPulseInputInterrupt(int gpio, int mode) {
   if (gpio < 0 || PulseInputQueue == nullptr) {
     return false;
   }
-
+  sPulseInputGpio = gpio;
+  sPulseInputMode = mode;
   pinMode(gpio, INPUT);
   attachInterrupt(digitalPinToInterrupt(gpio), PulseInputISR, mode);
   return true;
+}
+
+void suspendPulseInputISR() {
+  if (sPulseInputGpio >= 0) {
+    detachInterrupt(digitalPinToInterrupt(sPulseInputGpio));
+  }
+}
+
+void resumePulseInputISR() {
+  if (sPulseInputGpio >= 0 && sPulseInputMode >= 0) {
+    attachInterrupt(digitalPinToInterrupt(sPulseInputGpio), PulseInputISR, sPulseInputMode);
+  }
 }
 
 /* ###################################################################################################

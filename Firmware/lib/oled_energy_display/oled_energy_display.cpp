@@ -1,4 +1,5 @@
 #include "oled_energy_display.h"
+#include "oled_touch_wake.h"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -39,6 +40,7 @@ bool monitorRenderingEnabled = true;
 uint32_t monitorFreezeUntilMs = 0;
 uint32_t monitorLastScrollStepMs = 0;
 uint32_t monitorScrollStep = 0;
+uint32_t monitorLastMessageMs = 0;  // Track when last monitor message was added for timeout
 SemaphoreHandle_t displayMutex = nullptr;
 
 bool lockDisplay() {
@@ -307,6 +309,7 @@ bool begin(const Settings& settings) {
   monitorFreezeUntilMs = 0;
   monitorLastScrollStepMs = 0;
   monitorScrollStep = 0;
+  monitorLastMessageMs = 0;
   for (uint8_t lineIndex = 0; lineIndex < MONITOR_MAX_LINES; ++lineIndex) {
     monitorLines[lineIndex][0] = '\0';
   }
@@ -396,7 +399,14 @@ void showMonitorLine(const char* text) {
   }
 
   storeMonitorLine(text);
+  monitorLastMessageMs = millis();  // Track when this message was added
   resetMonitorScrollWindow();
+
+  // Auto-switch to Monitor mode if currently showing Energy display
+  if (activeMode == Mode::Energy) {
+    activeMode = Mode::Monitor;
+    monitorScrollStep = 0;  // Start scroll animation from beginning
+  }
 
   if (monitorRenderingEnabled && displayOn && activeMode == Mode::Monitor) {
     renderMonitorLatestWindow();
@@ -419,6 +429,7 @@ void clearMonitorLines() {
   monitorFreezeUntilMs = 0;
   monitorLastScrollStepMs = 0;
   monitorScrollStep = 0;
+  monitorLastMessageMs = 0;
   for (uint8_t lineIndex = 0; lineIndex < MONITOR_MAX_LINES; ++lineIndex) {
     monitorLines[lineIndex][0] = '\0';
   }
@@ -488,6 +499,24 @@ void update() {
 
   const uint32_t now = millis();
   if (activeMode == Mode::Monitor) {
+    // Check timeout: switch back to Energy mode if no new messages for OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS
+    if (monitorLastMessageMs != 0) {
+      const uint32_t monitorTimeoutMs = OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS;
+      if (now - monitorLastMessageMs >= monitorTimeoutMs) {
+        // Switch back to Energy display
+        activeMode = Mode::Energy;
+        monitorLastMessageMs = 0;
+        if (hasLastEnergy) {
+          renderLastEnergy();
+        } else {
+          display.clearDisplay();
+          display.display();
+        }
+        unlockDisplay();
+        return;
+      }
+    }
+
     if (!monitorRenderingEnabled) {
       unlockDisplay();
       return;

@@ -12,6 +12,9 @@ bool waitForPulseInputReady(uint32_t timeoutMs);
 
 bool attachPulseInputInterrupt(int gpio, int mode);
 
+void suspendPulseInputISR(); // Detach pulse interrupt (call during OTA)
+void resumePulseInputISR();  // Re-attach pulse interrupt (call after OTA)
+
 void setPulseCounterFromMqtt(uint32_t newPulseCounter);
 
 bool getLatestEnergyKwh(float* energyKwh);

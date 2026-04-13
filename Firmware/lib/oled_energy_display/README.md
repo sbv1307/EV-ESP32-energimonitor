@@ -209,10 +209,18 @@ Behavior:
 
 - The monitor buffer keeps the last configured number of lines.
 - Each new line is shown immediately and frozen for `freezeDurationMs`.
+- If the OLED is currently showing the energy screen, a new monitor line automatically switches the display to monitor mode.
+- Each new monitor line resets the monitor scroll sequence so the buffered lines are shown again from the beginning of the scroll animation.
 - After the freeze period, the OLED starts at the oldest line, adds one line per `scrollStepMs`, and then scrolls down one line at a time until the newest lines are visible.
+- If no new monitor line is added for `OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS`, the OLED automatically switches back to the energy display.
 - A touch on `OLED_TOUCH_WAKE_DEFAULT_INPUT_PIN` toggles between monitor mode and energy mode when the OLED is already on and showing one of those modes.
 - If the OLED is off, the same touch input only wakes the display and keeps the current mode unchanged.
 - Each touch is latched so one press produces one mode switch.
+
+Notes:
+
+- The monitor inactivity timeout currently uses `OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS`.
+- With the default value, the monitor returns to the energy screen after 30 seconds without a new `showMonitorLine(...)` call.
 
 Configuration is part of `OledEnergyDisplay::Settings`:
 

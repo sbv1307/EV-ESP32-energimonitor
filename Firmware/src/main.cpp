@@ -205,8 +205,9 @@ void loop() {
   
   /*
   * Check WiFi connectivity at regular intervals. If the device is not connected to WiFi, attempt to reconnect.
+  * Skip entirely during OTA to avoid interfering with the upload.
   */
-  if (currentMillis - lastWiFiCheck >= wifiCheckInterval) {
+  if (!isOtaInProgress() && currentMillis - lastWiFiCheck >= wifiCheckInterval) {
     lastWiFiCheck = currentMillis;
     
     if (isWifiReconnectNeeded()) {
@@ -231,7 +232,9 @@ void loop() {
   }
 
   // Ensure Pulse Count Task is running. If already running, this does nothing.
-  startPulseInputTask( &networkParams );
+  if (!isOtaInProgress()) {
+    startPulseInputTask( &networkParams );
+  }
 
   //TOBE REMOVED Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  During Development and testing, this task generates pulses in a loop to test the pulse counting logic and display updates without needing actual pulses from the energy meter. This should be removed for production use when real pulse counting from the energy meter is implemented via an ISR and the Pulse Input Task.
   // This will only start if not already running.
@@ -268,7 +271,7 @@ void loop() {
     handleChargingSession(&networkParams);
   }
 
-  if (gDisplayUpdateAvailable || (isChargingSessionCharging() != lastChargingSessionCharging)) {
+  if (!isOtaInProgress() && (gDisplayUpdateAvailable || (isChargingSessionCharging() != lastChargingSessionCharging))) {
     gDisplayUpdateAvailable = false;
     lastChargingSessionCharging = isChargingSessionCharging();
     if (getLatestEnergyKwh(&energyKwh)) {

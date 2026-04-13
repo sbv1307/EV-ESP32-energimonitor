@@ -612,6 +612,10 @@ void publishMqttConfigurations() {
 */
 void publishMqttEnergy(float powerW, float pulseCounter, float subtotalPulseCounter)
 {
+  if (isOtaInProgress()) {
+    return; // Skip energy publish and display update trigger during OTA
+  }
+
   gDisplayUpdateAvailable = true;
 
   if (!mqttClient.connected()) {
