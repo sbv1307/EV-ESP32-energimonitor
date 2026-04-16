@@ -22,3 +22,10 @@ bool getLatestEnergyKwh(float* energyKwh);
 bool getLatestEnergySnapshot(float* powerW, float* energyKwh, float* subtotalKwh);
 
 void requestSubtotalReset();
+
+typedef enum {
+  RESET_SOFT,
+  RESET_HARD,
+} ResetType_t;
+
+void requestReset(ResetType_t type);

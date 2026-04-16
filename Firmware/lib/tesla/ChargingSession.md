@@ -113,7 +113,7 @@ Added TeslaData sheet parameter name in:
 - `Firmware/lib/config/privateConfigExample.h`
 
 New constants:
-- `CHARGING_ANALOG_PIN`
+- `CHARGING_ANALOG_GPIO`
 - `CHARGING_ANALOG_THRESHOLD`
 - `CHARGING_ANALOG_HYSTERESIS`
 - `CHARGING_START_CONFIRM_SECONDS`
@@ -138,7 +138,7 @@ Existing day-change telemetry + subtotal reset flow is still active.
 
 ## Hardware/Runtime Setup Required
 Before field use, set real values for:
-- `CHARGING_ANALOG_PIN` (ADC-capable pin)
+- `CHARGING_ANALOG_GPIO` (ADC-capable GPIO)
 - threshold/hysteresis and confirm timings
 - `TESLA_GSHEET_PARAM_NAME_DATA` (Google Apps Script parameter for TeslaData sheet)
 

@@ -500,6 +500,14 @@ void mqttProcessRxQueue() {
         } else if (strcmp(key, MQTT_E_PRICE_LIMIT) == 0) {
           gEnergyPriceLimit = kv.value().as<float>();
           gDisplayUpdateAvailable = true; // Trigger display update
+        } else if (strcmp(key, MQTT_RESET_CMD) == 0) {
+          if (valueText) {
+            if (strcmp(valueText, "soft") == 0) {
+              requestReset(RESET_SOFT);
+            } else if (strcmp(valueText, "hard") == 0) {
+              requestReset(RESET_HARD);
+            }
+          }
         }
       }
     }

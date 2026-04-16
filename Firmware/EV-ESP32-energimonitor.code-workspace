@@ -8,5 +8,7 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"keep-a-changelog.defaultAuthor": "sbv1307"
+	}
 }

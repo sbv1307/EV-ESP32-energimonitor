@@ -11,6 +11,7 @@
 #include "oled_energy_display.h"
 
 #include <Preferences.h>
+#include <esp_system.h>
 
 #define SAVE_INTERVAL_MS 60000  // Save to NVS every 60 seconds
 
@@ -27,12 +28,29 @@ static volatile float LatestSubtotalKwh = 0.0f;
 static portMUX_TYPE SubtotalResetMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool SubtotalResetPending = false;
 
+static portMUX_TYPE ResetMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile ResetType_t gResetType = RESET_SOFT;
+static volatile bool gResetRequested = false;
+
+static portMUX_TYPE EmergencyCounterMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile uint32_t gEmergencyPulseCounter = 0;
+static volatile uint16_t gEmergencySubtotalPulseCounter = 0;
+
+static SemaphoreHandle_t sDirectResetSemaphore = nullptr;
+
 static inline void updateLatestEnergySnapshot(float powerW, float energyKwh, float subtotalKwh) {
   portENTER_CRITICAL(&EnergyKwhMux);
   LatestPowerW = powerW;
   LatestEnergyKwh = energyKwh;
   LatestSubtotalKwh = subtotalKwh;
   portEXIT_CRITICAL(&EnergyKwhMux);
+}
+
+static inline void updateEmergencyCounters(uint32_t pulseCounter, uint16_t subtotalPulseCounter) {
+  portENTER_CRITICAL(&EmergencyCounterMux);
+  gEmergencyPulseCounter = pulseCounter;
+  gEmergencySubtotalPulseCounter = subtotalPulseCounter;
+  portEXIT_CRITICAL(&EmergencyCounterMux);
 }
 
 void setPulseCounterFromMqtt(uint32_t newPulseCounter) {
@@ -122,6 +140,48 @@ static bool trySaveToNVS(uint32_t pulseCounter,
   lastSaveMs = millis();
   saveDeferredDuringOta = false;
   return true;
+}
+
+/* ###################################################################################################
+ *               R E S E T   F U N C T I O N A L I T Y
+ * ###################################################################################################
+ */
+void requestReset(ResetType_t type) {
+  portENTER_CRITICAL(&ResetMux);
+  gResetType = type;
+  gResetRequested = true;
+  portEXIT_CRITICAL(&ResetMux);
+}
+
+static void directResetTask(void* pvParameters) {
+  (void)pvParameters;
+  while (true) {
+    xSemaphoreTake(sDirectResetSemaphore, portMAX_DELAY);
+    portENTER_CRITICAL(&EmergencyCounterMux);
+    uint32_t pc = gEmergencyPulseCounter;
+    uint16_t sc = gEmergencySubtotalPulseCounter;
+    portEXIT_CRITICAL(&EmergencyCounterMux);
+    saveToNVS(pc, sc);
+  }
+}
+
+void IRAM_ATTR DirectResetISR() {
+  BaseType_t higherPriorityTaskWoken = pdFALSE;
+  xSemaphoreGiveFromISR(sDirectResetSemaphore, &higherPriorityTaskWoken);
+  portYIELD_FROM_ISR(higherPriorityTaskWoken);
+}
+
+void startDirectResetISR(int gpio) {
+  if (gpio < 0) {
+    return;
+  }
+  sDirectResetSemaphore = xSemaphoreCreateBinary();
+  if (!sDirectResetSemaphore) {
+    return;
+  }
+  xTaskCreate(directResetTask, "direct_rst", 2048, nullptr, configMAX_PRIORITIES - 1, nullptr);
+  pinMode(gpio, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(gpio), DirectResetISR, FALLING);
 }
 
 /* ###################################################################################################
@@ -270,12 +330,36 @@ static void PulseInputTask( void* pvParameters) {
 
   // Main task loop
   while (true) {
+    // ---- Reset check ----
+    bool shouldReset = false;
+    ResetType_t resetType = RESET_SOFT;
+    portENTER_CRITICAL(&ResetMux);
+    if (gResetRequested) {
+      shouldReset = true;
+      resetType = gResetType;
+    }
+    portEXIT_CRITICAL(&ResetMux);
+
+    if (shouldReset) {
+      saveToNVS(pulseCounter, subtotalPulseCounter);
+      if (resetType == RESET_HARD) {
+        if (HARD_RESET_GPIO >= 0) {
+          digitalWrite(HARD_RESET_GPIO, LOW);
+        }
+      } else {
+        esp_restart();
+      }
+      while (true) { vTaskDelay(portMAX_DELAY); } // Should not reach here
+    }
+
     if (PulseCounterUpdatePending) {
       portENTER_CRITICAL(&PulseCounterMux);
       uint32_t previousPulseCounter = pulseCounter;
       pulseCounter = PendingPulseCounter;
       PulseCounterUpdatePending = false;
       portEXIT_CRITICAL(&PulseCounterMux);
+
+      updateEmergencyCounters(pulseCounter, subtotalPulseCounter);
 
       float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
       float subtotalKwh = (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
@@ -307,6 +391,7 @@ static void PulseInputTask( void* pvParameters) {
 
       bool subtotalChanged = subtotalPulseCounter != 0;
       subtotalPulseCounter = 0;
+      updateEmergencyCounters(pulseCounter, subtotalPulseCounter);
       if (subtotalChanged) {
         trySaveToNVS(pulseCounter,
                      subtotalPulseCounter,
@@ -338,6 +423,7 @@ static void PulseInputTask( void* pvParameters) {
       // ---- 1. Pulse counting ----
       pulseCounter++;
       subtotalPulseCounter++;
+      updateEmergencyCounters(pulseCounter, subtotalPulseCounter);
 
                                           #ifdef HEADLESS_DEBUG
                                             OledEnergyDisplay::showMonitorLine("Cnt: " + String(pulseCounter) + " Sub:" + String(subtotalPulseCounter));
@@ -439,6 +525,13 @@ void startPulseInputTask(TaskParams_t* params) {
   }
 
   PulseInputTaskReady = false;
+
+  if (HARD_RESET_GPIO >= 0) {
+    pinMode(HARD_RESET_GPIO, OUTPUT);
+    digitalWrite(HARD_RESET_GPIO, HIGH);
+  }
+
+  startDirectResetISR(DIRECT_RESET_GPIO);
 
   if (PulseInputQueue == nullptr) {
     PulseInputQueue = xQueueCreate(10, sizeof(unsigned long));

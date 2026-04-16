@@ -280,8 +280,8 @@ void initChargingSession() {
 
   loadSessionFromNvs();
 
-  if (CHARGING_ANALOG_PIN >= 0) {
-    pinMode(CHARGING_ANALOG_PIN, INPUT);
+  if (CHARGING_ANALOG_GPIO >= 0) {
+    pinMode(CHARGING_ANALOG_GPIO, INPUT);
     analogReadResolution(12); // 0-4095 range for 12-bit ADC
   }
 
@@ -308,7 +308,7 @@ void initChargingSession() {
 }
 
 void handleChargingSession(TaskParams_t* params) {
-  if (CHARGING_ANALOG_PIN < 0) {
+  if (CHARGING_ANALOG_GPIO < 0) {
     return;
   }
 
@@ -324,7 +324,7 @@ void handleChargingSession(TaskParams_t* params) {
   }
   gLastSampleMs = nowMs;
 
-  int analogValue = analogRead(CHARGING_ANALOG_PIN);
+  int analogValue = analogRead(CHARGING_ANALOG_GPIO);
 
                                                             #ifdef DEBUG_CHARGING_SESSION
                                                             static int lastLoggedAnalogValue = -1;

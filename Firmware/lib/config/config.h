@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V2.1.3";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V3.0.0";
 /*
  * About NVS (Non-Volatile Storage)
  * NVS is used to store configuration, pulse counter, and charging session data persistently.
@@ -25,15 +25,18 @@ constexpr char COUNT_NVS_NAMESPACE[] = "storage"; // PulseInputTask.cpp: Namespa
 constexpr char CHARGE_NVS_NAMESPACE[] = "charging"; // ChargingSession.cpp: Charge session state and snapshot storage
 constexpr char TESLA_PREF_NVS_NAMESPACE[] = "tesla"; // TeslaApi.cpp: GPIO and thresholds for pulse input (energy meter)
 
-constexpr int PULSE_INPUT_GPIO = -1; // Set to the GPIO used for pulse input.
+constexpr int PULSE_INPUT_GPIO = -1; /* PULSE_INPUT_GPIO = 33
+                                        Open-collector output requires an internal (or external) pull-up. 
+                                        GPIO 33 is interrupt-capable, ADC1, and has internal pull-up support — perfect 
+                                        for this. Configure as INPUT_PULLUP.*/
 constexpr int PULSE_INPUT_INTERRUPT_MODE = FALLING;
 
 // Charging session trigger (analog input based)
 /*
  * ESP32 limitation: when Wi-Fi is active, ADC2 pins cannot be used reliably with analogRead().
- * CHARGING_ANALOG_PIN should therefore be set to an ADC1 pin (GPIO32-39) to avoid ESP_ERR_TIMEOUT.
+ * CHARGING_ANALOG_GPIO should therefore be set to an ADC1 pin (GPIO32-39) to avoid ESP_ERR_TIMEOUT.
  */
-constexpr int CHARGING_ANALOG_PIN = 34; // Set to ADC-capable GPIO to enable charging state machine.
+constexpr int CHARGING_ANALOG_GPIO = 34; // Set to ADC-capable GPIO to enable charging state machine.
 constexpr int CHARGING_ANALOG_THRESHOLD = 2000; // Analog threshold for detecting charging state. Adjust based on testing with your specific hardware setup and voltage divider if used.
 constexpr int CHARGING_ANALOG_HYSTERESIS = 100; // Hysteresis value to prevent rapid toggling of charging state.
 constexpr uint32_t CHARGING_START_CONFIRM_SECONDS = 10; // Number of seconds the analog value must continuously indicate charging start before confirming session start
@@ -41,11 +44,15 @@ constexpr uint32_t CHARGING_END_CONFIRM_SECONDS = 10; // Number of seconds the a
 constexpr uint32_t CHARGING_ANALOG_SAMPLE_INTERVAL_MS = 1000; // Interval in milliseconds between analog samples for charging detection
 
 // Push-button GPIO assignments (-1 = disabled)
-constexpr int BUTTON_EV_CHARGING_TOGGLE_GPIO    = 25;  // GPIO for EV charging start/stop toggle button
-constexpr int BUTTON_SMART_CHARGING_TOGGLE_GPIO = 26;  // GPIO for smart charging on/off toggle button
-constexpr int BUTTON_PRICE_LIMIT_INCREASE_GPIO  = 27;  // GPIO for price-limit increase button
-constexpr int BUTTON_PRICE_LIMIT_DECREASE_GPIO  = 32;  // GPIO for price-limit decrease button
+constexpr int BUTTON_EV_CHARGING_TOGGLE_GPIO    = 14;  // GPIO for EV charging start/stop toggle button
+constexpr int BUTTON_SMART_CHARGING_TOGGLE_GPIO = 25;  // GPIO for smart charging on/off toggle button
+constexpr int BUTTON_PRICE_LIMIT_INCREASE_GPIO  = 26;  // GPIO for price-limit increase button
+constexpr int BUTTON_PRICE_LIMIT_DECREASE_GPIO  = 27;  // GPIO for price-limit decrease button
 
 constexpr bool     BUTTON_ACTIVE_LOW      = true;   // true = INPUT_PULLUP, interrupt on FALLING edge
 constexpr uint32_t BUTTON_DEBOUNCE_MS     = 40;     // Minimum ms between accepted button presses
 constexpr float    BUTTON_PRICE_LIMIT_STEP = 0.10f; // Price-limit increment/decrement per button press
+
+// Reset GPIO assignments (-1 = disabled)
+constexpr int HARD_RESET_GPIO   = 13; // Output GPIO driven LOW to trigger external power-cycle hardware
+constexpr int DIRECT_RESET_GPIO = 35; // Input GPIO for power-fail signal; triggers emergency NVS save before power loss
