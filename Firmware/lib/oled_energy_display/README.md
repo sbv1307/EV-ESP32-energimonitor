@@ -168,7 +168,7 @@ void setup() {
   settings.energyDisplay.chargingIconBlinkIntervalMs = 400;
 
   // Touch settings
-  settings.touchWake.inputPin = 4;
+  settings.touchWake.inputGpio = 4;
   settings.touchWake.displayOnTimeMs = 30000;
   settings.touchWake.sampleIntervalMs = 50;
   settings.touchWake.minDelta = 12;
@@ -213,7 +213,7 @@ Behavior:
 - Each new monitor line resets the monitor scroll sequence so the buffered lines are shown again from the beginning of the scroll animation.
 - After the freeze period, the OLED starts at the oldest line, adds one line per `scrollStepMs`, and then scrolls down one line at a time until the newest lines are visible.
 - If no new monitor line is added for `OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS`, the OLED automatically switches back to the energy display.
-- A touch on `OLED_TOUCH_WAKE_DEFAULT_INPUT_PIN` toggles between monitor mode and energy mode when the OLED is already on and showing one of those modes.
+- A touch on `OLED_TOUCH_WAKE_DEFAULT_INPUT_GPIO` toggles between monitor mode and energy mode when the OLED is already on and showing one of those modes.
 - If the OLED is off, the same touch input only wakes the display and keeps the current mode unchanged.
 - Each touch is latched so one press produces one mode switch.
 
@@ -250,7 +250,7 @@ OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Energy);
 
 Touch defaults (`oled_touch_wake.h`):
 
-- `OLED_TOUCH_WAKE_DEFAULT_INPUT_PIN`
+- `OLED_TOUCH_WAKE_DEFAULT_INPUT_GPIO`
 - `OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS`
 - `OLED_TOUCH_WAKE_DEFAULT_SAMPLE_INTERVAL_MS`
 - `OLED_TOUCH_WAKE_DEFAULT_MIN_DELTA`
@@ -270,7 +270,7 @@ Touch defaults (`oled_touch_wake.h`):
 void setup() {
   OledLibrary::Settings settings;
 
-  settings.touchWake.inputPin = 4;
+  settings.touchWake.inputGpio = 4;
   settings.touchWake.displayOnTimeMs = 30000;
   settings.touchWake.sampleIntervalMs = 50;
   settings.touchWake.minDelta = 12;

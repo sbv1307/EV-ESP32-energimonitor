@@ -13,7 +13,7 @@ uint8_t consecutiveTouchHits = 0;
 bool touchEventLatched = false;
 
 uint16_t readTouchValue() {
-  int raw = touchRead(activeSettings.inputPin);
+  int raw = touchRead(activeSettings.inputGpio);
   if (raw < 0) {
     return 0;
   }

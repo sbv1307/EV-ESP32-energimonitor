@@ -15,6 +15,9 @@ bool attachPulseInputInterrupt(int gpio, int mode);
 void suspendPulseInputISR(); // Detach pulse interrupt (call during OTA)
 void resumePulseInputISR();  // Re-attach pulse interrupt (call after OTA)
 
+void suspendDirectResetISR(); // Detach direct-reset interrupt (call during OTA)
+void resumeDirectResetISR();  // Re-attach direct-reset interrupt (call after OTA)
+
 void setPulseCounterFromMqtt(uint32_t newPulseCounter);
 
 bool getLatestEnergyKwh(float* energyKwh);

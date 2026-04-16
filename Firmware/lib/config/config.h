@@ -55,4 +55,6 @@ constexpr float    BUTTON_PRICE_LIMIT_STEP = 0.10f; // Price-limit increment/dec
 
 // Reset GPIO assignments (-1 = disabled)
 constexpr int HARD_RESET_GPIO   = 13; // Output GPIO driven LOW to trigger external power-cycle hardware
-constexpr int DIRECT_RESET_GPIO = 35; // Input GPIO for power-fail signal; triggers emergency NVS save before power loss
+constexpr int DIRECT_RESET_GPIO = 32; // Input GPIO for power-fail signal; triggers emergency NVS save before power loss
+                                       // GPIO 32: ADC1, interrupt-capable, internal pull-up supported (unlike GPIO 34-39).
+                                       // Requires PCB trace routed to GPIO 32 (not GPIO 35).

@@ -157,6 +157,13 @@ static void directResetTask(void* pvParameters) {
   (void)pvParameters;
   while (true) {
     xSemaphoreTake(sDirectResetSemaphore, portMAX_DELAY);
+    // Skip NVS write during OTA: OTA is actively writing to flash on the same
+    // SPI bus. A concurrent NVS (Preferences) write at max priority would
+    // stall the OTA TCP receive task and cause upload timeouts.  The device
+    // is about to be reflashed anyway, so the emergency save is unnecessary.
+    if (isOtaInProgress()) {
+      continue;
+    }
     portENTER_CRITICAL(&EmergencyCounterMux);
     uint32_t pc = gEmergencyPulseCounter;
     uint16_t sc = gEmergencySubtotalPulseCounter;
@@ -182,6 +189,18 @@ void startDirectResetISR(int gpio) {
   xTaskCreate(directResetTask, "direct_rst", 2048, nullptr, configMAX_PRIORITIES - 1, nullptr);
   pinMode(gpio, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(gpio), DirectResetISR, FALLING);
+}
+
+void suspendDirectResetISR() {
+  if (DIRECT_RESET_GPIO >= 0) {
+    detachInterrupt(digitalPinToInterrupt(DIRECT_RESET_GPIO));
+  }
+}
+
+void resumeDirectResetISR() {
+  if (DIRECT_RESET_GPIO >= 0) {
+    attachInterrupt(digitalPinToInterrupt(DIRECT_RESET_GPIO), DirectResetISR, FALLING);
+  }
 }
 
 /* ###################################################################################################

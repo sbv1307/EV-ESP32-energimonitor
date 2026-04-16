@@ -34,7 +34,10 @@ void otaInit() {
   ArduinoOTA
     .onStart([]() {
       sOtaInProgress = true;
-      suspendPulseInputISR();  // Stop pulse ISR to avoid unnecessary work during OTA
+      suspendPulseInputISR();    // Stop pulse ISR to avoid unnecessary work during OTA
+      suspendDirectResetISR();   // Stop direct-reset ISR: GPIO 35 has no pull-up and
+                                 // generates noise-triggered interrupts during Wi-Fi OTA,
+                                 // causing max-priority NVS flash writes that stall OTA.
       mqttPause();  // Stop MQTT operations during OTA
       sRestartOledUpdaterAfterOta = OledLibrary::isBackgroundUpdaterRunning();
       if (sRestartOledUpdaterAfterOta) {
@@ -71,6 +74,7 @@ void otaInit() {
     .onError([](ota_error_t error) {
       sOtaInProgress = false;
       resumePulseInputISR();   // Re-enable pulse ISR on OTA error
+      resumeDirectResetISR();  // Re-enable direct-reset ISR on OTA error
       mqttResume();  // Ensure MQTT resumes even on error
       if (sRestartOledUpdaterAfterOta) {
         OledLibrary::startBackgroundUpdater();
