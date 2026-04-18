@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [Unreleased]
+
 ### Added
 
 - Issue [#6 Add reset functionality](https://github.com/sbv1307/EV-ESP32-energimonitor/issues/6)
@@ -37,7 +39,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
   - `BUTTON_PRICE_LIMIT_INCREASE_GPIO`: 27 → 26
   - `BUTTON_PRICE_LIMIT_DECREASE_GPIO`: 32 → 27 (freed GPIO 32 by moving it to `DIRECT_RESET_GPIO`)
 
-## [Unreleased]
+## [V3.0.0] - 2026-04-18
 
 - Version when change log was introduced.
 
@@ -72,7 +74,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
   3. Moving `DIRECT_RESET_GPIO` to GPIO 32 (internal pull-up works) to eliminate the floating-pin root cause.
 
 ## [V2.1.3] - 2026-04-14
-
+.
 ### Added
 
 - 
@@ -98,4 +100,4 @@ This functionality will be triggered by external hardware connected to a GPIO in
 <!-- Versions -->
 [unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v0.0.2...HEAD
 [V2.1.3]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
+[0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1.
