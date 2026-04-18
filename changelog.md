@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V3.0.1] - 2026-04-18
+
+### Fixed
+
+- `MqttClient.cpp`: MQTT reconnect is now skipped if WiFi is not connected or DHCP has not yet completed (`WiFi.localIP() == 0.0.0.0`). This prevents spurious `rc=-2` (`MQTT_CONNECT_FAILED`) messages on the OLED monitor during WiFi drops or when the ESP32 re-associates before it has a valid IP address.
+
+## [V3.0.0] - 2026-04-18
+
 ### Added
 
 - Issue [#6 Add reset functionality](https://github.com/sbv1307/EV-ESP32-energimonitor/issues/6)
@@ -39,11 +47,10 @@ This functionality will be triggered by external hardware connected to a GPIO in
   - `BUTTON_PRICE_LIMIT_INCREASE_GPIO`: 27 → 26
   - `BUTTON_PRICE_LIMIT_DECREASE_GPIO`: 32 → 27 (freed GPIO 32 by moving it to `DIRECT_RESET_GPIO`)
 
-## [V3.0.0] - 2026-04-18
+## [V2.2.0] - 2026-04-16
 
 - Version when change log was introduced.
 
-## [V2.2.0] - 2026-04-16
 
 ### Added
 

@@ -312,6 +312,9 @@ void mqttLoop(TaskParams_t* params) {
   }
   
   if (!mqttClient.connected()) {
+    if (WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
+      return;  // Do not attempt MQTT reconnect while WiFi is down or DHCP is not yet complete
+    }
     reconnect(params);
   }
 
