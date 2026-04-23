@@ -14,7 +14,7 @@
 #include "privateConfig.h"
 
 namespace {
-constexpr size_t TESLA_COMMENT_BUFFER_SIZE = 16;
+constexpr size_t TESLA_COMMENT_BUFFER_SIZE = 48;
 
 struct TeslaTelemetryQueueItem {
   TaskParams_t* params = nullptr;
@@ -76,6 +76,47 @@ static bool formatDateTime(char* dateBuf, size_t dateBufLen, char* timeBuf, size
   return hasLocalTime;
 }
 
+static bool urlEncodeQueryValue(const char* input, char* output, size_t outputLen) {
+  if (input == nullptr || output == nullptr || outputLen == 0) {
+    return false;
+  }
+
+  size_t outIndex = 0;
+  for (size_t i = 0; input[i] != '\0'; ++i) {
+    const unsigned char c = static_cast<unsigned char>(input[i]);
+
+    // RFC3986 unreserved characters that can remain as-is in a query value.
+    const bool isUnreserved =
+        ((c >= 'A' && c <= 'Z') ||
+         (c >= 'a' && c <= 'z') ||
+         (c >= '0' && c <= '9') ||
+         c == '-' || c == '_' || c == '.' || c == '~');
+
+    if (isUnreserved) {
+      if (outIndex + 1 >= outputLen) {
+        return false;
+      }
+      output[outIndex++] = static_cast<char>(c);
+    } else {
+      if (outIndex + 3 >= outputLen) {
+        return false;
+      }
+      const int written = snprintf(output + outIndex, outputLen - outIndex, "%%%02X", c);
+      if (written != 3) {
+        return false;
+      }
+      outIndex += 3;
+    }
+  }
+
+  if (outIndex >= outputLen) {
+    return false;
+  }
+
+  output[outIndex] = '\0';
+  return true;
+}
+
 bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget target, const char* payload) {
   (void)params;
 
@@ -87,6 +128,13 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
                                   ? TESLA_GSHEET_PARAM_NAME_DATA
                                   : TESLA_GSHEET_PARAM_NAME_LOG;
 
+  // Query values must be URL-encoded to preserve spaces and punctuation.
+  char encodedPayload[TESLA_URL_BUFFER_SIZE] = {0};
+  if (!urlEncodeQueryValue(payload, encodedPayload, sizeof(encodedPayload))) {
+    OledEnergyDisplay::showMonitorLine("GS payload enc");
+    return false;
+  }
+
   char url[TESLA_URL_BUFFER_SIZE] = {0};
   const int urlLen = snprintf(
       url,
@@ -96,7 +144,7 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
       TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID,
       TESLA_GSHEET_WEBAPP_URL_SUFFIX,
       sheetParamName,
-      payload);
+      encodedPayload);
 
   if (urlLen < 0 || static_cast<size_t>(urlLen) >= sizeof(url)) {
     OledEnergyDisplay::showMonitorLine("GS fail URL ovf");

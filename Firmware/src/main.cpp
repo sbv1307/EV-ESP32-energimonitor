@@ -9,9 +9,7 @@
 #include <WiFi.h>
 #include <time.h>
 
-                                                          #ifdef BOOT_DIAGNOSTICS_LOGGING
-                                                          #include <esp_system.h>
-                                                          #endif
+#include <esp_system.h>
 
 #include "config.h"
 #include "privateConfig.h"
@@ -93,8 +91,9 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
 
 static void showBootMonitorMessage(const char* text);
 
+static const char* resetReasonToString(esp_reset_reason_t reason);
+
                                                               #ifdef BOOT_DIAGNOSTICS_LOGGING
-                                                              static const char* resetReasonToString(esp_reset_reason_t reason);
                                                               static void publishBootDiagnosticsOnce();
                                                               #endif
 
@@ -446,7 +445,17 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   if (bootTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     float energyKwh = 0.0f;
     if (getLatestEnergyKwh(&energyKwh)) {
-      if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "BootTelemetry")) {
+
+      esp_reset_reason_t reason = esp_reset_reason();
+
+      char BootTelemetryMsg[32] = {0};
+      
+      snprintf(BootTelemetryMsg,
+              sizeof(BootTelemetryMsg),
+              "Boot reason: %s",
+              resetReasonToString(reason));
+      
+      if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, BootTelemetryMsg)) {
         bootTelemetryToSend = false;
         publishMqttLog(MQTT_LOG_SUFFIX, "Boot telemetry queued", false);
       }
@@ -532,23 +541,24 @@ static void showBootMonitorMessage(const char* text) {
   OledEnergyDisplay::showMonitorLine(text);
 }
 
+static const char* resetReasonToString(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_UNKNOWN:   return "UNKNOWN";
+    case ESP_RST_POWERON:   return "POWERON";
+    case ESP_RST_EXT:       return "EXT";
+    case ESP_RST_SW:        return "SW";
+    case ESP_RST_PANIC:     return "PANIC";
+    case ESP_RST_INT_WDT:   return "INT_WDT";
+    case ESP_RST_TASK_WDT:  return "TASK_WDT";
+    case ESP_RST_WDT:       return "WDT";
+    case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+    case ESP_RST_BROWNOUT:  return "BROWNOUT";
+    case ESP_RST_SDIO:      return "SDIO";
+    default:                return "OTHER";
+  }
+}
+
                                                     #ifdef BOOT_DIAGNOSTICS_LOGGING
-                                                    static const char* resetReasonToString(esp_reset_reason_t reason) {
-                                                      switch (reason) {
-                                                        case ESP_RST_UNKNOWN:   return "UNKNOWN";
-                                                        case ESP_RST_POWERON:   return "POWERON";
-                                                        case ESP_RST_EXT:       return "EXT";
-                                                        case ESP_RST_SW:        return "SW";
-                                                        case ESP_RST_PANIC:     return "PANIC";
-                                                        case ESP_RST_INT_WDT:   return "INT_WDT";
-                                                        case ESP_RST_TASK_WDT:  return "TASK_WDT";
-                                                        case ESP_RST_WDT:       return "WDT";
-                                                        case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
-                                                        case ESP_RST_BROWNOUT:  return "BROWNOUT";
-                                                        case ESP_RST_SDIO:      return "SDIO";
-                                                        default:                return "OTHER";
-                                                      }
-                                                    }
 
                                                     static void publishBootDiagnosticsOnce() {
                                                       static bool bootDiagnosticsPublished = false;

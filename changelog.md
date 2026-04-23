@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V3.1.0] - 2026-04-23
+
+### Added
+
+- Issue [#7 Add boot diagnostics to boot telemetry to send to google sheets](https://github.com/sbv1307/EV-ESP32-energimonitor/issues/7)
+- esp_reset_reason() is now added as text to data passed to Google Sheets at boot.
+- URL-encoding of Google Sheets query parameter payload so that comments containing spaces and other special characters are transmitted correctly. Previously the comment field was appended raw, causing transit to fail.
+
 ## [V3.0.1] - 2026-04-18
 
 ### Fixed
