@@ -1,4 +1,4 @@
-cl-# Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
+
+## [V4.0.0] - 2026-04-25
+
+### Changed
+
+- Enabled real pulse interrupt input by setting `PULSE_INPUT_GPIO` to `33` in `Firmware/lib/config/config.h`.
+
+### Removed
+
+- Removed obsolete ISR pulse simulation module `Firmware/lib/testPulse`.
+- Removed `startPulseInputIsrTestTask()` integration from `Firmware/src/main.cpp`.
+- Removed `PULSE_ISR_TEST_TASK_STACK_SIZE` from `Firmware/lib/globals/globals.h`.
 
 ## [V3.2.0] - 2026-04-25
 
@@ -126,7 +138,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.2.0...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...HEAD
+[V4.0.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.2.0...v4.0.0
 [V3.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.1.0...v3.2.0
 [V3.1.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.0.1...v3.1.0
 [V3.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.0.0...v3.0.1
@@ -136,6 +149,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.0.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.0.0
 [V3.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.2.0
 [V3.1.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.1.0
 [V3.0.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.0.1
