@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V3.2.0";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V4.0.0";
 /*
  * About NVS (Non-Volatile Storage)
  * NVS is used to store configuration, pulse counter, and charging session data persistently.
@@ -25,7 +25,7 @@ constexpr char COUNT_NVS_NAMESPACE[] = "storage"; // PulseInputTask.cpp: Namespa
 constexpr char CHARGE_NVS_NAMESPACE[] = "charging"; // ChargingSession.cpp: Charge session state and snapshot storage
 constexpr char TESLA_PREF_NVS_NAMESPACE[] = "tesla"; // TeslaApi.cpp: GPIO and thresholds for pulse input (energy meter)
 
-constexpr int PULSE_INPUT_GPIO = -1; /* PULSE_INPUT_GPIO = 33
+constexpr int PULSE_INPUT_GPIO = 33; /* PULSE_INPUT_GPIO = 33
                                         Open-collector output requires an internal (or external) pull-up. 
                                         GPIO 33 is interrupt-capable, ADC1, and has internal pull-up support — perfect 
                                         for this. Configure as INPUT_PULLUP.*/

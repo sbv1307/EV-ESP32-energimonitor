@@ -38,7 +38,6 @@ constexpr int CONFIGURATION_TASK_STACK_SIZE = 4835; // Optimal size: 3724 stack 
 constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2657; // Optimal size: 2517 stack size for the WiFi connection task. This task handles WiFi connectivity and MQTT communication, which can involve operations that require more stack, especially during MQTT reconnection attempts and publishing. The stack size can be adjusted based on observed high water marks during testing to ensure it has enough stack for these operations without being excessively large.
 constexpr int PULSE_INPUT_TASK_STACK_SIZE = 2525; // Optimal size:    8KB stack size for the task
 constexpr int BUTTON_PUBLISH_TASK_STACK_SIZE = 3048; // Optimal size: 2145 One-shot task stack size for MQTT publish triggered by button ISR queue.
-constexpr int PULSE_ISR_TEST_TASK_STACK_SIZE = 4096; // TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
 // OledUpdateTaskStackSize is defined in oled_library.h since it's only used for the OLED update task, which is defined in that library.
 
 // Global variables for display update

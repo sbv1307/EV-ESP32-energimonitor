@@ -24,8 +24,6 @@
 #include "PushButtonTask.h"
 #include "LedTask.h"
 
-#include "PulseInputIsrTest.h" //TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
-
                                                           #ifdef NONE_HEADLESS
                                                           #include <wait_for_any_key.h>
                                                           #include "build_timestamp.h"
@@ -233,12 +231,6 @@ void loop() {
   // Ensure Pulse Count Task is running. If already running, this does nothing.
   if (!isOtaInProgress()) {
     startPulseInputTask( &networkParams );
-  }
-
-  //TOBE REMOVED Start the Pulse Input ISR Test Task to simulate pulse inputs for testing. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  During Development and testing, this task generates pulses in a loop to test the pulse counting logic and display updates without needing actual pulses from the energy meter. This should be removed for production use when real pulse counting from the energy meter is implemented via an ISR and the Pulse Input Task.
-  // This will only start if not already running.
-  if (!isOtaInProgress()) {
-    startPulseInputIsrTestTask();
   }
 
   if (!isOtaInProgress()) {
