@@ -38,6 +38,7 @@ const bool    RETAINED                      = true;                 // MQTT reta
 // MQTT Subscription topics
 constexpr char MQTT_SUFFIX_SET[]            = "/set";               // MQTT topic suffix for set commands. Include leading '/'  
 constexpr char MQTT_SUFFIX_BUTTON[]         = "button";            // MQTT topic suffix for button commands. Include leading '/'
+constexpr char MQTT_TESLAMATE_PLUGGED_IN_TOPIC[] = "teslamate/cars/1/plugged_in"; // TeslaMate topic for plugged-in state
 
 
 

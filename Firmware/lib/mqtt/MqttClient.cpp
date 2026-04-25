@@ -12,6 +12,7 @@
 #include "MqttClient.h"
 #include "config.h"
 #include "oled_energy_display.h"
+#include "oled_touch_wake.h"
 #include "OtaService.h"
 #include "privateConfig.h"
 #include "PulseInputTask.h"
@@ -166,6 +167,7 @@ static void reconnect(TaskParams_t* params) {
 
       String topicString = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SUFFIX_SET;
       mqttClient.subscribe(topicString.c_str(), 1);
+      mqttClient.subscribe(MQTT_TESLAMATE_PLUGGED_IN_TOPIC, 1);
       OledEnergyDisplay::showMonitorLine("MQT connected");
 
                                                               #ifdef DEBUG
@@ -439,6 +441,19 @@ void mqttProcessRxQueue() {
                                                                     Serial.print("] Payload: ");
                                                                     Serial.println(msg.payload);
                                                                     #endif
+
+                                                                    if (topicString == MQTT_TESLAMATE_PLUGGED_IN_TOPIC) {
+                                                                      const bool isTrueText = (strcmp(msg.payload, "true") == 0 || strcmp(msg.payload, "True") == 0);
+                                                                      if (isTrueText) {
+                                                                        OledTouchWake::armDisplayOnTimer();
+                                                                        if (!OledEnergyDisplay::isOn()) {
+                                                                          OledEnergyDisplay::turnOn();
+                                                                        }
+                                                                        OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Energy);
+                                                                      }
+                                                                      continue;
+                                                                    }
+
     if (topicString.startsWith(MQTT_PREFIX) && topicString.endsWith(MQTT_SUFFIX_SET)) {
       DeserializationError error = deserializeJson(doc, msg.payload, msg.length);
       if (error) {

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V3.2.0] - 2026-04-25
+
+### Added
+
+- Issue [#10 Turn on 'energy display' when car connects](https://github.com/sbv1307/EV-ESP32-energimonitor/issues/10)
+- Subscribed MQTT client to TeslaMate topic `teslamate/cars/1/plugged_in`.
+- Added MQTT RX handling so payload `true`/`True` on `teslamate/cars/1/plugged_in` triggers `OledTouchWake::armDisplayOnTimer()`.
+- On `plugged_in=true`, OLED is now turned on (if currently off) and switched to Energy mode.
+
+### Changed
+
+- Reused the existing touch-wake display-on timer for MQTT-triggered wake behavior, so on-time follows `OLED_TOUCH_WAKE_DEFAULT_DISPLAY_ON_TIME_MS` (or configured touch-wake override).
+
 ## [V3.1.0] - 2026-04-23
 
 ### Added
@@ -113,6 +126,20 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v0.0.2...HEAD
-[V2.1.3]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1.
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.2.0...HEAD
+[V3.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.1.0...v3.2.0
+[V3.1.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.0.1...v3.1.0
+[V3.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.0.0...v3.0.1
+[V3.0.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v2.2.0...v3.0.0
+[V2.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v2.1.3...v2.2.0
+[V2.1.3]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v0.0.1...v2.1.3
+[0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
+
+<!-- Releases -->
+[V3.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.2.0
+[V3.1.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.1.0
+[V3.0.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.0.1
+[V3.0.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.0.0
+[V2.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v2.2.0
+[V2.1.3-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v2.1.3
+[0.0.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
