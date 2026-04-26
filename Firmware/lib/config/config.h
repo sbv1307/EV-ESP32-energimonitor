@@ -35,10 +35,19 @@ constexpr int PULSE_INPUT_INTERRUPT_MODE = FALLING;
 /*
  * ESP32 limitation: when Wi-Fi is active, ADC2 pins cannot be used reliably with analogRead().
  * CHARGING_ANALOG_GPIO should therefore be set to an ADC1 pin (GPIO32-39) to avoid ESP_ERR_TIMEOUT.
+ *
+ * AC current sensing (SCT-013-000):
+ * The sensor output is biased to VCC/2 (~1.65 V) so the AC waveform swings symmetrically around
+ * the ADC mid-point.  readAcRms() samples the pin CHARGING_AC_SAMPLE_COUNT times (one per ms),
+ * subtracts CHARGING_AC_ADC_BIAS, and returns the RMS amplitude as a 12-bit ADC count (0–~2048).
+ * CHARGING_ANALOG_THRESHOLD and CHARGING_ANALOG_HYSTERESIS are compared against this RMS value;
+ * adjust them based on testing with your specific burden resistor and charging current.
  */
-constexpr int CHARGING_ANALOG_GPIO = 34; // Set to ADC-capable GPIO to enable charging state machine.
-constexpr int CHARGING_ANALOG_THRESHOLD = 2000; // Analog threshold for detecting charging state. Adjust based on testing with your specific hardware setup and voltage divider if used.
-constexpr int CHARGING_ANALOG_HYSTERESIS = 100; // Hysteresis value to prevent rapid toggling of charging state.
+constexpr int CHARGING_ANALOG_GPIO = 34; // Set to ADC1-capable GPIO (GPIO32-39) to enable charging state machine.
+constexpr int CHARGING_AC_SAMPLE_COUNT = 100; // Samples per RMS measurement (1 ms each → 100 ms window ≈ 5 cycles @ 50 Hz)
+constexpr int CHARGING_AC_ADC_BIAS     = 2048; // ADC mid-point for VCC/2-biased SCT-013-000 circuit (12-bit: 0–4095)
+constexpr int CHARGING_ANALOG_THRESHOLD = 200; // RMS amplitude threshold for detecting charging state. Adjust based on testing.
+constexpr int CHARGING_ANALOG_HYSTERESIS = 20; // Hysteresis value to prevent rapid toggling of charging state.
 constexpr uint32_t CHARGING_START_CONFIRM_SECONDS = 10; // Number of seconds the analog value must continuously indicate charging start before confirming session start
 constexpr uint32_t CHARGING_END_CONFIRM_SECONDS = 10; // Number of seconds the analog value must continuously indicate charging end before confirming session end
 constexpr uint32_t CHARGING_ANALOG_SAMPLE_INTERVAL_MS = 1000; // Interval in milliseconds between analog samples for charging detection

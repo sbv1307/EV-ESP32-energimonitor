@@ -307,6 +307,22 @@ void initChargingSession() {
   gSessionInitialized = true;
 }
 
+// Reads the SCT-013-000 AC current sensor connected to `gpio` and returns the
+// RMS amplitude of the AC component as a 12-bit ADC count (0 – ~2048).
+// The sensor circuit must bias the signal to the ADC mid-point (VCC/2 ≈ 1.65 V
+// → ADC value ≈ 2048 on a 12-bit, 3.3 V reference).
+// Returns 0 when no current is present; a positive value proportional to the
+// measured AC current when the EV is charging.
+static int readAcRms(int gpio) {
+  int64_t sumSquares = 0;
+  for (int i = 0; i < CHARGING_AC_SAMPLE_COUNT; i++) {
+    int ac = analogRead(gpio) - CHARGING_AC_ADC_BIAS;
+    sumSquares += (int64_t)ac * ac;
+    delay(1); // 1 ms per sample → CHARGING_AC_SAMPLE_COUNT ms total window
+  }
+  return (int)sqrt((double)sumSquares / CHARGING_AC_SAMPLE_COUNT);
+}
+
 void handleChargingSession(TaskParams_t* params) {
   if (CHARGING_ANALOG_GPIO < 0) {
     return;
@@ -324,7 +340,7 @@ void handleChargingSession(TaskParams_t* params) {
   }
   gLastSampleMs = nowMs;
 
-  int analogValue = analogRead(CHARGING_ANALOG_GPIO);
+  int analogValue = readAcRms(CHARGING_ANALOG_GPIO);
 
                                                             #ifdef DEBUG_CHARGING_SESSION
                                                             static int lastLoggedAnalogValue = -1;
