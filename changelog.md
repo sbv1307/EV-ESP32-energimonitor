@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.1.0] - 2026-04-26
+
+### Added
+
+- Issue [#12 Change from DC level to AC value for setting ChargingState](https://github.com/sbv1307/EV-ESP32-energimonitor/issues/12)
+
+### Changed
+
+- Replaced the single DC-level `analogRead(CHARGING_ANALOG_GPIO)` charging trigger with AC RMS sampling via `readAcRms()` in `Firmware/lib/tesla/ChargingSession.cpp`, allowing `ChargingState` to be derived from the SCT-013-015 AC sensor signal.
+- Updated the charging sensor configuration in `Firmware/lib/config/config.h` for SCT-013-015 operation and removed the fixed `CHARGING_AC_ADC_BIAS` constant in favor of per-sample-window DC-offset removal.
+
 ## [V4.0.0] - 2026-04-25
 
 ### Changed
@@ -138,7 +149,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.1.0...HEAD
+[V4.1.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...v4.1.0
 [V4.0.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.2.0...v4.0.0
 [V3.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.1.0...v3.2.0
 [V3.1.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.0.1...v3.1.0
@@ -149,6 +161,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.1.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.1.0
 [V4.0.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.0.0
 [V3.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.2.0
 [V3.1.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.1.0

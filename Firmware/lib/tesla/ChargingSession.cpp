@@ -307,20 +307,27 @@ void initChargingSession() {
   gSessionInitialized = true;
 }
 
-// Reads the SCT-013-000 AC current sensor connected to `gpio` and returns the
-// RMS amplitude of the AC component as a 12-bit ADC count (0 – ~2048).
-// The sensor circuit must bias the signal to the ADC mid-point (VCC/2 ≈ 1.65 V
-// → ADC value ≈ 2048 on a 12-bit, 3.3 V reference).
-// Returns 0 when no current is present; a positive value proportional to the
-// measured AC current when the EV is charging.
+// Reads the SCT-013-015 AC current sensor connected to `gpio` and returns the
+// RMS amplitude of the AC component as a 12-bit ADC count.
+// The input waveform is expected to be biased near the ADC mid-point, but the
+// function estimates the actual DC offset for each sample window so resistor
+// tolerance and ADC offset do not skew the result.
 static int readAcRms(int gpio) {
-  int64_t sumSquares = 0;
-  for (int i = 0; i < CHARGING_AC_SAMPLE_COUNT; i++) {
-    int ac = analogRead(gpio) - CHARGING_AC_ADC_BIAS;
-    sumSquares += (int64_t)ac * ac;
+  double mean = 0.0;
+  double sumSquares = 0.0;
+
+  for (int i = 0; i < CHARGING_AC_SAMPLE_COUNT; ++i) {
+    const double sample = analogRead(gpio);
+    const double delta = sample - mean;
+    mean += delta / (i + 1);
+    const double centered = sample - mean;
+    sumSquares += delta * centered;
     delay(1); // 1 ms per sample → CHARGING_AC_SAMPLE_COUNT ms total window
   }
-  return (int)sqrt((double)sumSquares / CHARGING_AC_SAMPLE_COUNT);
+
+  return CHARGING_AC_SAMPLE_COUNT > 0
+           ? (int)lround(sqrt(sumSquares / CHARGING_AC_SAMPLE_COUNT))
+           : 0;
 }
 
 void handleChargingSession(TaskParams_t* params) {
