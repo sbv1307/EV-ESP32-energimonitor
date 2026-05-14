@@ -25,7 +25,7 @@
 #input_text:
 #  ev_charging_monitor_mqtt_prefix:
 #    name: EV Charging Monitor MQTT Prefix
-#    initial: ev-e-charging
+#    initial: ev-e-monitor
 #    pattern: "^[A-Za-z0-9_-]+$"
 #    max: 64
 #

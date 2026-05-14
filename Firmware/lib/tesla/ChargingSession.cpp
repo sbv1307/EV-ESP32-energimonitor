@@ -1,4 +1,5 @@
 //#define DEBUG_CHARGING_SESSION
+#define HEADLESS_DEBUG
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -9,6 +10,7 @@
 #include "TeslaSheets.h"
 #include "MqttClient.h"
 #include "PulseInputTask.h"
+#include "oled_energy_display.h"
 #include "config.h"
 #include "LedTask.h"
 
@@ -307,7 +309,7 @@ void initChargingSession() {
   gSessionInitialized = true;
 }
 
-// Reads the SCT-013-015 AC current sensor connected to `gpio` and returns the
+// Reads the SCT01-T10/50A AC current sensor connected to `gpio` and returns the
 // RMS amplitude of the AC component as a 12-bit ADC count.
 // The input waveform is expected to be biased near the ADC mid-point, but the
 // function estimates the actual DC offset for each sample window so resistor
@@ -350,8 +352,8 @@ void handleChargingSession(TaskParams_t* params) {
   int analogValue = readAcRms(CHARGING_ANALOG_GPIO);
 
                                                             #ifdef DEBUG_CHARGING_SESSION
-                                                            static int lastLoggedAnalogValue = -1;
-                                                            if (analogValue != lastLoggedAnalogValue) {
+                                                            static int lastSerialLoggedAnalogValue = -1;
+                                                            if (analogValue != lastSerialLoggedAnalogValue) {
                                                               Serial.print("ChargingSession.cpp: Charging session state: ");
                                                               switch (gState) {
                                                                 case ChargingState::Idle:
@@ -372,7 +374,7 @@ void handleChargingSession(TaskParams_t* params) {
                                                               Serial.print(CHARGING_ANALOG_THRESHOLD);
                                                               Serial.print(" Analog value: ");
                                                               Serial.println(analogValue);
-                                                              lastLoggedAnalogValue = analogValue;
+                                                              lastSerialLoggedAnalogValue = analogValue;
                                                             }
                                                             #endif
 
@@ -431,6 +433,41 @@ void handleChargingSession(TaskParams_t* params) {
       }
       break;
   }
+
+                                                                #ifdef  HEADLESS_DEBUG
+                                                                static int lastHeadlessLoggedAnalogValue = -1;
+                                                                static ChargingState lastHeadlessLoggedState = ChargingState::Idle;
+                                                                const int analogLogDelta = max(1, CHARGING_ANALOG_HYSTERESIS / 2);
+                                                                const bool stateChanged = gState != lastHeadlessLoggedState;
+                                                                const bool analogChangedSignificantly =
+                                                                  lastHeadlessLoggedAnalogValue < 0 ||
+                                                                  abs(analogValue - lastHeadlessLoggedAnalogValue) >= analogLogDelta;
+                                                                if (stateChanged || analogChangedSignificantly) {
+                                                                  char stateStr[16] = {0};
+                                                                  switch (gState) {
+                                                                    case ChargingState::Idle:
+                                                                      snprintf(stateStr, sizeof(stateStr), "Idle");
+                                                                      break;
+                                                                    case ChargingState::StartCandidate:
+                                                                      snprintf(stateStr, sizeof(stateStr), "StartCandidate");
+                                                                      break;
+                                                                    case ChargingState::Charging:
+                                                                      snprintf(stateStr, sizeof(stateStr), "Charging");
+                                                                      break;
+                                                                    case ChargingState::EndCandidate:
+                                                                      snprintf(stateStr, sizeof(stateStr), "EndCandidate");
+                                                                      break;
+                                                                  }
+                                                                  char logMsg[128] = {0};
+                                                                  snprintf(logMsg, sizeof(logMsg), "Chg state: %s, %d", stateStr, analogValue);
+                                                                  OledEnergyDisplay::showMonitorLine(logMsg);
+                                                                  lastHeadlessLoggedAnalogValue = analogValue;
+                                                                  lastHeadlessLoggedState = gState;
+                                                                }
+
+                                                                #endif
+
+
 
   if (gMqttConnected) {
     if (gState == ChargingState::Charging) {

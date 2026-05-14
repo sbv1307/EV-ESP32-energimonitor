@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
-## [V4.1.0] - 2026-04-26
+## [V4.2.0] - 2026-04-26
 
 ### Added
 
@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
-- Replaced the single DC-level `analogRead(CHARGING_ANALOG_GPIO)` charging trigger with AC RMS sampling via `readAcRms()` in `Firmware/lib/tesla/ChargingSession.cpp`, allowing `ChargingState` to be derived from the SCT-013-015 AC sensor signal.
-- Updated the charging sensor configuration in `Firmware/lib/config/config.h` for SCT-013-015 operation and removed the fixed `CHARGING_AC_ADC_BIAS` constant in favor of per-sample-window DC-offset removal.
+- Replaced the single DC-level `analogRead(CHARGING_ANALOG_GPIO)` charging trigger with AC RMS sampling via `readAcRms()` in `Firmware/lib/tesla/ChargingSession.cpp`, allowing `ChargingState` to be derived from the SCT01-T10/50A AC sensor signal.
+- Updated the charging sensor configuration in `Firmware/lib/config/config.h` for SCT01-T10/50A operation and removed the fixed `CHARGING_AC_ADC_BIAS` constant in favor of per-sample-window DC-offset removal.
+- Tuned default charging-detection constants in `Firmware/lib/config/config.h` for SCT01-T10/50A to better match charging start around 900 W: `CHARGING_ANALOG_THRESHOLD=90` and `CHARGING_ANALOG_HYSTERESIS=12`.
 
 ## [V4.0.0] - 2026-04-25
 

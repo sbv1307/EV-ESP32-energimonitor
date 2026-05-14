@@ -3,7 +3,7 @@ version: "3.8"
 services:
   mosquitto:
     image: eclipse-mosquitto:2
-    container_name: mosquitto-ev-charging
+    container_name: mosquitto-ev-monitor
     restart: unless-stopped
     ports:
       - "1883:1883"   # MQTT
@@ -27,8 +27,8 @@ services:
       - sh
       - -c
       - >-
-        mosquitto_sub -h mosquitto-ev-charging -p 1883
-        -t "ev-e-charging/#"
+        mosquitto_sub -h mosquitto-ev-monitor -p 1883
+        -t "ev-e-monitor/#"
         -t "homeassistant/#"
         -v |
         while IFS= read -r line; do
