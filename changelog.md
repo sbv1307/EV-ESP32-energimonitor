@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.2.1] - 2026-05-14
+
+### Added
+
+- Added optional headless charging-debug instrumentation in `Firmware/lib/tesla/ChargingSession.cpp` to mirror significant analog level and `ChargingState` transitions on OLED when serial logging is unavailable.
+- Added KiCad library submodule `Hardware/library` (source: `https://github.com/sbv1307/kicad-library.git`) to keep hardware symbols/footprints versioned with the project.
+
+### Changed
+
+- Updated MQTT topic prefix in `Firmware/lib/mqtt/MqttClient.h` from `ev-e-charging/` to `ev-e-monitor/`.
+- `PULSE_INPUT_TASK_STACK_SIZE` changed from `2525` to `2642` words based on payload from MQTT topic `PULSE_INPUT_TASK_STACK_SIZE`.
+- Ignored and de-tracked generated hardware history artifacts by adding `.history` in `Hardware/.gitignore`.
+
 ## [V4.2.0] - 2026-04-26
 
 ### Added
@@ -150,7 +163,9 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.1.0...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.1...HEAD
+[V4.2.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.0...v4.2.1
+[V4.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...v4.2.0
 [V4.1.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...v4.1.0
 [V4.0.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.2.0...v4.0.0
 [V3.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.1.0...v3.2.0
@@ -162,6 +177,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.2.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.1
+[V4.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.0
 [V4.1.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.1.0
 [V4.0.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.0.0
 [V3.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.2.0
