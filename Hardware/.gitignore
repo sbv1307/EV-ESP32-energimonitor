@@ -1,2 +1,5 @@
 Library/
-EV-ESP32-energimonitor-backups
+
+.history/
+EV-ESP32-energimonitor-backups/
+
