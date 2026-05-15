@@ -33,6 +33,32 @@ static TaskParams_t* mqttParams = nullptr;
 static char bootTimestamp[32] = {0};
 static TaskHandle_t mqttPublishConfigTaskHandle = nullptr;
 
+static bool tryParseJsonBool(const JsonVariantConst& value, bool& outValue) {
+  if (value.is<bool>()) {
+    outValue = value.as<bool>();
+    return true;
+  }
+
+  const char* text = value.as<const char*>();
+  if (text == nullptr) {
+    return false;
+  }
+
+  if (strcmp(text, "true") == 0 || strcmp(text, "True") == 0 ||
+      strcmp(text, "1") == 0 || strcmp(text, "on") == 0 || strcmp(text, "ON") == 0) {
+    outValue = true;
+    return true;
+  }
+
+  if (strcmp(text, "false") == 0 || strcmp(text, "False") == 0 ||
+      strcmp(text, "0") == 0 || strcmp(text, "off") == 0 || strcmp(text, "OFF") == 0) {
+    outValue = false;
+    return true;
+  }
+
+  return false;
+}
+
 struct MqttRxMessage {
   char topic[MQTT_TOPIC_LEN];
   char payload[MQTT_PAYLOAD_LEN];
@@ -442,17 +468,17 @@ void mqttProcessRxQueue() {
                                                                     Serial.println(msg.payload);
                                                                     #endif
 
-                                                                    if (topicString == MQTT_TESLAMATE_PLUGGED_IN_TOPIC) {
-                                                                      const bool isTrueText = (strcmp(msg.payload, "true") == 0 || strcmp(msg.payload, "True") == 0);
-                                                                      if (isTrueText) {
-                                                                        OledTouchWake::armDisplayOnTimer();
-                                                                        if (!OledEnergyDisplay::isOn()) {
-                                                                          OledEnergyDisplay::turnOn();
-                                                                        }
-                                                                        OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Energy);
-                                                                      }
-                                                                      continue;
-                                                                    }
+    if (topicString == MQTT_TESLAMATE_PLUGGED_IN_TOPIC) {
+      const bool isTrueText = (strcmp(msg.payload, "true") == 0 || strcmp(msg.payload, "True") == 0);
+      if (isTrueText) {
+        OledTouchWake::armDisplayOnTimer();
+        if (!OledEnergyDisplay::isOn()) {
+          OledEnergyDisplay::turnOn();
+        }
+        OledEnergyDisplay::setMode(OledEnergyDisplay::Mode::Energy);
+      }
+      continue;
+    }
 
     if (topicString.startsWith(MQTT_PREFIX) && topicString.endsWith(MQTT_SUFFIX_SET)) {
       DeserializationError error = deserializeJson(doc, msg.payload, msg.length);
@@ -481,8 +507,9 @@ void mqttProcessRxQueue() {
                                                                     Serial.println(valueText ? valueText : "(non-text)");
                                                                     #endif
 
-        bool isTrueText = valueText &&
-                          (strcmp(valueText, "true") == 0 || strcmp(valueText, "True") == 0);
+        bool parsedBoolValue = false;
+        const bool hasBoolValue = tryParseJsonBool(kv.value(), parsedBoolValue);
+        bool isTrueText = hasBoolValue ? parsedBoolValue : false;
 
         if (strcmp(key, MQTT_NUMBER_ENERGY_ENTITYNAME) == 0) {
           float newEnergyValue = kv.value().as<float>();
@@ -504,8 +531,12 @@ void mqttProcessRxQueue() {
             requestSubtotalReset();
           }
         } else if (strcmp(key, MQTT_SMART_CHG) == 0) {
-          gSmartChargingActivated = isTrueText;
-          gDisplayUpdateAvailable = true; // Trigger display update
+          if (hasBoolValue) {
+            gSmartChargingActivated = parsedBoolValue;
+            gDisplayUpdateAvailable = true; // Trigger display update
+          } else {
+            OledEnergyDisplay::showMonitorLine("smartChg invalid");
+          }
         } else if (strcmp(key, MQTT_CHG_START_TIME) == 0) {
           if (valueText) {
             strncpy(gChargingStartTime, valueText, sizeof(gChargingStartTime) - 1);

@@ -261,7 +261,14 @@ bool attachPulseInputInterrupt(int gpio, int mode) {
   }
   sPulseInputGpio = gpio;
   sPulseInputMode = mode;
-  pinMode(gpio, INPUT);
+  // Bias input according to edge/level trigger so the idle state is stable.
+  int pinInputMode = INPUT;
+  if (mode == FALLING || mode == LOW) {
+    pinInputMode = INPUT_PULLUP;
+  } else if (mode == RISING || mode == HIGH) {
+    pinInputMode = INPUT_PULLDOWN;
+  }
+  pinMode(gpio, pinInputMode);
   attachInterrupt(digitalPinToInterrupt(gpio), PulseInputISR, mode);
   return true;
 }

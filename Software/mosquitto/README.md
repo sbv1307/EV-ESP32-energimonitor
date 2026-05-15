@@ -45,7 +45,7 @@ version: "3.8"
 services:
   mosquitto:
     image: eclipse-mosquitto:2
-    container_name: mosquitto-ev-charging
+    container_name: mosquitto-ev-monitor
     restart: unless-stopped
     ports:
       - "1883:1883"
@@ -69,8 +69,8 @@ services:
       - sh
       - -c
       - >-
-        mosquitto_sub -h mosquitto-ev-charging -p 1883
-        -t "ev-e-charging/#"
+        mosquitto_sub -h mosquitto-ev-monitor -p 1883
+        -t "ev-e-monitor/#"
         -t "homeassistant/#"
         -v |
         while IFS= read -r line; do
@@ -195,5 +195,5 @@ Get-Content .\subscriber-data\mqtt-trace.log -Wait
 - `mosquitto_sub` `%I` is UTC-oriented in your output. To get local timestamps matching firmware timezone rules, the compose setup prefixes each line with container-local `date` and sets `TZ=CET-1CEST,M3.5.0/2,M10.5.0/3`.
 - In `docker-compose.yml`, shell variables must be escaped as `$$...` (for example `$$line`) so Compose does not consume them before the container starts.
 - Your traced topics are:
-  - `ev-e-charging/#`
+  - `ev-e-monitor/#`
   - `homeassistant/#`

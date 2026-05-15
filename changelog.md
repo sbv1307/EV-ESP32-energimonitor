@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.2.4] - 2026-05-15
+
+### Fixed
+
+- Fixed MQTT `/set` handling for `smartChg` so JSON boolean payloads like `{ "smartChg": true }` and `{ "smartChg": false }` now update `gSmartChargingActivated` correctly and refresh the OLED `Smart ON/OFF` header.
+- Extended boolean command parsing in `Firmware/lib/mqtt/MqttClient.cpp` to accept native JSON booleans in addition to text values such as `"true"` and `"false"`, preventing `smartChg` from being interpreted as `false` when Home Assistant sends a boolean value.
+- Stabilized pulse input interrupt configuration in `Firmware/lib/pulsInput/PulseInputTask.cpp` by selecting `INPUT_PULLUP` for `FALLING`/`LOW` triggers and `INPUT_PULLDOWN` for `RISING`/`HIGH` triggers, so the GPIO idle state matches the interrupt mode.
+
+## [V4.2.3] - 2026-05-14
+
+### Changed
+
+- `PULSE_INPUT_TASK_STACK_SIZE` changed from `2525` to `2642` words based on payload from MQTT topic `PULSE_INPUT_TASK_STACK_SIZE`.
+
+## [V4.2.2] - 2026-05-14
+
+### Changed
+
+- Ignored and de-tracked generated hardware history artifacts by removing tracked file `Hardware/.history`.
+
+## [V4.2.1] - 2026-05-14
+
+### Added
+
+- Added optional headless charging-debug instrumentation in `Firmware/lib/tesla/ChargingSession.cpp` to mirror significant analog level and `ChargingState` transitions on OLED when serial logging is unavailable.
+- Added KiCad library submodule `Hardware/library` (source: `https://github.com/sbv1307/kicad-library.git`) to keep hardware symbols/footprints versioned with the project.
+
+### Changed
+
+- Updated MQTT topic prefix in `Firmware/lib/mqtt/MqttClient.h` from `ev-e-charging/` to `ev-e-monitor/`.
+
+## [V4.2.0] - 2026-04-26
+
+### Added
+
+- Issue [#12 Change from DC level to AC value for setting ChargingState](https://github.com/sbv1307/EV-ESP32-energimonitor/issues/12)
+
+### Changed
+
+- Replaced the single DC-level `analogRead(CHARGING_ANALOG_GPIO)` charging trigger with AC RMS sampling via `readAcRms()` in `Firmware/lib/tesla/ChargingSession.cpp`, allowing `ChargingState` to be derived from the SCT01-T10/50A AC sensor signal.
+- Updated the charging sensor configuration in `Firmware/lib/config/config.h` for SCT01-T10/50A operation and removed the fixed `CHARGING_AC_ADC_BIAS` constant in favor of per-sample-window DC-offset removal.
+- Tuned default charging-detection constants in `Firmware/lib/config/config.h` for SCT01-T10/50A to better match charging start around 900 W: `CHARGING_ANALOG_THRESHOLD=90` and `CHARGING_ANALOG_HYSTERESIS=12`.
+
 ## [V4.0.0] - 2026-04-25
 
 ### Changed
@@ -138,7 +181,13 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.4...HEAD
+[V4.2.4]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.3...v4.2.4
+[V4.2.3]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.2...v4.2.3
+[V4.2.2]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.1...v4.2.2
+[V4.2.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.0...v4.2.1
+[V4.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...v4.2.0
+[V4.1.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.0.0...v4.1.0
 [V4.0.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.2.0...v4.0.0
 [V3.2.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.1.0...v3.2.0
 [V3.1.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v3.0.1...v3.1.0
@@ -149,6 +198,12 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.2.4-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.4
+[V4.2.3-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.3
+[V4.2.2-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.2
+[V4.2.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.1
+[V4.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.0
+[V4.1.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.1.0
 [V4.0.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.0.0
 [V3.2.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.2.0
 [V3.1.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v3.1.0

@@ -5,7 +5,7 @@
 
 #include "../globals/globals.h"
 
-constexpr char MQTT_PREFIX[]                    = "ev-e-charging/";     // include tailing '/' in prefix!
+constexpr char MQTT_PREFIX[]                    = "ev-e-monitor/";     // include tailing '/' in prefix!
 constexpr char MQTT_DEVICE_NAME[]               = "esp32-doit_";        // MQTT device name prefix Incl. trailing underscore
 constexpr char MQTT_SKETCH_VERSION[]            = "/sketch_version";    // MQTT topic suffix for sketch version, include leading '/'
 constexpr char MQTT_CLIENT[]                    = "ev-energy-charging_"; // MQTT client prefix. Include trailing underscore
