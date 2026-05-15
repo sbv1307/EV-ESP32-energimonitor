@@ -1,5 +1,5 @@
 //#define DEBUG_CHARGING_SESSION
-#define HEADLESS_DEBUG
+//#define HEADLESS_DEBUG
 
 #include <Arduino.h>
 #include <Preferences.h>
