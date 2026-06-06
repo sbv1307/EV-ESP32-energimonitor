@@ -369,6 +369,13 @@ static void PulseInputTask( void* pvParameters) {
     if (shouldReset) {
       saveToNVS(pulseCounter, subtotalPulseCounter);
       if (resetType == RESET_HARD) {
+        // Mark this as a controlled hard reset before triggering the hardware power cycle.
+        // On the next boot the POWER_OUTAGE_NVS_KEY flag will be present, so the startup
+        // logic will not treat the POWERON reset reason as an unexpected power outage.
+        Preferences pref;
+        pref.begin(CONFIG_NVS_NAMESPACE, false);
+        pref.putBool(POWER_OUTAGE_NVS_KEY, true);
+        pref.end();
         if (HARD_RESET_GPIO >= 0) {
           digitalWrite(HARD_RESET_GPIO, LOW);
         }

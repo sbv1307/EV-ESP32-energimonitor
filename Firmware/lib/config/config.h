@@ -67,3 +67,11 @@ constexpr int HARD_RESET_GPIO   = 13; // Output GPIO driven LOW to trigger exter
 constexpr int DIRECT_RESET_GPIO = 32; // Input GPIO for power-fail signal; triggers emergency NVS save before power loss
                                        // GPIO 32: ADC1, interrupt-capable, internal pull-up supported (unlike GPIO 34-39).
                                        // Requires PCB trace routed to GPIO 32 (not GPIO 35).
+
+// Unexpected power-outage recovery
+// After an unexpected power loss (ESP_RST_POWERON or ESP_RST_BROWNOUT without a prior controlled-reset flag),
+// the device waits POWER_OUTAGE_REBOOT_DELAY_MS before performing a controlled hard reset.
+// This gives routers and other network devices time to finish booting, so the ESP32 can connect
+// to MQTT and WiFi on its next startup.
+constexpr uint32_t POWER_OUTAGE_REBOOT_DELAY_MS = 30UL * 60UL * 1000UL; // 30-minute delay (ms)
+constexpr char     POWER_OUTAGE_NVS_KEY[]        = "ctrl_rst";            // NVS key (bool) in CONFIG_NVS_NAMESPACE: true = controlled hard reset pending/done

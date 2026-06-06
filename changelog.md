@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- Issue [Automatic reboot after unexpected power outage](https://github.com/sbv1307/EV-ESP32-energimonitor/issues/15): After an unexpected power loss (`ESP_RST_POWERON` or `ESP_RST_BROWNOUT` without a prior controlled-reset flag), the firmware now waits `POWER_OUTAGE_REBOOT_DELAY_MS` (30 minutes, configurable in `config.h`) before performing a controlled hard reset. During this wait, pulse counting remains active while all network operations are suspended. This gives routers and other network devices time to finish booting so the ESP32 can connect to WiFi and MQTT on its second startup.
+- Controlled hard resets (triggered via MQTT `{"reset": "hard"}` or a push-button) now write a `ctrl_rst` flag to NVS before cycling power. On the subsequent `POWERON` boot the flag is read and cleared, preventing the boot from being misidentified as an unexpected outage.
+- Added `POWER_OUTAGE_REBOOT_DELAY_MS` and `POWER_OUTAGE_NVS_KEY` constants to `Firmware/lib/config/config.h`.
+
 ## [V4.2.4] - 2026-05-15
 
 ### Fixed

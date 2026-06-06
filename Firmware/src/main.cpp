@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <time.h>
+#include <Preferences.h>
 
 #include <esp_system.h>
 
@@ -42,6 +43,13 @@ static TaskParams_t networkParams;
                                                                   #ifdef BOOT_DIAGNOSTICS_LOGGING
                                                                   RTC_DATA_ATTR static uint32_t sBootCount = 0;
                                                                   #endif
+
+// Unexpected power-outage recovery state.
+// Set in setup() when a POWERON/BROWNOUT reset without a prior controlled-reset flag is detected.
+// While true, the loop() keeps pulse counting active but skips all network operations and triggers
+// requestReset(RESET_HARD) once POWER_OUTAGE_REBOOT_DELAY_MS has elapsed.
+static bool     sAwaitingOutageReboot = false;
+static uint32_t sOutageRebootAtMs     = 0;
 
 /*
  * ##################################################################################################
@@ -158,11 +166,40 @@ void setup() {
   showBootMonitorMessage("Boot OK");
 
   /*
+   * Detect unexpected power outage.
+   * A POWERON or BROWNOUT reset without a prior controlled-reset flag (written to NVS before every
+   * intentional hard reset) means AC power was lost unexpectedly.  In that case the local network
+   * (router, etc.) may not yet be ready, so we skip the Network Task for now and wait
+   * POWER_OUTAGE_REBOOT_DELAY_MS before performing a controlled hard reset.  After that second
+   * power-up the network should be available and normal operation can resume.
+   */
+  {
+    esp_reset_reason_t resetReason = esp_reset_reason();
+    if (resetReason == ESP_RST_POWERON || resetReason == ESP_RST_BROWNOUT) {
+      Preferences pref;
+      pref.begin(CONFIG_NVS_NAMESPACE, false);
+      bool controlledReset = pref.getBool(POWER_OUTAGE_NVS_KEY, false);
+      pref.putBool(POWER_OUTAGE_NVS_KEY, false); // Clear flag after reading
+      pref.end();
+      if (!controlledReset) {
+        sAwaitingOutageReboot = true;
+        sOutageRebootAtMs = millis() + POWER_OUTAGE_REBOOT_DELAY_MS;
+        showBootMonitorMessage("Power outage!");
+        showBootMonitorMessage("Reboot in 30min");
+      }
+    }
+  }
+
+  /*
   * Start the Network Task to handle WiFi connectivity and MQTT communication. This will run in parallel with the Pulse Input Task.
   * Starting the Network Task after initializing the display allows for any immediate visual feedback (like the splash screen) to be shown without delay, while still ensuring that network connectivity is established as soon as possible for telemetry and remote monitoring.
   * The Network Task will also handle sending telemetry data to Google Sheets and updating the OLED display when new data is available.
+  * Skipped on first boot after an unexpected power outage — network operations resume after the
+  * controlled hard reset that fires POWER_OUTAGE_REBOOT_DELAY_MS later.
   */
-  startNetworkTask( &networkParams );
+  if (!sAwaitingOutageReboot) {
+    startNetworkTask( &networkParams );
+  }
   //showBootMonitorMessage("Network start");
 
   initPushButtons();
@@ -199,6 +236,22 @@ void loop() {
   static bool lastChargingSessionCharging = isChargingSessionCharging();
 
   unsigned long currentMillis = millis();
+
+  /*
+   * Unexpected power-outage recovery: keep pulse counting active but skip all network
+   * operations.  Once POWER_OUTAGE_REBOOT_DELAY_MS has elapsed, trigger a controlled hard
+   * reset so the device restarts when the local network is likely available.
+   */
+  if (sAwaitingOutageReboot) {
+    if (!isOtaInProgress()) {
+      startPulseInputTask(&networkParams);
+    }
+    if (millis() >= sOutageRebootAtMs) {
+      requestReset(RESET_HARD);
+    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    return;
+  }
   
   /*
   * Check WiFi connectivity at regular intervals. If the device is not connected to WiFi, attempt to reconnect.
