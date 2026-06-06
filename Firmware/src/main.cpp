@@ -48,8 +48,8 @@ static TaskParams_t networkParams;
 // Set in setup() when a POWERON/BROWNOUT reset without a prior controlled-reset flag is detected.
 // While true, the loop() keeps pulse counting active but skips all network operations and triggers
 // requestReset(RESET_HARD) once POWER_OUTAGE_REBOOT_DELAY_MS has elapsed.
-static bool     sAwaitingOutageReboot = false;
-static uint32_t sOutageRebootAtMs     = 0;
+static bool     sAwaitingOutageReboot  = false;
+static uint32_t sOutageRebootStartMs   = 0; // millis() snapshot taken when outage recovery begins
 
 /*
  * ##################################################################################################
@@ -183,7 +183,7 @@ void setup() {
       pref.end();
       if (!controlledReset) {
         sAwaitingOutageReboot = true;
-        sOutageRebootAtMs = millis() + POWER_OUTAGE_REBOOT_DELAY_MS;
+        sOutageRebootStartMs = millis(); // Record start; elapsed time compared in loop()
         showBootMonitorMessage("Power outage!");
         showBootMonitorMessage("Reboot in 30min");
       }
@@ -246,7 +246,8 @@ void loop() {
     if (!isOtaInProgress()) {
       startPulseInputTask(&networkParams);
     }
-    if (millis() >= sOutageRebootAtMs) {
+    // Use subtraction-based comparison for correct unsigned overflow behaviour
+    if ((millis() - sOutageRebootStartMs) >= POWER_OUTAGE_REBOOT_DELAY_MS) {
       requestReset(RESET_HARD);
     }
     vTaskDelay(pdMS_TO_TICKS(1000));
