@@ -187,8 +187,9 @@ void startDirectResetISR(int gpio) {
     return;
   }
   xTaskCreate(directResetTask, "direct_rst", 2048, nullptr, configMAX_PRIORITIES - 1, nullptr);
+  // Open-collector input requires pull-up bias to keep idle level stable.
   pinMode(gpio, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(gpio), DirectResetISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(gpio), DirectResetISR, RISING);
 }
 
 void suspendDirectResetISR() {
@@ -199,7 +200,7 @@ void suspendDirectResetISR() {
 
 void resumeDirectResetISR() {
   if (DIRECT_RESET_GPIO >= 0) {
-    attachInterrupt(digitalPinToInterrupt(DIRECT_RESET_GPIO), DirectResetISR, FALLING);
+    attachInterrupt(digitalPinToInterrupt(DIRECT_RESET_GPIO), DirectResetISR, RISING);
   }
 }
 

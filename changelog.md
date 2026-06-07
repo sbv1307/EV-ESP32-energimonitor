@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.3.0] - 2026-06-07
+
+### Changed
+
+- Updated direct-reset interrupt edge in `Firmware/lib/pulsInput/PulseInputTask.cpp` from `FALLING` to `RISING` for both startup and ISR re-attach paths (`startDirectResetISR()` and `resumeDirectResetISR()`).
+- Kept `DIRECT_RESET_GPIO` configured as `INPUT_PULLUP` for open-collector compatibility, so the input stays biased when the transistor is off.
+
 ## [V4.2.4] - 2026-05-15
 
 ### Fixed
@@ -181,7 +188,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.4...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.3.0...HEAD
+[V4.3.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.4...v4.3.0
 [V4.2.4]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.3...v4.2.4
 [V4.2.3]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.2...v4.2.3
 [V4.2.2]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.1...v4.2.2
@@ -198,6 +206,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.3.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.3.0
 [V4.2.4-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.4
 [V4.2.3-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.3
 [V4.2.2-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.2
