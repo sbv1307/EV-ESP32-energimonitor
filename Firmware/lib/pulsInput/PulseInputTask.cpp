@@ -155,7 +155,13 @@ void requestReset(ResetType_t type) {
 
 static void directResetTask(void* pvParameters) {
   (void)pvParameters;
+  uint32_t lastSavedPc = 0;
+  uint16_t lastSavedSc = 0;
+  bool hasSavedEmergencyCounters = false;
+
   while (true) {
+    // This task is event-driven, not a busy loop:
+    // it sleeps here until the ISR gives the semaphore.
     xSemaphoreTake(sDirectResetSemaphore, portMAX_DELAY);
     // Skip NVS write during OTA: OTA is actively writing to flash on the same
     // SPI bus. A concurrent NVS (Preferences) write at max priority would
@@ -168,7 +174,17 @@ static void directResetTask(void* pvParameters) {
     uint32_t pc = gEmergencyPulseCounter;
     uint16_t sc = gEmergencySubtotalPulseCounter;
     portEXIT_CRITICAL(&EmergencyCounterMux);
+
+    // Avoid redundant flash writes when duplicate direct-reset triggers
+    // arrive without any counter change.
+    if (hasSavedEmergencyCounters && pc == lastSavedPc && sc == lastSavedSc) {
+      continue;
+    }
+
     saveToNVS(pc, sc);
+    lastSavedPc = pc;
+    lastSavedSc = sc;
+    hasSavedEmergencyCounters = true;
   }
 }
 
@@ -580,4 +596,3 @@ void startPulseInputTask(TaskParams_t* params) {
     &PulseInputTaskHandle
   );
 }
-
