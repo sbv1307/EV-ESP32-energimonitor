@@ -155,7 +155,7 @@ void setup() {
   oledSettings.energyDisplay.monitor.lineCapacity = 10;
   OledLibrary::begin(oledSettings);
   OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
-  showBootMonitorMessage("Boot OK");
+  showBootMonitorMessage(gControlledPowerCycle ? "Ctrl Boot OK" : "Un-ctrl Boot OK");
 
   /*
   * Start the Network Task to handle WiFi connectivity and MQTT communication. This will run in parallel with the Pulse Input Task.
@@ -188,12 +188,14 @@ void setup() {
 void loop() {
   static unsigned long lastWiFiCheck = 0;
   const unsigned long wifiCheckInterval = 5000; // Check every 5 seconds
+  const unsigned long uncontrolledBootHardResetDelayMs = UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES * 60UL * 1000UL;
   static unsigned long lastStackLog = 0;
   static int lastDateKey = -1;
   static uint32_t nextCheckMs = 0;
   static bool bootTelemetryToSend = true;
   static bool pendingTelemetryToSend = false;
   static float pendingEnergyKwh = 0.0f;
+  static bool uncontrolledBootHardResetRequested = false;
   float energyKwh = 0.0f;
 
   static bool lastChargingSessionCharging = isChargingSessionCharging();
@@ -235,6 +237,16 @@ void loop() {
 
   if (!isOtaInProgress()) {
     mqttProcessRxQueue();
+  }
+
+  if (!isOtaInProgress() &&
+      !uncontrolledBootHardResetRequested &&
+      !gControlledPowerCycle &&
+      currentMillis >= uncontrolledBootHardResetDelayMs) {
+    uncontrolledBootHardResetRequested = true;
+    showBootMonitorMessage("Un-ctrl boot->hard reset");
+    publishMqttLog(MQTT_LOG_SUFFIX, "Uncontrolled boot detected, requesting RESET_HARD", false);
+    requestReset(RESET_HARD);
   }
 
                                                                     #ifdef BOOT_DIAGNOSTICS_LOGGING

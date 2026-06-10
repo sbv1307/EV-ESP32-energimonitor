@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.4.0] - 2026-06-09
+
+### Added
+
+- Added uncontrolled-boot detection flow using NVS key `controlled_pwr`:
+  - In `Firmware/lib/pulsInput/PulseInputTask.cpp`, direct-reset handling now writes `controlled_pwr=true` to NVS immediately after storing `pulse_count` and `subtotal_count`.
+  - In `Firmware/lib/globals/globals.cpp`, `initializeGlobals()` now loads `controlled_pwr` (default `false`) into runtime global `gControlledPowerCycle`, then immediately writes `controlled_pwr=false` back to NVS.
+- Added configurable delayed hard-reset fallback in `Firmware/lib/config/config.h` via `UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES` (default `10`).
+- Updated boot monitor message in `Firmware/src/main.cpp` setup:
+  - `Ctrl Boot OK` when `gControlledPowerCycle` is `true`.
+  - `Un-ctrl Boot OK` when `gControlledPowerCycle` is `false`.
+- Added loop-time uncontrolled-boot action in `Firmware/src/main.cpp`:
+  - After configured delay and while `gControlledPowerCycle==false`, the firmware now shows `Un-ctrl boot->hard reset`, publishes MQTT log `Uncontrolled boot detected, requesting RESET_HARD`, and calls `requestReset(RESET_HARD)`.
+
 ## [V4.3.0] - 2026-06-07
 
 ### Changed
@@ -188,7 +202,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.3.0...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.0...HEAD
+[V4.4.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.3.0...v4.4.0
 [V4.3.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.4...v4.3.0
 [V4.2.4]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.3...v4.2.4
 [V4.2.3]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.2...v4.2.3
@@ -206,6 +221,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.4.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.4.0
 [V4.3.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.3.0
 [V4.2.4-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.4
 [V4.2.3-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.3

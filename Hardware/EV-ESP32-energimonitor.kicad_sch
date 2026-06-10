@@ -8628,10 +8628,22 @@
 		(uuid "04d33af1-0e0a-4c1b-b95f-0b1a2f0fa742")
 	)
 	(junction
+		(at 232.41 232.41)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "053ac3b5-2a3a-4f84-a30c-d882a5dfdc75")
+	)
+	(junction
 		(at 97.79 106.68)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "098e81c8-8a7b-4112-b8f3-a80a662c478f")
+	)
+	(junction
+		(at 213.36 232.41)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "0f94819a-598b-4b7a-bbfd-b6504d498356")
 	)
 	(junction
 		(at 341.63 146.05)
@@ -8656,12 +8668,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "14686efc-2664-41af-a94f-6332d1341c32")
-	)
-	(junction
-		(at 219.71 232.41)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "1d0395d5-582d-40aa-9a4b-9e206abd833a")
 	)
 	(junction
 		(at 292.1 157.48)
@@ -8718,12 +8724,6 @@
 		(uuid "2f526e9c-35f9-4646-9380-05c3f3750fce")
 	)
 	(junction
-		(at 220.98 203.2)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "2ffce1e3-84b4-444d-bf0c-51fbf4df877a")
-	)
-	(junction
 		(at 332.74 139.7)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8736,22 +8736,10 @@
 		(uuid "379eaa8e-f0d6-4a6b-8c6d-d6a7c2bfb38c")
 	)
 	(junction
-		(at 220.98 193.04)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "432f746c-4262-4126-8d00-1a9b0f64fb21")
-	)
-	(junction
 		(at 306.07 193.04)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "453fde5c-1fae-4f78-a011-dffc564c5ffe")
-	)
-	(junction
-		(at 186.69 232.41)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "4c8c1c82-7c9d-42b6-b5b6-6c6fcf8ea192")
 	)
 	(junction
 		(at 143.51 34.29)
@@ -8808,12 +8796,6 @@
 		(uuid "693153bd-e748-42b1-a0ae-750496a1fd82")
 	)
 	(junction
-		(at 220.98 214.63)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "69929b11-66bb-4128-a01a-63ec0a6e93c1")
-	)
-	(junction
 		(at 186.69 224.79)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -8824,6 +8806,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "6b66c298-504d-4833-a450-713e4270b141")
+	)
+	(junction
+		(at 220.98 214.63)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "6d23bbbd-47bf-4b7f-b685-94fd0f8c1825")
 	)
 	(junction
 		(at 306.07 209.55)
@@ -8904,10 +8892,10 @@
 		(uuid "ad9354a1-d9d5-41b2-8205-00d6dbf5b14d")
 	)
 	(junction
-		(at 232.41 232.41)
+		(at 186.69 232.41)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "b2032660-6583-47f8-85bf-78e5ee55b8fc")
+		(uuid "aeee61a9-57d4-4378-95b0-e701326534a7")
 	)
 	(junction
 		(at 237.49 220.98)
@@ -8950,12 +8938,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c61457b4-caae-4026-8e89-29338b167ee4")
-	)
-	(junction
-		(at 210.82 232.41)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "c6ce1492-6ad8-47a4-be49-671a9a390d2a")
 	)
 	(junction
 		(at 140.97 214.63)
@@ -9131,6 +9113,16 @@
 	)
 	(wire
 		(pts
+			(xy 172.72 193.04) (xy 237.49 193.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "025fce75-70a7-4d8c-ade5-d307374ce67a")
+	)
+	(wire
+		(pts
 			(xy 182.88 63.5) (xy 160.02 63.5)
 		)
 		(stroke
@@ -9148,6 +9140,16 @@
 			(type default)
 		)
 		(uuid "02f70289-6678-4d37-bb76-ceb66de2d3e7")
+	)
+	(wire
+		(pts
+			(xy 220.98 214.63) (xy 220.98 215.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "03675dac-3dfb-46b6-9542-8dccd683c64d")
 	)
 	(wire
 		(pts
@@ -9278,16 +9280,6 @@
 			(type default)
 		)
 		(uuid "1565d21a-18b8-4fa6-b900-ae25a5656227")
-	)
-	(wire
-		(pts
-			(xy 220.98 193.04) (xy 237.49 193.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "16222d28-ee74-4d4b-a9bb-473de2a56de5")
 	)
 	(wire
 		(pts
@@ -9531,7 +9523,7 @@
 	)
 	(wire
 		(pts
-			(xy 220.98 204.47) (xy 220.98 203.2)
+			(xy 220.98 223.52) (xy 220.98 224.79)
 		)
 		(stroke
 			(width 0)
@@ -9581,23 +9573,13 @@
 	)
 	(wire
 		(pts
-			(xy 220.98 214.63) (xy 220.98 215.9)
+			(xy 220.98 214.63) (xy 220.98 213.36)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "396c4abf-f246-4bd9-a245-7209a571abba")
-	)
-	(wire
-		(pts
-			(xy 220.98 212.09) (xy 220.98 214.63)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "39e74370-93a4-4bb0-9d7d-b763a8542dc9")
 	)
 	(wire
 		(pts
@@ -9608,6 +9590,16 @@
 			(type default)
 		)
 		(uuid "39ee5129-c0ff-4350-902b-b1a385508802")
+	)
+	(wire
+		(pts
+			(xy 208.28 219.71) (xy 213.36 219.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3b4eae30-2358-4864-b601-d5c7b46e575d")
 	)
 	(wire
 		(pts
@@ -9781,16 +9773,6 @@
 	)
 	(wire
 		(pts
-			(xy 220.98 193.04) (xy 220.98 194.31)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4ba1a563-ec99-4da9-9e21-74cc4f0dde04")
-	)
-	(wire
-		(pts
 			(xy 130.81 86.36) (xy 160.02 86.36)
 		)
 		(stroke
@@ -9951,6 +9933,16 @@
 	)
 	(wire
 		(pts
+			(xy 213.36 232.41) (xy 232.41 232.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5dcf7a67-be53-45f1-96ae-36fa58d1a1f0")
+	)
+	(wire
+		(pts
 			(xy 46.99 177.8) (xy 46.99 179.07)
 		)
 		(stroke
@@ -9998,16 +9990,6 @@
 			(type default)
 		)
 		(uuid "6306247c-36ad-41af-be71-437859334d7f")
-	)
-	(wire
-		(pts
-			(xy 219.71 232.41) (xy 232.41 232.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "63271e84-f2ff-4ef5-9d68-e2503bedefa5")
 	)
 	(wire
 		(pts
@@ -10311,16 +10293,6 @@
 	)
 	(wire
 		(pts
-			(xy 210.82 228.6) (xy 210.82 232.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8716765e-823c-47ff-839f-6ac73bdf789b")
-	)
-	(wire
-		(pts
 			(xy 156.21 214.63) (xy 157.48 214.63)
 		)
 		(stroke
@@ -10418,16 +10390,6 @@
 			(type default)
 		)
 		(uuid "8f527300-4dd2-4d58-ba86-6c2361324b03")
-	)
-	(wire
-		(pts
-			(xy 172.72 193.04) (xy 220.98 193.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8f5d1d75-ff72-4796-af8e-653dbb2d537b")
 	)
 	(wire
 		(pts
@@ -10881,6 +10843,16 @@
 	)
 	(wire
 		(pts
+			(xy 213.36 229.87) (xy 213.36 232.41)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bb810d67-d9e2-4a8a-ad58-be8b3a695e6b")
+	)
+	(wire
+		(pts
 			(xy 120.65 82.55) (xy 120.65 83.82)
 		)
 		(stroke
@@ -10938,16 +10910,6 @@
 			(type default)
 		)
 		(uuid "c0c2c66d-d71f-4d06-849b-8cbb950a25d3")
-	)
-	(wire
-		(pts
-			(xy 210.82 232.41) (xy 219.71 232.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c0c4fde7-62d8-4ac2-adc2-2dccb98c145e")
 	)
 	(wire
 		(pts
@@ -11091,16 +11053,6 @@
 	)
 	(wire
 		(pts
-			(xy 220.98 201.93) (xy 220.98 203.2)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c81b6d2c-aa4d-4373-9cea-ca4ff0bf899e")
-	)
-	(wire
-		(pts
 			(xy 63.5 110.49) (xy 63.5 111.76)
 		)
 		(stroke
@@ -11188,16 +11140,6 @@
 			(type default)
 		)
 		(uuid "cf2f46ac-2d6b-47f1-b2e6-ba638d8e19f0")
-	)
-	(wire
-		(pts
-			(xy 213.36 196.85) (xy 213.36 198.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cf474cde-5099-4757-a4a4-67c5fc49d201")
 	)
 	(wire
 		(pts
@@ -11481,16 +11423,6 @@
 	)
 	(wire
 		(pts
-			(xy 219.71 231.14) (xy 219.71 232.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e8f979e7-93fc-4635-a863-48bc13cba65f")
-	)
-	(wire
-		(pts
 			(xy 157.48 58.42) (xy 157.48 55.88)
 		)
 		(stroke
@@ -11591,7 +11523,7 @@
 	)
 	(wire
 		(pts
-			(xy 186.69 232.41) (xy 210.82 232.41)
+			(xy 186.69 232.41) (xy 213.36 232.41)
 		)
 		(stroke
 			(width 0)
@@ -11750,12 +11682,12 @@
 		(uuid "60ee0603-aecc-43fd-81c2-299bf388755c")
 	)
 	(label "START_N"
-		(at 220.98 215.9 270)
+		(at 220.98 213.36 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right bottom)
+			(justify left bottom)
 		)
 		(uuid "79d4fa6f-db84-4550-8dd6-58aa63f7bd4f")
 	)
@@ -11790,12 +11722,12 @@
 		(uuid "8ba2bdfc-752e-4709-8963-b892954aefb3")
 	)
 	(label "Direct Reset GPIO"
-		(at 213.36 196.85 90)
+		(at 208.28 219.71 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "8db971e7-ef27-42a0-99ad-5dd78b32c284")
 	)
@@ -14778,6 +14710,17 @@
 				)
 			)
 		)
+		(property "Mount Option" ""
+			(at 285.75 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "2"
 			(uuid "2f7d7887-570e-4e61-aed1-e7ed2c179d61")
 		)
@@ -15099,83 +15042,6 @@
 				(path "/30ea88e1-c3aa-4884-933c-f1292bfbd385"
 					(reference "U5")
 					(unit 6)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 213.36 208.28 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "3a6e61ef-b028-4834-bb57-3bdd2dc5c539")
-		(property "Reference" "#PWR027"
-			(at 213.36 214.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 208.788 210.058 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 213.36 208.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 213.36 208.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 213.36 208.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "08aca75b-7ec3-4f9c-b69c-0f0273935e76")
-		)
-		(instances
-			(project "EV-ESP32-energimonitor"
-				(path "/30ea88e1-c3aa-4884-933c-f1292bfbd385"
-					(reference "#PWR027")
-					(unit 1)
 				)
 			)
 		)
@@ -15534,99 +15400,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R")
-		(at 220.98 208.28 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "413a9c61-29d5-47a8-9617-e0615098df92")
-		(property "Reference" "R20"
-			(at 223.52 207.0099 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "100K"
-			(at 223.52 209.5499 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 219.202 208.28 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 220.98 208.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 220.98 208.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Mount Option" ""
-			(at 220.98 208.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "1fc40316-36f1-49d0-ba23-be62007a76a1")
-		)
-		(pin "1"
-			(uuid "eaf7870f-2ca8-45cf-ad21-b658310d1f32")
-		)
-		(instances
-			(project "EV-ESP32-energimonitor"
-				(path "/30ea88e1-c3aa-4884-933c-f1292bfbd385"
-					(reference "R20")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Local_Transistor_BJT_Library:S8050_NPN")
 		(at 335.28 146.05 0)
 		(mirror y)
@@ -15827,7 +15600,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 220.98 198.12 0)
+		(at 220.98 219.71 0)
 		(mirror x)
 		(unit 1)
 		(body_style 1)
@@ -15838,7 +15611,7 @@
 		(dnp no)
 		(uuid "462c014d-57b2-469f-8a92-ca2fade9f5f1")
 		(property "Reference" "R19"
-			(at 223.52 199.3901 0)
+			(at 223.52 220.9801 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15848,8 +15621,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "2,2K"
-			(at 223.52 196.8501 0)
+		(property "Value" "47K"
+			(at 223.52 218.4401 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15860,7 +15633,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 219.202 198.12 90)
+			(at 219.202 219.71 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15871,7 +15644,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 220.98 198.12 0)
+			(at 220.98 219.71 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15882,7 +15655,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 220.98 198.12 0)
+			(at 220.98 219.71 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17055,7 +16828,8 @@
 	)
 	(symbol
 		(lib_id "Local_Miscellaneous_Library:74HC14-local_74HCxx")
-		(at 212.09 214.63 180)
+		(at 212.09 214.63 0)
+		(mirror y)
 		(unit 4)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17065,7 +16839,7 @@
 		(dnp no)
 		(uuid "52b0bf6b-2077-46e5-8ba1-d0be4203601b")
 		(property "Reference" "U5"
-			(at 212.09 223.52 0)
+			(at 212.09 205.74 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17075,7 +16849,7 @@
 			)
 		)
 		(property "Value" "74HC14"
-			(at 212.09 220.98 0)
+			(at 212.09 208.28 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17085,7 +16859,7 @@
 			)
 		)
 		(property "Footprint" "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17096,7 +16870,7 @@
 			)
 		)
 		(property "Datasheet" "https://wmsc.lcsc.com/wmsc/upload/file/pdf/v2/lcsc/1811141851_Nexperia-74HC14D-653_C5605.pdf"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17107,7 +16881,7 @@
 			)
 		)
 		(property "Description" "Schmitt Trigger 6 21ns@6V,50pF 2uA 2V~6V SOIC-14  Inverters ROHS"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17129,7 +16903,7 @@
 			)
 		)
 		(property "LibPart" "Local_Miscellaneous_Library:74HC14-local_74HCxx"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17140,7 +16914,7 @@
 			)
 		)
 		(property "JLCBCB Part" "https://jlcpcb.com/partdetail/Nexperia-74HC14D653/C5605"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17151,7 +16925,7 @@
 			)
 		)
 		(property "JLCPCB Part #" "C5605"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17162,7 +16936,7 @@
 			)
 		)
 		(property "JLCPCB Basic or Extended" "Basic Part"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17173,7 +16947,7 @@
 			)
 		)
 		(property "Manufacturer" "Nexperia"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17184,7 +16958,7 @@
 			)
 		)
 		(property "MFR. Part #" "74HC14D,653"
-			(at 212.344 208.026 0)
+			(at 212.344 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17195,7 +16969,7 @@
 			)
 		)
 		(property "Category" "Logic"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17206,7 +16980,7 @@
 			)
 		)
 		(property "Famely" "Inverters"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17217,7 +16991,7 @@
 			)
 		)
 		(property "Excluded from BOM" "NO"
-			(at 212.09 208.026 0)
+			(at 212.09 221.234 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23876,7 +23650,7 @@
 	)
 	(symbol
 		(lib_id "Transistor_BJT:BC547")
-		(at 215.9 203.2 0)
+		(at 215.9 224.79 0)
 		(mirror y)
 		(unit 1)
 		(body_style 1)
@@ -23887,7 +23661,7 @@
 		(dnp no)
 		(uuid "c9fd77ff-4520-4340-b919-2911de4fbd08")
 		(property "Reference" "Q11"
-			(at 210.82 201.9299 90)
+			(at 210.566 223.52 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -23898,7 +23672,7 @@
 			)
 		)
 		(property "Value" "BC547"
-			(at 210.82 208.026 90)
+			(at 210.566 230.378 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -23909,7 +23683,7 @@
 			)
 		)
 		(property "Footprint" "Package_TO_SOT_THT:TO-92_Inline"
-			(at 210.82 205.105 0)
+			(at 210.82 226.695 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23922,7 +23696,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.onsemi.com/pub/Collateral/BC550-D.pdf"
-			(at 215.9 203.2 0)
+			(at 215.9 224.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23934,7 +23708,7 @@
 			)
 		)
 		(property "Description" "0.1A Ic, 45V Vce, Small Signal NPN Transistor, TO-92"
-			(at 215.9 203.2 0)
+			(at 215.9 224.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23945,7 +23719,7 @@
 			)
 		)
 		(property "Sim.Device" "NPN"
-			(at 215.9 203.2 0)
+			(at 215.9 224.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23956,7 +23730,7 @@
 			)
 		)
 		(property "Sim.Pins" "1=C 2=B 3=E"
-			(at 215.9 203.2 0)
+			(at 215.9 224.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

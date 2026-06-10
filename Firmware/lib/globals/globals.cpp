@@ -25,6 +25,7 @@ char gChargingStartTime[6] = {0};
 float gEnergyPriceRef = 0.0f;
 float gEnergyPriceLimit = 0.0f;
 bool gMqttConnected = false;
+volatile bool gControlledPowerCycle = false;
 
 void initializeGlobals( TaskParams_t* params ) {
 
@@ -34,6 +35,12 @@ void initializeGlobals( TaskParams_t* params ) {
   static unsigned long ptCorrection = pref.getULong("ptCorrection", 0);
   static uint16_t pulse_per_kWh = pref.getUShort("pulse_per_kWh", 100);
   pref.end();
+
+  Preferences countPref;
+  countPref.begin(COUNT_NVS_NAMESPACE, false);
+  gControlledPowerCycle = countPref.getBool("controlled_pwr", false);
+  countPref.putBool("controlled_pwr", false);
+  countPref.end();
 
   static String sketchVersion = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;
   const char* savedSketchVersion = sketchVersion.c_str();

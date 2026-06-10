@@ -120,6 +120,13 @@ void saveToNVS(uint32_t pulseCounter, uint16_t subtotalPulseCounter) {
   pref.end();
 }
 
+static void saveControlledPowerCycleToNVS(bool controlledPowerCycle) {
+  Preferences pref;
+  pref.begin(COUNT_NVS_NAMESPACE, false); // false = read/write
+  pref.putBool("controlled_pwr", controlledPowerCycle);
+  pref.end();
+}
+
 static bool trySaveToNVS(uint32_t pulseCounter,
                          uint16_t subtotalPulseCounter,
                          uint32_t& lastSavedPulseCounter,
@@ -169,6 +176,7 @@ static void directResetTask(void* pvParameters) {
     uint16_t sc = gEmergencySubtotalPulseCounter;
     portEXIT_CRITICAL(&EmergencyCounterMux);
     saveToNVS(pc, sc);
+    saveControlledPowerCycleToNVS(true);
   }
 }
 

@@ -50,3 +50,4 @@ extern float gEnergyPriceLimit;
 
 // MQTT connection status flag
 extern bool gMqttConnected; // Flag to indicate MQTT connection status, set by the WiFi Connection Task and used by other tasks to determine if they can publish or need to wait for a connection. This can help prevent failed publish attempts when MQTT is not connected. Tasks that need to publish can check this flag before attempting to publish, and if it's false, they can either skip publishing or queue the data for later publishing when the connection is restored.
+extern volatile bool gControlledPowerCycle;
