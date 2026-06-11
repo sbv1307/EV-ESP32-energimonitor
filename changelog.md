@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.4.1] - 2026-06-11
+
+### Fixed
+
+- Fixed direct-reset emergency save initialization in `Firmware/lib/pulsInput/PulseInputTask.cpp` so `pulse_count`/`subtotal_count` are seeded from NVS before direct-reset ISR is enabled, preventing a startup race that could persist `pulse_count=0`.
+
 ## [V4.4.0] - 2026-06-09
 
 ### Added
@@ -202,7 +208,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.0...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.1...HEAD
+[V4.4.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.0...v4.4.1
 [V4.4.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.3.0...v4.4.0
 [V4.3.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.4...v4.3.0
 [V4.2.4]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.3...v4.2.4
@@ -221,6 +228,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.4.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.4.1
 [V4.4.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.4.0
 [V4.3.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.3.0
 [V4.2.4-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.4

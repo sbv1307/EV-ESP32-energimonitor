@@ -308,6 +308,7 @@ static void PulseInputTask( void* pvParameters) {
   uint32_t lastTs = 0;
   uint16_t subtotalPulseCounter = 0;
   uint32_t pulseCounter = loadFromNVS(&subtotalPulseCounter);
+  updateEmergencyCounters(pulseCounter, subtotalPulseCounter);
   float powerW = 0.0f;
   float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
   float subtotalKwh = (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
@@ -565,6 +566,12 @@ void startPulseInputTask(TaskParams_t* params) {
     pinMode(HARD_RESET_GPIO, OUTPUT);
     digitalWrite(HARD_RESET_GPIO, HIGH);
   }
+
+  // Seed emergency counters before enabling the direct-reset ISR so an
+  // early direct-reset event persists the latest stored values, not zeros.
+  uint16_t bootSubtotalPulseCounter = 0;
+  uint32_t bootPulseCounter = loadFromNVS(&bootSubtotalPulseCounter);
+  updateEmergencyCounters(bootPulseCounter, bootSubtotalPulseCounter);
 
   startDirectResetISR(DIRECT_RESET_GPIO);
 
