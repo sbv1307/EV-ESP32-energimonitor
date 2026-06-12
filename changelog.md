@@ -9,8 +9,22 @@ and this project adheres to [Semantic Versioning].
 
 ## [V4.4.1] - 2026-06-11
 
+### Added
+
+- **Hardware RC delay filter**: Added 100nF ceramic capacitor between NPN transistor base and GND to prevent spurious power-cycle triggers during ESP32 boot (time constant ≈1 ms provides immunity to startup transients while allowing normal power-cycle commands).
+
+### Changed
+
+- **Hard reset** (`{ "reset": "hard" }` via MQTT): saves to NVS, then drives `HARD_RESET_GPIO` HIGH to trigger external power-cycle hardware.
+- **Pin layout** updated in `config.h`:
+  - `HARD_RESET_GPIO`: -1 → 13 (output, active-HIGH to trigger power-cycle).
+- **GPIO13 initialization** moved to earliest boot point in `Firmware/src/main.cpp` `setup()` (immediately after LED init, before tasks and splash screen) via new `initResetGpioPins()` function to prevent floating-state glitches.
+- **GPIO13 initialization sequence** changed to glitch-safe: preload output to LOW via `digitalWrite()` before switching `pinMode()` to OUTPUT, preventing spurious pulses from uncontrolled boot state.
+- **Hardware resistor change** in power-cycle trigger circuit: transistor base pulldown changed from 100 kΩ to 10 kΩ to improve bias stability during startup and with the added RC filter cap.
+
 ### Fixed
 
+- Fixed spurious power-cycle triggers on boot: GPIO13 was uncontrolled from power-on until task startup, allowing capacitive coupling and noise to drive the transistor base and trigger power-cycle logic. Now mitigated by early safe-state initialization + RC delay + stronger pulldown.
 - Fixed direct-reset emergency save initialization in `Firmware/lib/pulsInput/PulseInputTask.cpp` so `pulse_count`/`subtotal_count` are seeded from NVS before direct-reset ISR is enabled, preventing a startup race that could persist `pulse_count=0`.
 
 ## [V4.4.0] - 2026-06-09
@@ -78,6 +92,7 @@ and this project adheres to [Semantic Versioning].
 - Tuned default charging-detection constants in `Firmware/lib/config/config.h` for SCT01-T10/50A to better match charging start around 900 W: `CHARGING_ANALOG_THRESHOLD=90` and `CHARGING_ANALOG_HYSTERESIS=12`.
 
 ## [V4.0.0] - 2026-04-25
+
 
 ### Changed
 

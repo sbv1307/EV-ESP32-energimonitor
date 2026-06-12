@@ -212,6 +212,15 @@ void resumeDirectResetISR() {
   }
 }
 
+void initResetGpioPins() {
+  // Initialize HARD_RESET_GPIO as early as possible in boot to prevent spurious power-cycle triggers.
+  // Set output value LOW before switching mode to OUTPUT to avoid glitches from floating GPIO state.
+  if (HARD_RESET_GPIO >= 0) {
+    digitalWrite(HARD_RESET_GPIO, LOW);  // Preload output register with LOW
+    pinMode(HARD_RESET_GPIO, OUTPUT);    // Then switch to OUTPUT mode (no glitch)
+  }
+}
+
 /* ###################################################################################################
  *               P O W E R    C A L C U L A T I O N
  * ###################################################################################################
@@ -380,7 +389,7 @@ static void PulseInputTask( void* pvParameters) {
       saveToNVS(pulseCounter, subtotalPulseCounter);
       if (resetType == RESET_HARD) {
         if (HARD_RESET_GPIO >= 0) {
-          digitalWrite(HARD_RESET_GPIO, LOW);
+          digitalWrite(HARD_RESET_GPIO, HIGH); // Trigger external power-cycle hardware
         }
       } else {
         esp_restart();
@@ -562,9 +571,10 @@ void startPulseInputTask(TaskParams_t* params) {
 
   PulseInputTaskReady = false;
 
+  // HARD_RESET_GPIO is already initialized safely in initResetGpioPins() during boot.
+  // Verify it is still in safe state during task startup.
   if (HARD_RESET_GPIO >= 0) {
-    pinMode(HARD_RESET_GPIO, OUTPUT);
-    digitalWrite(HARD_RESET_GPIO, HIGH);
+    digitalWrite(HARD_RESET_GPIO, LOW); // Ensure reset line remains inactive
   }
 
   // Seed emergency counters before enabling the direct-reset ISR so an

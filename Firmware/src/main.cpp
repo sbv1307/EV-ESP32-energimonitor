@@ -115,6 +115,10 @@ void setup() {
 
   sendLedCommand("TurnOn");
 
+  // Initialize reset GPIO pins as early as possible to prevent spurious power-cycle triggers during boot.
+  // This must happen before any other task initialization to safely set the output state.
+  initResetGpioPins();
+
   initializeGlobals( &networkParams );
 
   /*
@@ -155,7 +159,7 @@ void setup() {
   oledSettings.energyDisplay.monitor.lineCapacity = 10;
   OledLibrary::begin(oledSettings);
   OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
-  showBootMonitorMessage(gControlledPowerCycle ? "Ctrl Boot OK" : "Un-ctrl Boot OK");
+  showBootMonitorMessage(gControlledPowerCycle ? "Ctrl Boot OK" : "UN--ctrl Boot OK");
 
   /*
   * Start the Network Task to handle WiFi connectivity and MQTT communication. This will run in parallel with the Pulse Input Task.

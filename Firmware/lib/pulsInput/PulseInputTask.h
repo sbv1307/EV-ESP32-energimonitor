@@ -4,6 +4,8 @@
 
 void startPulseInputTask(TaskParams_t* params);
 
+void initResetGpioPins(); // Initialize HARD_RESET_GPIO early in boot (before task startup)
+
 void IRAM_ATTR PulseInputISR();
 
 bool isPulseInputReady();

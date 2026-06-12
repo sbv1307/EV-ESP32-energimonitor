@@ -63,7 +63,13 @@ constexpr uint32_t BUTTON_DEBOUNCE_MS     = 40;     // Minimum ms between accept
 constexpr float    BUTTON_PRICE_LIMIT_STEP = 0.10f; // Price-limit increment/decrement per button press
 
 // Reset GPIO assignments (-1 = disabled)
-constexpr int HARD_RESET_GPIO   = 13; // Output GPIO driven LOW to trigger external power-cycle hardware
+constexpr int HARD_RESET_GPIO   = 13; // Output GPIO driven HIGH to trigger external power-cycle hardware.
+                                       // Hardware notes:
+                                       // - Connect GPIO13 via 4.7kΩ series resistor to NPN transistor base.
+                                       // - Add 100nF ceramic capacitor between transistor base and GND (RC delay, τ ≈ 1ms with 10kΩ pulldown).
+                                       // - Transistor base has 10kΩ pulldown to GND (was 100kΩ, changed to improve stability).
+                                       // - NPN collector drives the power-cycle input; emitter to GND.
+                                       // - RC delay prevents startup transients from falsely triggering power-cycle during boot.
 constexpr int DIRECT_RESET_GPIO = 32; // Input GPIO for power-fail signal; triggers emergency NVS save before power loss
                                        // GPIO 32: ADC1, interrupt-capable, internal pull-up supported (unlike GPIO 34-39).
                                        // Requires PCB trace routed to GPIO 32 (not GPIO 35).
