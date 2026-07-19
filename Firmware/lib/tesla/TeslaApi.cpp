@@ -11,6 +11,7 @@
 
 static const char* TESLA_API_BASE_URL = "https://owner-api.teslamotors.com/api/1";
 static const char* TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/token";
+static const char* TESLA_AUTH_ALPN_PROTOCOLS[] = {"h2", "http/1.1", nullptr};
 
 namespace {
 struct TeslaVehicleDataFlags {
@@ -23,6 +24,27 @@ struct TeslaVehicleDataFlags {
 
 static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, TeslaVehicleDataFlags* flags, String* errorMessage);
 static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry);
+
+static void teslaConfigureAuthClient(WiFiClientSecure* client) {
+  if (client == nullptr) {
+    return;
+  }
+
+  // Prefer TLS ALPN negotiation with HTTP/2 for auth.tesla.com while still
+  // allowing HTTP/1.1 fallback when the server chooses it.
+  client->setAlpnProtocols(TESLA_AUTH_ALPN_PROTOCOLS);
+
+  // TODO: Replace with proper root CA for production use.
+  client->setInsecure();
+}
+
+static void teslaAppendAuthTransportHint(String* errorMessage) {
+  if (errorMessage == nullptr) {
+    return;
+  }
+
+  *errorMessage += " (auth host now expects HTTP/2 + TLS1.3; firmware requests h2 via ALPN, but TLS version support depends on Arduino-ESP32 core/mbedTLS build)";
+}
 
 
 struct TeslaAuthState {
@@ -93,7 +115,7 @@ static bool teslaRefreshAccessToken(String* errorMessage) {
   }
 
   WiFiClientSecure client;
-  client.setInsecure(); // TODO: Replace with proper root CA for production use.
+  teslaConfigureAuthClient(&client);
 
   HTTPClient http;
   if (!http.begin(client, TESLA_AUTH_URL)) {
@@ -116,6 +138,7 @@ static bool teslaRefreshAccessToken(String* errorMessage) {
   if (httpCode <= 0) {
     if (errorMessage) {
       *errorMessage = String("HTTP POST failed: ") + http.errorToString(httpCode);
+      teslaAppendAuthTransportHint(errorMessage);
     }
     http.end();
     return false;

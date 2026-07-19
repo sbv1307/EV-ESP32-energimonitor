@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.5.1] - 2026-07-19
+
+### Added
+
+- **Tesla auth transport update**: `TeslaApi.cpp` now requests `h2` via ALPN when refreshing the Tesla access token so the auth flow can negotiate HTTP/2 where the TLS stack supports it.
+- **Clearer auth failure hint**: Tesla auth POST failures now append a transport hint that mentions HTTP/2, TLS 1.3, and ALPN support expectations.
+- **Tesla telemetry failure logging**: `TeslaSheets.cpp` now publishes MQTT status logs when Tesla telemetry fetches fail, making runtime auth/telemetry problems visible without relying on serial output.
+
+### Changed
+
+- **Sketch version** bumped to `V4.5.1` in `Firmware/lib/config/config.h`.
+- **Tesla auth client setup** was centralized so the auth path consistently applies the same TLS settings before token refresh requests.
+
+### Suggested Follow-ups
+
+- Replace `setInsecure()` with a proper root CA for Tesla auth and Tesla vehicle requests.
+- Add a runtime log of the negotiated TLS/ALPN result if the Arduino-ESP32 core exposes it cleanly.
+- Add a short smoke-test procedure for live Tesla auth refresh so future API changes can be validated faster.
+
 ## [V4.4.1] - 2026-06-11
 
 ### Added
@@ -223,7 +242,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.1...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.5.1...HEAD
+[V4.5.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.1...v4.5.1
 [V4.4.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.0...v4.4.1
 [V4.4.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.3.0...v4.4.0
 [V4.3.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.2.4...v4.3.0
@@ -244,6 +264,7 @@ This functionality will be triggered by external hardware connected to a GPIO in
 
 <!-- Releases -->
 [V4.4.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.4.1
+[V4.5.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.5.1
 [V4.4.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.4.0
 [V4.3.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.3.0
 [V4.2.4-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.2.4

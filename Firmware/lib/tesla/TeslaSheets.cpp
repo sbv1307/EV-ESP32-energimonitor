@@ -8,6 +8,7 @@
 
 #include "TeslaSheets.h"
 #include "TeslaApi.h"
+#include "MqttClient.h"
 #include "config.h"
 #include "oled_energy_display.h"
 #include "OtaService.h"
@@ -227,6 +228,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
   if (!teslaGetTelemetry(&telemetry, &errorMessage)) {
     OledEnergyDisplay::showMonitorLine("Tesla tel fail");
     OledEnergyDisplay::showMonitorLine("Tel err: " + errorMessage);
+    publishMqttLogStatus((String("Tesla telemetry fetch failed: ") + errorMessage).c_str(), false);
 
                                                   #ifdef DEBUG
                                                   Serial.print("Tesla telemetry fetch failed: ");
