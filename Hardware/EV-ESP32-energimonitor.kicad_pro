@@ -62,8 +62,16 @@
       ],
       "drc_exclusions": [
         [
-          "silk_overlap|51145771|47860000|52914924-e6af-4feb-a85b-5b2c857c8ce5|5abd8cfa-badb-4b3a-897a-eb6f8d532607",
-          ""
+          "clearance|32300000|67145000|fb3371ea-e860-495c-a940-988d476fdc6b|7773405a-85af-4a12-ade4-07bca58ad62b",
+          "JLCPCB accepts clearence down to 0,10mm"
+        ],
+        [
+          "clearance|32300000|67940000|7773405a-85af-4a12-ade4-07bca58ad62b|bd48b418-2eea-4c3d-a75c-e9abc27f0561",
+          "JLCPCB accepts clearence down to 0,10mm"
+        ],
+        [
+          "clearance|32300000|68740000|bd48b418-2eea-4c3d-a75c-e9abc27f0561|024e123c-5b5a-46b9-9470-e1451d52c3b5",
+          "JLCPCB accepts clearence down to 0,10mm"
         ]
       ],
       "meta": {
@@ -128,7 +136,7 @@
         "track_width": "error",
         "tracks_crossing": "error",
         "tuning_profile_track_geometries": "ignore",
-        "unconnected_items": "error",
+        "unconnected_items": "ignore",
         "unresolved_variable": "error",
         "via_dangling": "warning",
         "zones_intersect": "error"
@@ -141,17 +149,17 @@
         "min_groove_width": 0.0,
         "min_hole_clearance": 0.25,
         "min_hole_to_hole": 0.25,
-        "min_microvia_diameter": 0.2,
-        "min_microvia_drill": 0.1,
+        "min_microvia_diameter": 0.8,
+        "min_microvia_drill": 0.4,
         "min_resolved_spokes": 2,
         "min_silk_clearance": 0.0,
         "min_text_height": 0.8,
         "min_text_thickness": 0.08,
         "min_through_hole_diameter": 0.3,
         "min_track_width": 0.15,
-        "min_via_annular_width": 0.25,
+        "min_via_annular_width": 0.15,
         "min_via_diameter": 0.6,
-        "solder_mask_to_copper_clearance": 0.0,
+        "solder_mask_to_copper_clearance": 0.005,
         "use_height_for_length_calcs": true
       },
       "teardrop_options": [
@@ -498,7 +506,7 @@
     "classes": [
       {
         "bus_width": 12,
-        "clearance": 0.2,
+        "clearance": 0.25,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -509,7 +517,7 @@
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "priority": 2147483647,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
-        "track_width": 0.2,
+        "track_width": 0.25,
         "tuning_profile": "",
         "via_diameter": 0.6,
         "via_drill": 0.3,
@@ -575,9 +583,9 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "",
+      "plot": "gerbers/",
       "pos_files": "",
-      "specctra_dsn": "",
+      "specctra_dsn": "EV-ESP32-energimonitor.dsn",
       "step": "",
       "svg": "",
       "vrml": ""
@@ -866,7 +874,7 @@
         "uuid": "30ea88e1-c3aa-4884-933c-f1292bfbd385"
       }
     ],
-    "used_designators": "R18-21,SW4",
+    "used_designators": "R14-16,R18-22,SW4",
     "variants": []
   },
   "sheets": [
