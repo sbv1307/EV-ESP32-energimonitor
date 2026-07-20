@@ -4,14 +4,17 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <mbedtls/md.h>
+#include <mbedtls/base64.h>
 
 #include "TeslaApi.h"
+#include "MqttClient.h"
 #include "config.h"
 #include "privateConfig.h"
 
 static const char* TESLA_API_BASE_URL = "https://owner-api.teslamotors.com/api/1";
 static const char* TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/token";
-static const char* TESLA_AUTH_ALPN_PROTOCOLS[] = {"h2", "http/1.1", nullptr};
+static const char* TESLA_AUTH_ALPN_PROTOCOLS[] = {"http/1.1", nullptr};
 
 namespace {
 struct TeslaVehicleDataFlags {
@@ -30,8 +33,8 @@ static void teslaConfigureAuthClient(WiFiClientSecure* client) {
     return;
   }
 
-  // Prefer TLS ALPN negotiation with HTTP/2 for auth.tesla.com while still
-  // allowing HTTP/1.1 fallback when the server chooses it.
+  // HTTPClient speaks HTTP/1.1 only. Advertising h2 here can cause TLS ALPN
+  // to select HTTP/2, after which HTTPClient cannot parse the response.
   client->setAlpnProtocols(TESLA_AUTH_ALPN_PROTOCOLS);
 
   // TODO: Replace with proper root CA for production use.
@@ -43,7 +46,170 @@ static void teslaAppendAuthTransportHint(String* errorMessage) {
     return;
   }
 
-  *errorMessage += " (auth host now expects HTTP/2 + TLS1.3; firmware requests h2 via ALPN, but TLS version support depends on Arduino-ESP32 core/mbedTLS build)";
+  *errorMessage += " (auth routed via proxy; if proxy is down, check proxy service health)";
+}
+
+static String teslaComputeHmacSha256(const char* secret, const String& canonicalPayload) {
+  if (!secret || secret[0] == '\0') {
+    return String();
+  }
+  
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  
+  const mbedtls_md_info_t* mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  if (!mdinfo) {
+    mbedtls_md_free(&ctx);
+    return String();
+  }
+  
+  mbedtls_md_setup(&ctx, mdinfo, 1);
+  mbedtls_md_hmac_starts(&ctx, (const unsigned char*)secret, strlen(secret));
+  mbedtls_md_hmac_update(&ctx, (const unsigned char*)canonicalPayload.c_str(), canonicalPayload.length());
+  
+  unsigned char digest[32];
+  mbedtls_md_hmac_finish(&ctx, digest);
+  mbedtls_md_free(&ctx);
+  
+  // Base64url encode (RFC 4648) without padding
+  unsigned char b64[64];
+  size_t b64len;
+  mbedtls_base64_encode(b64, sizeof(b64), &b64len, digest, 32);
+  
+  String result((char*)b64, b64len);
+  result.replace("+", "-");
+  result.replace("/", "_");
+  // Remove padding
+  while (result.endsWith("=")) {
+    result.remove(result.length() - 1);
+  }
+  
+  return result;
+}
+
+static bool teslaRefreshViaProxy(String* errorMessage) {
+  if (WiFi.status() != WL_CONNECTED) {
+    if (errorMessage) {
+      *errorMessage = "WiFi not connected";
+    }
+    return false;
+  }
+
+  if (strlen(TESLA_AUTH_PROXY_URL) == 0) {
+    if (errorMessage) {
+      *errorMessage = "Tesla auth proxy URL not configured";
+    }
+    return false;
+  }
+  
+  teslaLoadTokens();
+  if (gTeslaAuth.refreshToken.isEmpty()) {
+    if (errorMessage) {
+      *errorMessage = "Tesla refresh token not configured";
+    }
+    return false;
+  }
+  
+  // Build request body as compact JSON (sorted keys, no spaces)
+  String body = String("{") + 
+    "\"device_id\":\"" + String(SKETCH_VERSION).substring(0, 20) + "\"," +
+    "\"refresh_token\":\"" + gTeslaAuth.refreshToken + "\"" +
+    "}";
+  
+  // Build canonical string for HMAC
+  uint32_t timestamp = time(nullptr);
+  uint32_t nonce = random(0xFFFFFFFF);
+  String canonical = String("POST\n/api/v1/tesla/refresh\n") + 
+    "esp32-" + String(SKETCH_VERSION).substring(0, 20) + "\n" +
+    timestamp + "\n" +
+    String(nonce, HEX) + "\n" +
+    body;
+  
+  String signature = teslaComputeHmacSha256(TESLA_AUTH_PROXY_SHARED_SECRET, canonical);
+  
+  WiFiClientSecure client;
+  client.setInsecure();
+  
+  HTTPClient http;
+  http.setTimeout(20000);
+  
+  String proxyUrl = String(TESLA_AUTH_PROXY_URL) + "/api/v1/tesla/refresh";
+  if (!http.begin(client, proxyUrl)) {
+    if (errorMessage) {
+      *errorMessage = "HTTP begin failed (proxy)";
+    }
+    return false;
+  }
+  
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Device-Id", "esp32-" + String(SKETCH_VERSION).substring(0, 20));
+  http.addHeader("X-Timestamp", String(timestamp));
+  http.addHeader("X-Nonce", String(nonce, HEX));
+  http.addHeader("X-Signature", signature);
+  
+  int httpCode = http.POST(body);
+  if (httpCode <= 0) {
+    if (errorMessage) {
+      *errorMessage = String("HTTP POST failed (proxy): ") + http.errorToString(httpCode);
+    }
+    http.end();
+    return false;
+  }
+  
+  if (httpCode != HTTP_CODE_OK) {
+    if (errorMessage) {
+      *errorMessage = String("Proxy HTTP status ") + httpCode + ": " + http.getString();
+    }
+    http.end();
+    return false;
+  }
+  
+  String response = http.getString();
+  http.end();
+  
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, response);
+  if (err) {
+    if (errorMessage) {
+      *errorMessage = String("Proxy response JSON parse failed: ") + err.c_str();
+    }
+    return false;
+  }
+  
+  if (doc["access_token"].isNull()) {
+    if (errorMessage) {
+      *errorMessage = "Proxy response missing access_token";
+    }
+    return false;
+  }
+  
+  gTeslaAuth.accessToken = doc["access_token"].as<String>();
+  if (!doc["refresh_token"].isNull()) {
+    gTeslaAuth.refreshToken = doc["refresh_token"].as<String>();
+  }
+  
+  uint32_t expiresIn = doc["expires_in"].isNull() ? 0 : doc["expires_in"].as<uint32_t>();
+  time_t now = time(nullptr);
+  if (now > 0 && expiresIn > 0) {
+    gTeslaAuth.expiresAt = (uint64_t)now + (uint64_t)expiresIn - 60;
+  } else {
+    gTeslaAuth.expiresAt = 0;
+  }
+  
+  teslaStoreTokens();
+  
+  // Log token refresh via proxy
+  {
+    char refreshLog[160] = {0};
+    snprintf(refreshLog,
+             sizeof(refreshLog),
+             "Tesla token refresh via proxy OK: expires_in=%lu s, refresh_at=%llu",
+             (unsigned long)expiresIn,
+             (unsigned long long)gTeslaAuth.expiresAt);
+    publishMqttLogStatus(refreshLog, false);
+  }
+  
+  return true;
 }
 
 
@@ -105,6 +271,12 @@ static void teslaLoadTokens() {
 }
 
 static bool teslaRefreshAccessToken(String* errorMessage) {
+  // If proxy is configured, use it; otherwise fall back to direct Tesla call.
+  if (strlen(TESLA_AUTH_PROXY_URL) > 0) {
+    return teslaRefreshViaProxy(errorMessage);
+  }
+  
+  // Fallback: direct Tesla call (legacy path, only if proxy URL is empty)
   teslaLoadTokens();
 
   if (gTeslaAuth.refreshToken.isEmpty()) {
@@ -185,6 +357,19 @@ static bool teslaRefreshAccessToken(String* errorMessage) {
   }
 
   teslaStoreTokens();
+
+  // TEMP DEBUG: Publish refresh cadence details to MQTT while validating token behavior.
+  {
+    char refreshLog[160] = {0};
+    snprintf(refreshLog,
+             sizeof(refreshLog),
+             "Tesla token refresh OK: expires_in=%lu s, now=%lu, refresh_at=%llu",
+             (unsigned long)expiresIn,
+             (unsigned long)((now > 0) ? now : 0),
+             (unsigned long long)gTeslaAuth.expiresAt);
+    publishMqttLogStatus(refreshLog, false);
+  }
+
   return true;
 }
 

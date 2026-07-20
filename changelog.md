@@ -7,11 +7,32 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.7.0] - 2026-07-20
+
+### Added
+
+- **Tesla auth proxy integration**: Token refresh now routes through a local proxy service (on Raspberry Pi) that handles HTTP/2 + TLS 1.3 transport to Tesla auth endpoint. Configured via `TESLA_AUTH_PROXY_URL` and `TESLA_AUTH_PROXY_SHARED_SECRET` in `privateConfig.h`.
+- **HMAC-SHA256 request signing**: Token refresh requests are signed with HMAC-SHA256 (base64url) to prevent relay attacks. Signature includes device ID, timestamp, nonce, and request body.
+- **Proxy fallback behavior**: If `TESLA_AUTH_PROXY_URL` is empty, firmware falls back to direct Tesla call (legacy path for backward compatibility).
+- **New MQTT log messages**: Token refresh via proxy is logged to MQTT status topic so proxy health is visible in the device monitoring.
+
+### Changed
+
+- **Token refresh method** now uses `teslaRefreshViaProxy()` when proxy is configured, instead of direct Tesla endpoint call.
+- **Reduced firmware TLS/HTTP/2 complexity**: HTTP/2 negotiation now happens on the proxy (always-on Pi service) rather than on ESP32, simplifying firmware and reducing runtime TLS stack load.
+
+### Suggested Follow-ups
+
+- Monitor MQTT log messages for proxy errors during the first week of operation.
+- If proxy goes down, the device will retry token refresh at the next scheduled interval (typically ~24 hours).
+- The temporary debug logs for token cadence can be removed after confirming refresh behavior is stable.
+- Replace `client.setInsecure()` with proper root CA certificates for both proxy and Tesla vehicle API calls.
+
 ## [V4.5.1] - 2026-07-19
 
 ### Added
 
-- **Tesla auth transport update**: `TeslaApi.cpp` now requests `h2` via ALPN when refreshing the Tesla access token so the auth flow can negotiate HTTP/2 where the TLS stack supports it.
+- **Tesla auth transport update**: `TeslaApi.cpp` now Tesla-api-has-changed so the auth flow can negotiate HTTP/2 where the TLS stack supports it.
 - **Clearer auth failure hint**: Tesla auth POST failures now append a transport hint that mentions HTTP/2, TLS 1.3, and ALPN support expectations.
 - **Tesla telemetry failure logging**: `TeslaSheets.cpp` now publishes MQTT status logs when Tesla telemetry fetches fail, making runtime auth/telemetry problems visible without relying on serial output.
 

@@ -20,6 +20,12 @@ constexpr char TESLA_REFRESH_TOKEN[] = "YOUR_TESLA_REFRESH_TOKEN";
 constexpr char TESLA_CLIENT_ID[] = "ownerapi";
 constexpr char TESLA_CLIENT_SECRET[] = "";
 
+// Tesla Auth Proxy (local service that performs token refresh over HTTP/2 + TLS 1.3)
+// The proxy endpoint URL (e.g., "http://192.168.11.34:8787" or "http://your-pi-hostname:8787")
+constexpr char TESLA_AUTH_PROXY_URL[] = "http://YOUR_PI_IP_OR_HOSTNAME:8787";
+// Shared secret for HMAC-SHA256 request signing (same value as PROXY_SHARED_SECRET in proxy .env)
+constexpr char TESLA_AUTH_PROXY_SHARED_SECRET[] = "YOUR_PROXY_SHARED_SECRET";
+
 // Google Sheets Web App endpoint (Apps Script Web App URL)
 constexpr char TESLA_GSHEET_WEBAPP_URL_PREFIX[] = "https://script.google.com/macros/s/";
 constexpr char TESLA_GSHEET_WEBAPP_DEPLOYMENT_ID[] = "YOUR_DEPLOYMENT_ID";
