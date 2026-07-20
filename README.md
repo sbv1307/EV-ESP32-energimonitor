@@ -33,6 +33,26 @@ The energy meter connected to the ESP32 MQTT interface, will have a pulse output
 - Pushbutton funktion til reset ig initial bluetooth configuration
 - Online Configuration WEB link og/eller MQTT?
 
+### Tesla Token Refresh Setup (v4.7.0+)
+
+Starting with v4.7.0, Tesla token refresh routes through a proxy service on the Raspberry Pi that handles HTTP/2 + TLS 1.3 to Tesla's auth endpoint (which is required as of July 2026). The ESP32 communicates with the proxy over simple HTTP/1.1 with HMAC-SHA256 request signing.
+
+**Prerequisites:**
+- Raspberry Pi running TeslaMate (or any always-on service)
+- Docker and Docker Compose on the Pi
+
+**Setup:**
+1. Deploy the proxy from `Software/tesla-auth-proxy/` to `~/tesla-auth-proxy` on your Pi (see [Tesla Auth Proxy README](Software/tesla-auth-proxy/README.md))
+2. Update `Firmware/lib/config/privateConfig.h`:
+   - Set `TESLA_AUTH_PROXY_URL` to `http://<pi-ip>:8787` (or `http://<pi-hostname>:8787`)
+   - Set `TESLA_AUTH_PROXY_SHARED_SECRET` to match the proxy's `.env` `PROXY_SHARED_SECRET`
+3. Rebuild and flash the firmware
+
+**Verification:**
+- Check Google Sheets for successful telemetry entries (confirms token refresh worked)
+- Monitor `docker compose logs` on the Pi for `POST /api/v1/tesla/refresh HTTP/1.1" 200 OK` entries
+- Watch MQTT `ev-e-monitor/esp32-doit_*/log/status` for token refresh logs
+
 <sup class="fn">
 <span id="f1">[Energy consumption is calculated by measuring the time between pulses provided by the energy meter, connected to the interface](#a1)</span>
 </sup>

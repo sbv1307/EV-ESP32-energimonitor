@@ -28,6 +28,19 @@ struct TeslaVehicleDataFlags {
 static bool teslaParseVehicleData(const String& json, TeslaTelemetry* telemetry, TeslaVehicleDataFlags* flags, String* errorMessage);
 static bool teslaFetchLocationFromVehicleData(TeslaTelemetry* telemetry);
 
+// Token management state and functions
+struct TeslaAuthState {
+  String accessToken;
+  String refreshToken;
+  String ownerApiId;
+  uint64_t expiresAt = 0; // epoch seconds
+  bool initialized = false;
+};
+
+static TeslaAuthState gTeslaAuth;
+static void teslaLoadTokens();
+static void teslaStoreTokens();
+
 static void teslaConfigureAuthClient(WiFiClientSecure* client) {
   if (client == nullptr) {
     return;
@@ -212,16 +225,7 @@ static bool teslaRefreshViaProxy(String* errorMessage) {
   return true;
 }
 
-
-struct TeslaAuthState {
-  String accessToken;
-  String refreshToken;
-  String ownerApiId;
-  uint64_t expiresAt = 0; // epoch seconds
-  bool initialized = false;
-};
-
-static TeslaAuthState gTeslaAuth;
+// TeslaAuthState struct and gTeslaAuth declared at top of file
 
 static String teslaReadStringPref(Preferences& pref, const char* key) {
   if (!pref.isKey(key)) {
