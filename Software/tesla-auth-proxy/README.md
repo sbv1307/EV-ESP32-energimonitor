@@ -14,7 +14,7 @@ This proxy is intentionally small so it can run on the same Raspberry Pi that al
 
 1. Keep TeslaMate in its existing container or compose project.
 2. Run this proxy as a separate compose service on the same Pi.
-3. Bind the proxy to `127.0.0.1` or your LAN-only interface and keep it off the public internet.
+3. Bind the proxy to a LAN-reachable interface when ESP32 runs on another host (for Docker Compose this typically means `8787:8787` or a specific LAN interface binding, not `127.0.0.1:8787:8787`) and keep it off the public internet.
 4. Let the ESP32 talk to the proxy over normal HTTP/1.1, while the proxy talks to Tesla over HTTP/2 + TLS 1.3.
 
 ### Why the Pi is a good host

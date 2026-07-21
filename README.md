@@ -37,6 +37,8 @@ The energy meter connected to the ESP32 MQTT interface, will have a pulse output
 
 Starting with v4.7.0, Tesla token refresh routes through a proxy service on the Raspberry Pi that handles HTTP/2 + TLS 1.3 to Tesla's auth endpoint (which is required as of July 2026). The ESP32 communicates with the proxy over simple HTTP/1.1 with HMAC-SHA256 request signing.
 
+From v4.8.0, proxy transport selection in firmware is endpoint-aware (`http://` uses non-TLS client, `https://` uses TLS client), and deployment guidance explicitly avoids localhost-only proxy binding for ESP32 access.
+
 **Prerequisites:**
 - Raspberry Pi running TeslaMate (or any always-on service)
 - Docker and Docker Compose on the Pi
@@ -47,6 +49,7 @@ Starting with v4.7.0, Tesla token refresh routes through a proxy service on the 
    - Set `TESLA_AUTH_PROXY_URL` to `http://<pi-ip>:8787` (or `http://<pi-hostname>:8787`)
    - Set `TESLA_AUTH_PROXY_SHARED_SECRET` to match the proxy's `.env` `PROXY_SHARED_SECRET`
 3. Rebuild and flash the firmware
+4. Ensure `Software/tesla-auth-proxy/docker-compose.yml` exposes the proxy for LAN clients (`8787:8787`). Do not use localhost-only binding (`127.0.0.1:8787:8787`) if the ESP32 is on another host.
 
 **Verification:**
 - Check Google Sheets for successful telemetry entries (confirms token refresh worked)

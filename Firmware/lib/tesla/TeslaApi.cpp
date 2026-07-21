@@ -3,6 +3,7 @@
 #include <HTTPClient.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <WiFiClient.h>
 #include <WiFiClientSecure.h>
 #include <mbedtls/md.h>
 #include <mbedtls/base64.h>
@@ -140,14 +141,21 @@ static bool teslaRefreshViaProxy(String* errorMessage) {
   
   String signature = teslaComputeHmacSha256(TESLA_AUTH_PROXY_SHARED_SECRET, canonical);
   
-  WiFiClientSecure client;
-  client.setInsecure();
-  
   HTTPClient http;
   http.setTimeout(20000);
-  
   String proxyUrl = String(TESLA_AUTH_PROXY_URL) + "/api/v1/tesla/refresh";
-  if (!http.begin(client, proxyUrl)) {
+
+  bool beginOk = false;
+  WiFiClient client;
+  WiFiClientSecure secureClient;
+  if (proxyUrl.startsWith("https://")) {
+    secureClient.setInsecure();
+    beginOk = http.begin(secureClient, proxyUrl);
+  } else {
+    beginOk = http.begin(client, proxyUrl);
+  }
+
+  if (!beginOk) {
     if (errorMessage) {
       *errorMessage = "HTTP begin failed (proxy)";
     }

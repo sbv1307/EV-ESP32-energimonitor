@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V4.8.0] - 2026-07-21
+
+### Fixed
+
+- **Tesla proxy connection refused path**: corrected malformed proxy URL in `Firmware/lib/config/privateConfig.h` so `TESLA_AUTH_PROXY_URL` resolves to a valid endpoint.
+- **Proxy LAN reachability**: updated `Software/tesla-auth-proxy/docker-compose.yml` port mapping from localhost-only binding to LAN-reachable binding so ESP32 can connect to the proxy from the network.
+- **Proxy transport selection in firmware**: `Firmware/lib/tesla/TeslaApi.cpp` now selects `WiFiClient` for `http://` proxy endpoints and `WiFiClientSecure` for `https://` endpoints.
+
+### Changed
+
+- **Sketch version** bumped to `V4.8.0` in `Firmware/lib/config/config.h`.
+
+### Validation
+
+- Confirmed proxy health endpoint is reachable over LAN (`/healthz`) and telemetry refresh no longer fails with `connection refused` in the resolved setup.
+
 ## [V4.7.0] - 2026-07-20
 
 ### Added
@@ -263,7 +279,9 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.5.1...HEAD
+[unreleased]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.8.0...HEAD
+[V4.8.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.7.0...v4.8.0
+[V4.7.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.5.1...v4.7.0
 [V4.5.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.1...v4.5.1
 [V4.4.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.4.0...v4.4.1
 [V4.4.0]: https://github.com/sbv1307/EV-ESP32-energimonitor/compare/v4.3.0...v4.4.0
@@ -284,6 +302,8 @@ This functionality will be triggered by external hardware connected to a GPIO in
 [0.0.1]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v0.0.1
 
 <!-- Releases -->
+[V4.8.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.8.0
+[V4.7.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.7.0
 [V4.4.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.4.1
 [V4.5.1-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.5.1
 [V4.4.0-release]: https://github.com/sbv1307/EV-ESP32-energimonitor/releases/tag/v4.4.0
