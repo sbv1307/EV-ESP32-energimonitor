@@ -8,6 +8,8 @@
 fp-lib-table
 jlcpcb/*
 sym-lib-table
+*.zip
+*.csv
 
 Developer/*
 build_timestamp.h

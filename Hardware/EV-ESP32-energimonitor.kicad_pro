@@ -647,7 +647,7 @@
           "group_by": false,
           "label": "JLCPCB Part #",
           "name": "JLCPCB Part #",
-          "show": true
+          "show": false
         },
         {
           "group_by": true,
@@ -816,6 +816,12 @@
           "label": "#",
           "name": "${ITEM_NUMBER}",
           "show": false
+        },
+        {
+          "group_by": false,
+          "label": "AISLER_MPN",
+          "name": "AISLER_MPN",
+          "show": true
         }
       ],
       "filter_string": "",
