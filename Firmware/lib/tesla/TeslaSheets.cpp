@@ -9,6 +9,7 @@
 #include "TeslaSheets.h"
 #include "TeslaApi.h"
 #include "MqttClient.h"
+#include "PulseInputTask.h"
 #include "config.h"
 #include "oled_energy_display.h"
 #include "OtaService.h"
@@ -27,7 +28,7 @@ struct TeslaTelemetryQueueItem {
 constexpr UBaseType_t TESLA_TELEMETRY_TASK_PRIORITY = 1;
 static portMUX_TYPE teslaTelemetryTaskStateMux = portMUX_INITIALIZER_UNLOCKED;
 static TaskHandle_t teslaTelemetryTaskHandle = nullptr;
-constexpr size_t TESLA_PAYLOAD_BUFFER_SIZE = 224;
+constexpr size_t TESLA_PAYLOAD_BUFFER_SIZE = 320;
 constexpr size_t TESLA_URL_BUFFER_SIZE = 640;
 
 static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
@@ -253,11 +254,17 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
   char telemetryComment[TESLA_COMMENT_BUFFER_SIZE] = {0};
   snprintf(telemetryComment, sizeof(telemetryComment), "%s", (comment != nullptr) ? comment : "");
 
+    float lastChargeCost = 0.0f;
+    float dailyCost = 0.0f;
+    float monthlyCost = 0.0f;
+    float quarterlyCost = 0.0f;
+    getLatestCostSnapshot(&lastChargeCost, &dailyCost, &monthlyCost, &quarterlyCost);
+
   char payload[TESLA_PAYLOAD_BUFFER_SIZE] = {0};
   const int payloadLen = snprintf(
       payload,
       sizeof(payload),
-      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f,%s",
+      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f,%s,%.3f,%.3f,%.3f,%.3f",
       dateBuf,
       timeBuf,
       telemetry.batteryLevelPercent,
@@ -266,7 +273,11 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
       energyKwh,
       telemetry.latitude,
       telemetry.longitude,
-      telemetryComment);
+      telemetryComment,
+      lastChargeCost,
+      dailyCost,
+      monthlyCost,
+      quarterlyCost);
 
   if (payloadLen < 0 || static_cast<size_t>(payloadLen) >= sizeof(payload)) {
     OledEnergyDisplay::showMonitorLine("GS payload ovf");

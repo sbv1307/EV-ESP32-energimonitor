@@ -33,6 +33,33 @@ static TaskParams_t* mqttParams = nullptr;
 static char bootTimestamp[32] = {0};
 static TaskHandle_t mqttPublishConfigTaskHandle = nullptr;
 
+static const char* mqttStateToText(int state) {
+  switch (state) {
+    case MQTT_CONNECTION_TIMEOUT:
+      return "timeout";
+    case MQTT_CONNECTION_LOST:
+      return "lost";
+    case MQTT_CONNECT_FAILED:
+      return "tcp-fail";
+    case MQTT_DISCONNECTED:
+      return "disconnected";
+    case MQTT_CONNECTED:
+      return "connected";
+    case MQTT_CONNECT_BAD_PROTOCOL:
+      return "bad-proto";
+    case MQTT_CONNECT_BAD_CLIENT_ID:
+      return "bad-client";
+    case MQTT_CONNECT_UNAVAILABLE:
+      return "unavailable";
+    case MQTT_CONNECT_BAD_CREDENTIALS:
+      return "bad-creds";
+    case MQTT_CONNECT_UNAUTHORIZED:
+      return "unauthorized";
+    default:
+      return "unknown";
+  }
+}
+
 static bool tryParseJsonBool(const JsonVariantConst& value, bool& outValue) {
   if (value.is<bool>()) {
     outValue = value.as<bool>();
@@ -151,6 +178,8 @@ static void reconnect(TaskParams_t* params) {
       return;
     }
     lastAttempt = now;
+
+    wifiClient.stop();
     
     String will = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_ONLINE;
 
@@ -202,12 +231,21 @@ static void reconnect(TaskParams_t* params) {
 
     } else {
       gMqttConnected = false;
-      OledEnergyDisplay::showMonitorLine("MQT fail rc:" + String(mqttClient.state()));
+      const int state = mqttClient.state();
+      OledEnergyDisplay::showMonitorLine("MQT fail rc:" + String(state));
+      OledEnergyDisplay::showMonitorLine(String("MQT ") + mqttStateToText(state) + " " + params->mqttBrokerIP + ":" + String(params->mqttBrokerPort));
 
                                                               #ifdef DEBUG
                                                               Serial.print("MqttClient: MQTT failed, rc=");
-                                                              Serial.print(mqttClient.state());
-                                                              Serial.println(" retrying...");
+                                                              Serial.print(state);
+                                                              Serial.print(" (");
+                                                              Serial.print(mqttStateToText(state));
+                                                              Serial.print(") broker=");
+                                                              Serial.print(params->mqttBrokerIP);
+                                                              Serial.print(":");
+                                                              Serial.print(params->mqttBrokerPort);
+                                                              Serial.print(" wifi=");
+                                                              Serial.println(WiFi.localIP());
                                                               #endif
     }
   }
@@ -546,6 +584,14 @@ void mqttProcessRxQueue() {
         } else if (strcmp(key, MQTT_MAX_E_PRICE) == 0) {
           gEnergyPriceRef = kv.value().as<float>();
           gDisplayUpdateAvailable = true; // Trigger display update
+        } else if (strcmp(key, MQTT_CURR_E_PRICE) == 0) {
+          gCurrentEnergyPrice = kv.value().as<float>();
+          float powerW = 0.0f;
+          float energyKwh = 0.0f;
+          float subtotalKwh = 0.0f;
+          if (getLatestEnergySnapshot(&powerW, &energyKwh, &subtotalKwh)) {
+            publishMqttEnergy(powerW, energyKwh, subtotalKwh);
+          }
         } else if (strcmp(key, MQTT_E_PRICE_LIMIT) == 0) {
           gEnergyPriceLimit = kv.value().as<float>();
           gDisplayUpdateAvailable = true; // Trigger display update
@@ -599,7 +645,7 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
   char payload[1024];
   JsonDocument doc;
 
-  if ( component == MQTT_NUMBER_COMPONENT & deviceClass == MQTT_ENERGY_DEVICECLASS)
+  if (component == MQTT_NUMBER_COMPONENT && deviceClass == MQTT_ENERGY_DEVICECLASS)
   {
     doc["command_topic"] = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SUFFIX_SET;
     doc["command_template"] = String("{\"" + entityName + "\": {{ value }} }");
@@ -617,7 +663,7 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
   doc["unique_id"] = String(entityName + "_" + mqttDeviceNameWithMac);
   doc["qos"] = 0;
 
-  if ( component == MQTT_SENSOR_COMPONENT & deviceClass == MQTT_POWER_DEVICECLASS)
+  if (component == MQTT_SENSOR_COMPONENT && deviceClass == MQTT_POWER_DEVICECLASS)
     doc["value_template"] = String("{{ value_json." + entityName + "}}");
   else 
     doc["value_template"] = String("{{ value_json." + entityName + " | round(2)}}");
@@ -637,7 +683,9 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
   device["name"] = String(MQTT_HA_CARD_NAME);
 
   serializeJson(doc, payload, sizeof(payload));
-  String energyTopic = String(MQTT_DISCOVERY_PREFIX) + component + "/" + mqttDeviceNameWithMac + "/" + deviceClass + "/config";
+  // Home Assistant requires one unique discovery config topic per entity.
+  // Reusing the same topic causes each publish to overwrite the previous config.
+  String energyTopic = String(MQTT_DISCOVERY_PREFIX) + component + "/" + mqttDeviceNameWithMac + "/" + entityName + "/config";
 
   mqttEnqueuePublish(energyTopic.c_str(), payload, RETAINED);
 
@@ -650,9 +698,13 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
 */
 void publishMqttConfigurations() {
 
+  publishMqttEnergyConfigJson(MQTT_NUMBER_COMPONENT, MQTT_NUMBER_ENERGY_ENTITYNAME, "kWh", MQTT_ENERGY_DEVICECLASS);
   publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_SENSOR_ENERGY_ENTITYNAME, "kWh", MQTT_ENERGY_DEVICECLASS);
   publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_SENSOR_POWER_ENTITYNAME, "kW", MQTT_POWER_DEVICECLASS);
-  publishMqttEnergyConfigJson(MQTT_NUMBER_COMPONENT, MQTT_NUMBER_ENERGY_ENTITYNAME, "kWh", MQTT_ENERGY_DEVICECLASS);
+  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_QUARTERLY_COST, "DKK", MQTT_MONETARY_DEVICECLASS);
+  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_MONTHLY_COST, "DKK", MQTT_MONETARY_DEVICECLASS);
+  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_DAILY_COST, "DKK", MQTT_MONETARY_DEVICECLASS);
+  publishMqttEnergyConfigJson(MQTT_SENSOR_COMPONENT, MQTT_LAST_CHARGE_COST, "DKK", MQTT_MONETARY_DEVICECLASS);
 
   float powerW = 0.0f;
   float energyKwh = 0.0f;
@@ -679,12 +731,22 @@ void publishMqttEnergy(float powerW, float pulseCounter, float subtotalPulseCoun
     return; // Exit if MQTT is not connected
   }
   
-  char payload[256];
+  char payload[384];
   JsonDocument doc;
+  float lastChargeCost = 0.0f;
+  float dailyCost = 0.0f;
+  float monthlyCost = 0.0f;
+  float quarterlyCost = 0.0f;
+  getLatestCostSnapshot(&lastChargeCost, &dailyCost, &monthlyCost, &quarterlyCost);
 
   doc[MQTT_SENSOR_POWER_ENTITYNAME] = powerW;
   doc[MQTT_NUMBER_ENERGY_ENTITYNAME] = (float)pulseCounter;
   doc[MQTT_SENSOR_ENERGY_ENTITYNAME] = (float)subtotalPulseCounter;
+  doc[MQTT_CURR_E_PRICE] = gCurrentEnergyPrice;
+  doc[MQTT_LAST_CHARGE_COST] = lastChargeCost;
+  doc[MQTT_DAILY_COST] = dailyCost;
+  doc[MQTT_MONTHLY_COST] = monthlyCost;
+  doc[MQTT_QUARTERLY_COST] = quarterlyCost;
 
   serializeJson(doc, payload, sizeof(payload));
   String energyTopic = String(MQTT_DISCOVERY_PREFIX) + mqttDeviceNameWithMac + "/" + MQTT_PREFIX + MQTT_SUFFIX_STATE;

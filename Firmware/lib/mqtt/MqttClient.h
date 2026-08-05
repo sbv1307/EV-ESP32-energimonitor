@@ -22,6 +22,10 @@ constexpr char MQTT_CHG_START_TIME[]            = "chgStartTime";       // JSON 
 constexpr char MQTT_CURR_E_PRICE[]              = "currEPrice";         // JSON key for current energy price
 constexpr char MQTT_MAX_E_PRICE[]               = "maxEPrice";          // JSON key for maximum energy price in a 3 hour block with the lowest energy price, used for smart charging activation
 constexpr char MQTT_E_PRICE_LIMIT[]             = "ePriceLimit";         // JSON key for energy price limit for smart charging activation
+constexpr char MQTT_LAST_CHARGE_COST[]          = "LastCost";     // JSON key for latest charging session cost
+constexpr char MQTT_DAILY_COST[]                = "DailyCost";    // JSON key for daily accumulated energy cost
+constexpr char MQTT_MONTHLY_COST[]              = "MonthCost";    // JSON key for monthly accumulated energy cost
+constexpr char MQTT_QUARTERLY_COST[]            = "QtrCost";      // JSON key for quarterly accumulated energy cost
 constexpr char MQTT_RESET_CMD[]                 = "reset";               // JSON key for reset command ("soft" or "hard")
 constexpr char MQTT_DISCOVERY_PREFIX[]          = "homeassistant/";     // include tailing '/' in discovery prefix!
 constexpr char MQTT_SUFFIX_STATE[]              = "state";              // MQTT topic suffix for state messages. OBS no leading '/'
@@ -50,6 +54,7 @@ constexpr char MQTT_SENSOR_COMPONENT[]      = "sensor";
 constexpr char MQTT_NUMBER_COMPONENT[]      = "number";
 constexpr char MQTT_ENERGY_DEVICECLASS[]    = "energy";
 constexpr char MQTT_POWER_DEVICECLASS[]     = "power";
+constexpr char MQTT_MONETARY_DEVICECLASS[]  = "monetary";
 
 /*
  * ##################################################################################################

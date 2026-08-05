@@ -5,6 +5,7 @@
 #include "PulseInputTask.h"
 #include "MqttClient.h"
 #include "TeslaSheets.h"
+#include "ChargingSession.h"
 #include "config.h"
 #include "LedTask.h"
 #include "OtaService.h"
@@ -25,8 +26,18 @@ static portMUX_TYPE EnergyKwhMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile float LatestEnergyKwh = 0.0f;
 static volatile float LatestPowerW = 0.0f;
 static volatile float LatestSubtotalKwh = 0.0f;
+static portMUX_TYPE CostMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile float LatestLastChargeCost = 0.0f;
+static volatile float LatestDailyCost = 0.0f;
+static volatile float LatestMonthlyCost = 0.0f;
+static volatile float LatestQuarterlyCost = 0.0f;
 static portMUX_TYPE SubtotalResetMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool SubtotalResetPending = false;
+static portMUX_TYPE CostResetMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile bool LastChargeCostResetPending = false;
+static volatile bool DailyCostResetPending = false;
+static volatile bool MonthlyCostResetPending = false;
+static volatile bool QuarterlyCostResetPending = false;
 
 static portMUX_TYPE ResetMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile ResetType_t gResetType = RESET_SOFT;
@@ -35,6 +46,10 @@ static volatile bool gResetRequested = false;
 static portMUX_TYPE EmergencyCounterMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile uint32_t gEmergencyPulseCounter = 0;
 static volatile uint16_t gEmergencySubtotalPulseCounter = 0;
+static volatile float gEmergencyLastChargeCost = 0.0f;
+static volatile float gEmergencyDailyCost = 0.0f;
+static volatile float gEmergencyMonthlyCost = 0.0f;
+static volatile float gEmergencyQuarterlyCost = 0.0f;
 
 static SemaphoreHandle_t sDirectResetSemaphore = nullptr;
 
@@ -53,6 +68,31 @@ static inline void updateEmergencyCounters(uint32_t pulseCounter, uint16_t subto
   portEXIT_CRITICAL(&EmergencyCounterMux);
 }
 
+static inline void updateEmergencyCostSnapshot(float lastChargeCost,
+                                               float dailyCost,
+                                               float monthlyCost,
+                                               float quarterlyCost) {
+  portENTER_CRITICAL(&EmergencyCounterMux);
+  gEmergencyLastChargeCost = lastChargeCost;
+  gEmergencyDailyCost = dailyCost;
+  gEmergencyMonthlyCost = monthlyCost;
+  gEmergencyQuarterlyCost = quarterlyCost;
+  portEXIT_CRITICAL(&EmergencyCounterMux);
+}
+
+static inline void updateLatestCostSnapshot(float lastChargeCost,
+                                            float dailyCost,
+                                            float monthlyCost,
+                                            float quarterlyCost) {
+  portENTER_CRITICAL(&CostMux);
+  LatestLastChargeCost = lastChargeCost;
+  LatestDailyCost = dailyCost;
+  LatestMonthlyCost = monthlyCost;
+  LatestQuarterlyCost = quarterlyCost;
+  portEXIT_CRITICAL(&CostMux);
+  updateEmergencyCostSnapshot(lastChargeCost, dailyCost, monthlyCost, quarterlyCost);
+}
+
 void setPulseCounterFromMqtt(uint32_t newPulseCounter) {
   portENTER_CRITICAL(&PulseCounterMux);
   PendingPulseCounter = newPulseCounter;
@@ -66,6 +106,30 @@ void requestSubtotalReset() {
   portEXIT_CRITICAL(&SubtotalResetMux);
 
   publishMqttLog(MQTT_LOG_SUFFIX, "Subtotal reset requested", false);
+}
+
+void requestLastChargeCostReset() {
+  portENTER_CRITICAL(&CostResetMux);
+  LastChargeCostResetPending = true;
+  portEXIT_CRITICAL(&CostResetMux);
+}
+
+void requestDailyCostReset() {
+  portENTER_CRITICAL(&CostResetMux);
+  DailyCostResetPending = true;
+  portEXIT_CRITICAL(&CostResetMux);
+}
+
+void requestMonthlyCostReset() {
+  portENTER_CRITICAL(&CostResetMux);
+  MonthlyCostResetPending = true;
+  portEXIT_CRITICAL(&CostResetMux);
+}
+
+void requestQuarterlyCostReset() {
+  portENTER_CRITICAL(&CostResetMux);
+  QuarterlyCostResetPending = true;
+  portEXIT_CRITICAL(&CostResetMux);
 }
 
 bool getLatestEnergyKwh(float* energyKwh) {
@@ -92,6 +156,23 @@ bool getLatestEnergySnapshot(float* powerW, float* energyKwh, float* subtotalKwh
   return true;
 }
 
+bool getLatestCostSnapshot(float* lastChargeCost,
+                           float* dailyCost,
+                           float* monthlyCost,
+                           float* quarterlyCost) {
+  if (!lastChargeCost || !dailyCost || !monthlyCost || !quarterlyCost) {
+    return false;
+  }
+
+  portENTER_CRITICAL(&CostMux);
+  *lastChargeCost = LatestLastChargeCost;
+  *dailyCost = LatestDailyCost;
+  *monthlyCost = LatestMonthlyCost;
+  *quarterlyCost = LatestQuarterlyCost;
+  portEXIT_CRITICAL(&CostMux);
+  return true;
+}
+
 /* ###################################################################################################
 *               N V S   H A N D L I N G    L O A D  F R O M
  * ###################################################################################################
@@ -108,6 +189,23 @@ uint32_t loadFromNVS(uint16_t* subtotalPulseCounter) {
   return pulseCounter;
 }
 
+static void loadCostFromNVS(float* lastChargeCost,
+                            float* dailyCost,
+                            float* monthlyCost,
+                            float* quarterlyCost) {
+  if (!lastChargeCost || !dailyCost || !monthlyCost || !quarterlyCost) {
+    return;
+  }
+
+  Preferences pref;
+  pref.begin(COUNT_NVS_NAMESPACE, true); // true = read-only
+  *lastChargeCost = pref.getFloat("last_charge_cost", 0.0f);
+  *dailyCost = pref.getFloat("daily_cost", 0.0f);
+  *monthlyCost = pref.getFloat("monthly_cost", 0.0f);
+  *quarterlyCost = pref.getFloat("quarterly_cost", 0.0f);
+  pref.end();
+}
+
 /* ###################################################################################################
  *               N V S   H A N D L I N G    S A V E    T O
  * ###################################################################################################
@@ -120,6 +218,19 @@ void saveToNVS(uint32_t pulseCounter, uint16_t subtotalPulseCounter) {
   pref.end();
 }
 
+static void saveCostToNVS(float lastChargeCost,
+                          float dailyCost,
+                          float monthlyCost,
+                          float quarterlyCost) {
+  Preferences pref;
+  pref.begin(COUNT_NVS_NAMESPACE, false); // false = read/write
+  pref.putFloat("last_charge_cost", lastChargeCost);
+  pref.putFloat("daily_cost", dailyCost);
+  pref.putFloat("monthly_cost", monthlyCost);
+  pref.putFloat("quarterly_cost", quarterlyCost);
+  pref.end();
+}
+
 static void saveControlledPowerCycleToNVS(bool controlledPowerCycle) {
   Preferences pref;
   pref.begin(COUNT_NVS_NAMESPACE, false); // false = read/write
@@ -129,8 +240,16 @@ static void saveControlledPowerCycleToNVS(bool controlledPowerCycle) {
 
 static bool trySaveToNVS(uint32_t pulseCounter,
                          uint16_t subtotalPulseCounter,
+                         float lastChargeCost,
+                         float dailyCost,
+                         float monthlyCost,
+                         float quarterlyCost,
                          uint32_t& lastSavedPulseCounter,
                          uint16_t& lastSavedSubtotalPulseCounter,
+                         float& lastSavedLastChargeCost,
+                         float& lastSavedDailyCost,
+                         float& lastSavedMonthlyCost,
+                         float& lastSavedQuarterlyCost,
                          uint32_t& lastSaveMs,
                          bool& saveDeferredDuringOta) {
   if (isOtaInProgress()) {
@@ -142,8 +261,13 @@ static bool trySaveToNVS(uint32_t pulseCounter,
   }
 
   saveToNVS(pulseCounter, subtotalPulseCounter);
+  saveCostToNVS(lastChargeCost, dailyCost, monthlyCost, quarterlyCost);
   lastSavedPulseCounter = pulseCounter;
   lastSavedSubtotalPulseCounter = subtotalPulseCounter;
+  lastSavedLastChargeCost = lastChargeCost;
+  lastSavedDailyCost = dailyCost;
+  lastSavedMonthlyCost = monthlyCost;
+  lastSavedQuarterlyCost = quarterlyCost;
   lastSaveMs = millis();
   saveDeferredDuringOta = false;
   return true;
@@ -174,8 +298,13 @@ static void directResetTask(void* pvParameters) {
     portENTER_CRITICAL(&EmergencyCounterMux);
     uint32_t pc = gEmergencyPulseCounter;
     uint16_t sc = gEmergencySubtotalPulseCounter;
+    float lc = gEmergencyLastChargeCost;
+    float dc = gEmergencyDailyCost;
+    float mc = gEmergencyMonthlyCost;
+    float qc = gEmergencyQuarterlyCost;
     portEXIT_CRITICAL(&EmergencyCounterMux);
     saveToNVS(pc, sc);
+    saveCostToNVS(lc, dc, mc, qc);
     saveControlledPowerCycleToNVS(true);
   }
 }
@@ -317,16 +446,26 @@ static void PulseInputTask( void* pvParameters) {
   uint32_t lastTs = 0;
   uint16_t subtotalPulseCounter = 0;
   uint32_t pulseCounter = loadFromNVS(&subtotalPulseCounter);
+  float lastChargeCost = 0.0f;
+  float dailyCost = 0.0f;
+  float monthlyCost = 0.0f;
+  float quarterlyCost = 0.0f;
+  loadCostFromNVS(&lastChargeCost, &dailyCost, &monthlyCost, &quarterlyCost);
   updateEmergencyCounters(pulseCounter, subtotalPulseCounter);
   float powerW = 0.0f;
   float energyKwh = (float)pulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
   float subtotalKwh = (float)subtotalPulseCounter / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
 
   updateLatestEnergySnapshot(powerW, energyKwh, subtotalKwh);
+  updateLatestCostSnapshot(lastChargeCost, dailyCost, monthlyCost, quarterlyCost);
 
   uint32_t lastSaveMs = millis();
   uint32_t lastSavedPulseCounter = pulseCounter;
   uint16_t lastSavedSubtotalPulseCounter = subtotalPulseCounter;
+  float lastSavedLastChargeCost = lastChargeCost;
+  float lastSavedDailyCost = dailyCost;
+  float lastSavedMonthlyCost = monthlyCost;
+  float lastSavedQuarterlyCost = quarterlyCost;
   bool saveDeferredDuringOta = false;
 
                                                     #ifdef HEADLESS_DEBUG
@@ -387,6 +526,7 @@ static void PulseInputTask( void* pvParameters) {
 
     if (shouldReset) {
       saveToNVS(pulseCounter, subtotalPulseCounter);
+      saveCostToNVS(lastChargeCost, dailyCost, monthlyCost, quarterlyCost);
       if (resetType == RESET_HARD) {
         if (HARD_RESET_GPIO >= 0) {
           digitalWrite(HARD_RESET_GPIO, HIGH); // Trigger external power-cycle hardware
@@ -415,8 +555,16 @@ static void PulseInputTask( void* pvParameters) {
       if (pulseCounter != previousPulseCounter) {
         trySaveToNVS(pulseCounter,
                      subtotalPulseCounter,
+                     lastChargeCost,
+                     dailyCost,
+                     monthlyCost,
+                     quarterlyCost,
                      lastSavedPulseCounter,
                      lastSavedSubtotalPulseCounter,
+                     lastSavedLastChargeCost,
+                     lastSavedDailyCost,
+                     lastSavedMonthlyCost,
+                     lastSavedQuarterlyCost,
                      lastSaveMs,
                      saveDeferredDuringOta);
       }
@@ -440,8 +588,16 @@ static void PulseInputTask( void* pvParameters) {
       if (subtotalChanged) {
         trySaveToNVS(pulseCounter,
                      subtotalPulseCounter,
+                     lastChargeCost,
+                     dailyCost,
+                     monthlyCost,
+                     quarterlyCost,
                      lastSavedPulseCounter,
                      lastSavedSubtotalPulseCounter,
+                     lastSavedLastChargeCost,
+                     lastSavedDailyCost,
+                     lastSavedMonthlyCost,
+                     lastSavedQuarterlyCost,
                      lastSaveMs,
                      saveDeferredDuringOta);
       }
@@ -450,6 +606,63 @@ static void PulseInputTask( void* pvParameters) {
       float subtotalKwh = 0.0f;
       updateLatestEnergySnapshot(powerW, energyKwh, subtotalKwh);
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
+    }
+
+    bool resetLastChargeCost = false;
+    bool resetDailyCost = false;
+    bool resetMonthlyCost = false;
+    bool resetQuarterlyCost = false;
+    portENTER_CRITICAL(&CostResetMux);
+    if (LastChargeCostResetPending) {
+      LastChargeCostResetPending = false;
+      resetLastChargeCost = true;
+    }
+    if (DailyCostResetPending) {
+      DailyCostResetPending = false;
+      resetDailyCost = true;
+    }
+    if (MonthlyCostResetPending) {
+      MonthlyCostResetPending = false;
+      resetMonthlyCost = true;
+    }
+    if (QuarterlyCostResetPending) {
+      QuarterlyCostResetPending = false;
+      resetQuarterlyCost = true;
+    }
+    portEXIT_CRITICAL(&CostResetMux);
+
+    if (resetLastChargeCost || resetDailyCost || resetMonthlyCost || resetQuarterlyCost) {
+      if (resetLastChargeCost) {
+        lastChargeCost = 0.0f;
+      }
+      if (resetDailyCost) {
+        dailyCost = 0.0f;
+      }
+      if (resetMonthlyCost) {
+        monthlyCost = 0.0f;
+      }
+      if (resetQuarterlyCost) {
+        quarterlyCost = 0.0f;
+      }
+
+      updateLatestCostSnapshot(lastChargeCost, dailyCost, monthlyCost, quarterlyCost);
+
+      trySaveToNVS(pulseCounter,
+                   subtotalPulseCounter,
+                   lastChargeCost,
+                   dailyCost,
+                   monthlyCost,
+                   quarterlyCost,
+                   lastSavedPulseCounter,
+                   lastSavedSubtotalPulseCounter,
+                   lastSavedLastChargeCost,
+                   lastSavedDailyCost,
+                   lastSavedMonthlyCost,
+                   lastSavedQuarterlyCost,
+                   lastSaveMs,
+                   saveDeferredDuringOta);
+
+      publishMqttEnergy(powerW, energyKwh, subtotalKwh);
     }
 
     // Wait for pulse timestamp from ISR
@@ -468,6 +681,17 @@ static void PulseInputTask( void* pvParameters) {
       // ---- 1. Pulse counting ----
       pulseCounter++;
       subtotalPulseCounter++;
+      float pulseCost = 0.0f;
+      if (((TaskParams_t*)pvParameters)->pulse_per_kWh > 0) {
+        pulseCost = gCurrentEnergyPrice / (float)((TaskParams_t*)pvParameters)->pulse_per_kWh;
+      }
+      if (isChargingSessionCharging()) {
+        lastChargeCost += pulseCost;
+      }
+      dailyCost += pulseCost;
+      monthlyCost += pulseCost;
+      quarterlyCost += pulseCost;
+      updateLatestCostSnapshot(lastChargeCost, dailyCost, monthlyCost, quarterlyCost);
       updateEmergencyCounters(pulseCounter, subtotalPulseCounter);
 
                                           #ifdef HEADLESS_DEBUG
@@ -540,8 +764,16 @@ static void PulseInputTask( void* pvParameters) {
 
         trySaveToNVS(pulseCounter,
                      subtotalPulseCounter,
+                     lastChargeCost,
+                     dailyCost,
+                     monthlyCost,
+                     quarterlyCost,
                      lastSavedPulseCounter,
                      lastSavedSubtotalPulseCounter,
+                     lastSavedLastChargeCost,
+                     lastSavedDailyCost,
+                     lastSavedMonthlyCost,
+                     lastSavedQuarterlyCost,
                      lastSaveMs,
                      saveDeferredDuringOta);
       }

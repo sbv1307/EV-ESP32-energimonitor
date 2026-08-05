@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- **MQTT cost sensors for Home Assistant**: added retained cost metrics for latest charge, daily total, monthly total, and quarterly total so HA can display charging cost alongside energy usage.
+- **Cost entity discovery**: MQTT discovery now publishes separate Home Assistant entities for `LastCost`, `DailyCost`, `MonthCost`, and `QtrCost` instead of overloading the energy-only topics.
+
+### Changed
+
+- **Readable HA labels for costs**: the discovery payload now uses short human-readable names for the cost entities while keeping the MQTT JSON keys compact and space-free.
+- **Discovery topic uniqueness**: each MQTT entity continues to use its own discovery config topic so HA does not overwrite one entity with another during republish.
+
+### Fixed
+
+- **Home Assistant cost entity collision**: cost metrics now show up as separate entities in HA instead of only the first published monetary sensor being retained in the UI.
+
 ## [V4.8.0] - 2026-07-21
 
 ### Fixed

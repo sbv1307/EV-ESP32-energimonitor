@@ -146,6 +146,7 @@ static bool createStartSnapshot() {
   gSnapshot.startOdometerKm = telemetry.odometerMiles * milesToKm;
 
   saveSessionToNvs();
+  requestLastChargeCostReset();
 
                                                                   #ifdef DEBUG_CHARGING_SESSION
                                                                     Serial.println("Chargingsession.cpp: Charging start snapshot created");

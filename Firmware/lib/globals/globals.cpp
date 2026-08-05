@@ -22,6 +22,7 @@ bool gDisplayUpdateAvailable = true;
 bool gSmartChargingActivated = false;
 float gChargeEnergyKwh = 0.0f;
 char gChargingStartTime[6] = {0};
+float gCurrentEnergyPrice = 0.0f;
 float gEnergyPriceRef = 0.0f;
 float gEnergyPriceLimit = 0.0f;
 bool gMqttConnected = false;

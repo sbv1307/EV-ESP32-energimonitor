@@ -495,6 +495,22 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
               pendingTelemetryToSend = true;
               publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry pending (queue busy)", false);
             }
+
+            if (timeinfo.tm_mday == 1) {
+              if (sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "MonthlyTelemetry")) {
+                publishMqttLog(MQTT_LOG_SUFFIX, "Monthly telemetry sent", false);
+              } else {
+                publishMqttLog(MQTT_LOG_SUFFIX, "Monthly telemetry failed", false);
+              }
+
+              if (timeinfo.tm_mon == 0 || timeinfo.tm_mon == 3 || timeinfo.tm_mon == 6 || timeinfo.tm_mon == 9) {
+                if (sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "QuarterlyTelemetry")) {
+                  publishMqttLog(MQTT_LOG_SUFFIX, "Quarterly telemetry sent", false);
+                } else {
+                  publishMqttLog(MQTT_LOG_SUFFIX, "Quarterly telemetry failed", false);
+                }
+              }
+            }
           } else {
             pendingEnergyKwh = energyKwh;
             pendingTelemetryToSend = true;
@@ -502,6 +518,13 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
           }
         }
         requestSubtotalReset();
+        requestDailyCostReset();
+        if (timeinfo.tm_mday == 1) {
+          requestMonthlyCostReset();
+          if (timeinfo.tm_mon == 0 || timeinfo.tm_mon == 3 || timeinfo.tm_mon == 6 || timeinfo.tm_mon == 9) {
+            requestQuarterlyCostReset();
+          }
+        }
         publishMqttLog(MQTT_LOG_SUFFIX, "Day changed, subtotal reset requested", false);
         lastProcessedDailyTelemetryDateKey = currentDateKey;
       }

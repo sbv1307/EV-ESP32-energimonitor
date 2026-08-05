@@ -26,7 +26,16 @@ bool getLatestEnergyKwh(float* energyKwh);
 
 bool getLatestEnergySnapshot(float* powerW, float* energyKwh, float* subtotalKwh);
 
+bool getLatestCostSnapshot(float* lastChargeCost,
+                           float* dailyCost,
+                           float* monthlyCost,
+                           float* quarterlyCost);
+
 void requestSubtotalReset();
+void requestLastChargeCostReset();
+void requestDailyCostReset();
+void requestMonthlyCostReset();
+void requestQuarterlyCostReset();
 
 typedef enum {
   RESET_SOFT,

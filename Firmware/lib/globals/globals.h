@@ -32,12 +32,12 @@ extern volatile UBaseType_t gButtonPublishTaskStackHighWater;
 extern volatile size_t  gInitialFreeHeapSize;
 
 // Task stack sizes (in words)
-constexpr int NETWORK_TASK_STACK_SIZE = 3849; // Optimal size: 3742 stack size for the task
-constexpr int TESLA_TELEMETRY_TASK_STACK_SIZE = 8750; // Optimal size: 7880 stack size for the task
-constexpr int CONFIGURATION_TASK_STACK_SIZE = 3739; // Optimal size: 3724 stack size for the task. This task is used for publishing MQTT configurations, which can involve building large JSON payloads, so it may require more stack than typical tasks. It's a one-shot task that runs at startup and after OTA updates to publish the device configuration to MQTT, and then deletes itself. The stack size can be adjusted based on observed high water marks during testing to ensure it has enough stack for the largest expected configuration payloads without being excessively large.
-constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2007; // Optimal size: 2517 stack size for the WiFi connection task. This task handles WiFi connectivity and MQTT communication, which can involve operations that require more stack, especially during MQTT reconnection attempts and publishing. The stack size can be adjusted based on observed high water marks during testing to ensure it has enough stack for these operations without being excessively large.
-constexpr int PULSE_INPUT_TASK_STACK_SIZE = 2388; // Optimal size:    8KB stack size for the task
-constexpr int BUTTON_PUBLISH_TASK_STACK_SIZE = 2130; // Optimal size: 2145 One-shot task stack size for MQTT publish triggered by button ISR queue.
+constexpr int NETWORK_TASK_STACK_SIZE = 3849; // Observed target around 3742 words; keep a small safety margin.
+constexpr int TESLA_TELEMETRY_TASK_STACK_SIZE = 8750; // Observed target around 7880 words; keep larger margin for HTTP/TLS and payload formatting.
+constexpr int CONFIGURATION_TASK_STACK_SIZE = 3739; // Observed target around 3724 words; one-shot MQTT discovery publish path.
+constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2688; // Raised from 2007 because observed target is around 2517 words.
+constexpr int PULSE_INPUT_TASK_STACK_SIZE = 3072; // Raised for added cost-tracking/reset/NVS paths; continue monitoring watermark.
+constexpr int BUTTON_PUBLISH_TASK_STACK_SIZE = 2304; // Raised from 2130 because observed target is around 2145 words.
 // OledUpdateTaskStackSize is defined in oled_library.h since it's only used for the OLED update task, which is defined in that library.
 
 // Global variables for display update
@@ -45,6 +45,7 @@ extern bool gDisplayUpdateAvailable; // Flag to indicate if a display update is 
 extern bool gSmartChargingActivated; // Flag to indicate if smart charging is activated. Set based on received MQTT messages, can be used to adjust display or logic accordingly.
 extern float gChargeEnergyKwh; // Energy charged in the current session in kWh, updated at the end of the session
 extern char gChargingStartTime[6];
+extern float gCurrentEnergyPrice;
 extern float gEnergyPriceRef;
 extern float gEnergyPriceLimit;
 
