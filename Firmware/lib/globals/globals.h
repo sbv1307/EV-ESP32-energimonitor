@@ -32,7 +32,7 @@ extern volatile UBaseType_t gButtonPublishTaskStackHighWater;
 extern volatile size_t  gInitialFreeHeapSize;
 
 // Task stack sizes (in words)
-constexpr int NETWORK_TASK_STACK_SIZE = 3849; // Observed target around 3742 words; keep a small safety margin.
+constexpr int NETWORK_TASK_STACK_SIZE = 4608; // MQTT + OTA + button command handling share this task; raised headroom to avoid edge-case stack pressure.
 constexpr int TESLA_TELEMETRY_TASK_STACK_SIZE = 8750; // Observed target around 7880 words; keep larger margin for HTTP/TLS and payload formatting.
 constexpr int CONFIGURATION_TASK_STACK_SIZE = 3739; // Observed target around 3724 words; one-shot MQTT discovery publish path.
 constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2688; // Raised from 2007 because observed target is around 2517 words.

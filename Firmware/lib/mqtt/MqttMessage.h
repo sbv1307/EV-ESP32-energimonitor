@@ -1,6 +1,6 @@
 #pragma once
 
-#define MQTT_TOPIC_LEN   64
+#define MQTT_TOPIC_LEN   128
 #define MQTT_PAYLOAD_LEN 1024
 
 struct MqttMessage {

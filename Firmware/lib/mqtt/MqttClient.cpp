@@ -60,6 +60,66 @@ static const char* mqttStateToText(int state) {
   }
 }
 
+static const char* mqttStateToCompactText(int state) {
+  switch (state) {
+    case MQTT_CONNECTION_TIMEOUT:
+      return "tmo";
+    case MQTT_CONNECTION_LOST:
+      return "lost";
+    case MQTT_CONNECT_FAILED:
+      return "tcp";
+    case MQTT_DISCONNECTED:
+      return "disc";
+    case MQTT_CONNECTED:
+      return "ok";
+    case MQTT_CONNECT_BAD_PROTOCOL:
+      return "proto";
+    case MQTT_CONNECT_BAD_CLIENT_ID:
+      return "cid";
+    case MQTT_CONNECT_UNAVAILABLE:
+      return "na";
+    case MQTT_CONNECT_BAD_CREDENTIALS:
+      return "cred";
+    case MQTT_CONNECT_UNAUTHORIZED:
+      return "auth";
+    default:
+      return "unk";
+  }
+}
+
+static String buildCompactBrokerLabel(const char* broker, int port) {
+  String host = broker ? String(broker) : String("?");
+  if (host.length() == 0) {
+    host = "?";
+  }
+
+  bool maybeIpv4 = true;
+  uint8_t dotCount = 0;
+  for (size_t i = 0; i < host.length(); ++i) {
+    const char ch = host[i];
+    if (ch == '.') {
+      ++dotCount;
+      continue;
+    }
+    if (ch < '0' || ch > '9') {
+      maybeIpv4 = false;
+      break;
+    }
+  }
+
+  if (maybeIpv4 && dotCount == 3) {
+    const int lastDot = host.lastIndexOf('.');
+    const int prevDot = (lastDot > 0) ? host.lastIndexOf('.', lastDot - 1) : -1;
+    if (prevDot >= 0) {
+      host = host.substring(prevDot + 1);  // Keep only final two octets: c.d
+    }
+  } else if (host.length() > 8) {
+    host = host.substring(0, 8);
+  }
+
+  return host + ":" + String(port);
+}
+
 static bool tryParseJsonBool(const JsonVariantConst& value, bool& outValue) {
   if (value.is<bool>()) {
     outValue = value.as<bool>();
@@ -84,6 +144,48 @@ static bool tryParseJsonBool(const JsonVariantConst& value, bool& outValue) {
   }
 
   return false;
+}
+
+static String buildEntityToken(const String& source, char replacement) {
+  String token;
+  token.reserve(source.length());
+
+  for (size_t i = 0; i < source.length(); ++i) {
+    const char ch = source[i];
+    if ((ch >= 'a' && ch <= 'z') ||
+        (ch >= 'A' && ch <= 'Z') ||
+        (ch >= '0' && ch <= '9')) {
+      token += ch;
+    } else if (ch == '-' || ch == '_') {
+      token += ch;
+    } else {
+      token += replacement;
+    }
+  }
+
+  while (token.indexOf(String(replacement) + String(replacement)) >= 0) {
+    token.replace(String(replacement) + String(replacement), String(replacement));
+  }
+
+  while (token.length() > 0 && token[0] == replacement) {
+    token.remove(0, 1);
+  }
+  while (token.length() > 0 && token[token.length() - 1] == replacement) {
+    token.remove(token.length() - 1, 1);
+  }
+
+  if (token.length() == 0) {
+    token = "entity";
+  }
+
+  return token;
+}
+
+static String escapeForJsonDoubleQuotedString(const String& source) {
+  String escaped = source;
+  escaped.replace("\\", "\\\\");
+  escaped.replace("\"", "\\\"");
+  return escaped;
 }
 
 struct MqttRxMessage {
@@ -233,7 +335,7 @@ static void reconnect(TaskParams_t* params) {
       gMqttConnected = false;
       const int state = mqttClient.state();
       OledEnergyDisplay::showMonitorLine("MQT fail rc:" + String(state));
-      OledEnergyDisplay::showMonitorLine(String("MQT ") + mqttStateToText(state) + " " + params->mqttBrokerIP + ":" + String(params->mqttBrokerPort));
+      OledEnergyDisplay::showMonitorLine(String("MQT ") + mqttStateToCompactText(state) + " " + buildCompactBrokerLabel(params->mqttBrokerIP, params->mqttBrokerPort));
 
                                                               #ifdef DEBUG
                                                               Serial.print("MqttClient: MQTT failed, rc=");
@@ -245,7 +347,13 @@ static void reconnect(TaskParams_t* params) {
                                                               Serial.print(":");
                                                               Serial.print(params->mqttBrokerPort);
                                                               Serial.print(" wifi=");
-                                                              Serial.println(WiFi.localIP());
+                                                              Serial.print(WiFi.localIP());
+                                                              #ifdef STACK_WATERMARK
+                                                              Serial.print(" netTaskHW=");
+                                                              Serial.println((unsigned)gNetworkTaskStackHighWater);
+                                                              #else
+                                                              Serial.println();
+                                                              #endif
                                                               #endif
     }
   }
@@ -301,6 +409,19 @@ void mqttInit(TaskParams_t* params) {
  */
 bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
   if (!mqttQueue || isOtaInProgress()) return false;
+
+  const size_t topicLen = strlen(topic);
+  const size_t payloadLen = strlen(payload);
+  if (topicLen >= MQTT_TOPIC_LEN || payloadLen >= MQTT_PAYLOAD_LEN) {
+    #ifdef DEBUG
+    Serial.printf("MqttClient: publish dropped (topic:%u/%u, payload:%u/%u)\n",
+                  static_cast<unsigned>(topicLen),
+                  static_cast<unsigned>(MQTT_TOPIC_LEN - 1),
+                  static_cast<unsigned>(payloadLen),
+                  static_cast<unsigned>(MQTT_PAYLOAD_LEN - 1));
+    #endif
+    return false;
+  }
 
   MqttMessage msg{};
   strncpy(msg.topic, topic, MQTT_TOPIC_LEN - 1);
@@ -644,11 +765,13 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
 {
   char payload[1024];
   JsonDocument doc;
+  const String entityToken = buildEntityToken(entityName, '_');
+  const String escapedEntityName = escapeForJsonDoubleQuotedString(entityName);
 
   if (component == MQTT_NUMBER_COMPONENT && deviceClass == MQTT_ENERGY_DEVICECLASS)
   {
     doc["command_topic"] = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_SUFFIX_SET;
-    doc["command_template"] = String("{\"" + entityName + "\": {{ value }} }");
+    doc["command_template"] = String("{\"" + escapedEntityName + "\": {{ value }} }");
     doc["max"] = 99999.99;
     doc["min"] = 0.0;
     doc["step"] = 0.01;
@@ -660,13 +783,13 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
   doc["payload_not_available"] = "False";
   doc["device_class"] = deviceClass;
   doc["unit_of_measurement"] = unitOfMeasurement;
-  doc["unique_id"] = String(entityName + "_" + mqttDeviceNameWithMac);
+  doc["unique_id"] = String(entityToken + "_" + mqttDeviceNameWithMac);
   doc["qos"] = 0;
 
   if (component == MQTT_SENSOR_COMPONENT && deviceClass == MQTT_POWER_DEVICECLASS)
-    doc["value_template"] = String("{{ value_json." + entityName + "}}");
+    doc["value_template"] = String("{{ value_json[\"" + escapedEntityName + "\"] }}");
   else 
-    doc["value_template"] = String("{{ value_json." + entityName + " | round(2)}}");
+    doc["value_template"] = String("{{ value_json[\"" + escapedEntityName + "\"] | round(2) }}");
 
   // Suggested by GPT-5.2
   /* 
@@ -685,7 +808,7 @@ void publishMqttEnergyConfigJson( String component, String entityName, String un
   serializeJson(doc, payload, sizeof(payload));
   // Home Assistant requires one unique discovery config topic per entity.
   // Reusing the same topic causes each publish to overwrite the previous config.
-  String energyTopic = String(MQTT_DISCOVERY_PREFIX) + component + "/" + mqttDeviceNameWithMac + "/" + entityName + "/config";
+  String energyTopic = String(MQTT_DISCOVERY_PREFIX) + component + "/" + mqttDeviceNameWithMac + "/" + entityToken + "/config";
 
   mqttEnqueuePublish(energyTopic.c_str(), payload, RETAINED);
 

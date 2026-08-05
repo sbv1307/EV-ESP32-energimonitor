@@ -1,16 +1,16 @@
 #pragma once
 
 #include <Arduino.h>
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.0.2";
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.0.0";
 /*
  * About NVS (Non-Volatile Storage)
  * NVS is used to store configuration, pulse counter, and charging session data persistently.
  * Each logical grouping of data has its own NVS namespace to avoid conflicts and allow for independent management:
-- CONFIG_NVS_NAMESPACE: Used for general configuration settings (e.g., WiFi credentials, MQTT settings).
-- COUNT_NVS_NAMESPACE: Used specifically for storing the pulse counter and subtotal in the PulseInputTask.
-- CHARGE_NVS_NAMESPACE: Used for storing the current charging session state and snapshot in the ChargingSession module.
-- TESLA_PREF_NVS_NAMESPACE: Used for storing Tesla API related preferences such as GPIO pins and thresholds.
+ * - CONFIG_NVS_NAMESPACE: Used for general configuration settings (e.g., WiFi credentials, MQTT settings).
+ * - COUNT_NVS_NAMESPACE: Used specifically for storing the pulse counter and subtotal in the PulseInputTask.
+ * - CHARGE_NVS_NAMESPACE: Used for storing the current charging session state and snapshot in the ChargingSession module.
+ * - TESLA_PREF_NVS_NAMESPACE: Used for storing Tesla API related preferences such as GPIO pins and thresholds.
  * This separation allows for better organization and reduces the risk of accidentally overwriting unrelated data.
  * NOTE: NVS and data stored will not be cleared on OTA updates, so it is important to manage stored data carefully and 
  * consider versioning if the structure of stored data changes in future updates.

@@ -7,19 +7,40 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V5.0.2] - 2026-08-05
+
 ### Added
 
 - **MQTT cost sensors for Home Assistant**: added retained cost metrics for latest charge, daily total, monthly total, and quarterly total so HA can display charging cost alongside energy usage.
-- **Cost entity discovery**: MQTT discovery now publishes separate Home Assistant entities for `LastCost`, `DailyCost`, `MonthCost`, and `QtrCost` instead of overloading the energy-only topics.
+- **Cost entity discovery**: MQTT discovery publishes separate Home Assistant entities for latest charge, daily, monthly, and quarterly costs.
 
 ### Changed
 
-- **Readable HA labels for costs**: the discovery payload now uses short human-readable names for the cost entities while keeping the MQTT JSON keys compact and space-free.
-- **Discovery topic uniqueness**: each MQTT entity continues to use its own discovery config topic so HA does not overwrite one entity with another during republish.
+- **Sketch version** bumped to `V5.0.2` in `Firmware/lib/config/config.h`.
+- **Readable HA labels for costs**: discovery payload uses human-readable labels for cost entities while preserving stable JSON keys.
+- **OLED MQTT failure lines shortened** in `Firmware/lib/mqtt/MqttClient.cpp` so the most relevant state/broker text fits the monitor line width.
 
 ### Fixed
 
-- **Home Assistant cost entity collision**: cost metrics now show up as separate entities in HA instead of only the first published monetary sensor being retained in the UI.
+- **Home Assistant cost entity visibility**: discovery for cost entities now uses unique config topics so entities no longer overwrite each other.
+- **MQTT discovery topic truncation**: increased MQTT topic buffer size in `Firmware/lib/mqtt/MqttMessage.h` and added publish length checks in `Firmware/lib/mqtt/MqttClient.cpp` to prevent silent truncation for long discovery topics.
+
+### Validation
+
+- Confirmed stable MQTT reconnect and payload publishing after the V5.0.2 changes.
+- Confirmed all expected MQTT-discovered Home Assistant entities are visible and updating.
+
+## [V5.0.1] - 2026-08-05
+
+### Changed
+
+- **Sketch version** bumped to `V5.0.1` in `Firmware/lib/config/config.h`.
+- **MQTT discovery compatibility**: Home Assistant entity names can now include spaces and display punctuation without breaking templates.
+
+### Fixed
+
+- **Discovery template key handling** in `Firmware/lib/mqtt/MqttClient.cpp`: `value_template` and `command_template` now escape entity names correctly.
+- **Discovery identity/topic safety** in `Firmware/lib/mqtt/MqttClient.cpp`: `unique_id` and discovery config topic entity segment now use a normalized token, avoiding invalid characters from display names.
 
 ## [V4.8.0] - 2026-07-21
 
