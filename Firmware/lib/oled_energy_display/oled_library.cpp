@@ -16,12 +16,25 @@ namespace {
 #if defined(ARDUINO_ARCH_ESP32)
 TaskHandle_t updateTaskHandle = nullptr;
 uint32_t updateIntervalMs = 20;
+volatile bool updateTaskRunRequested = false;
 
 void updateTask(void* /*pvParameters*/) {
   for (;;) {
+    if (!updateTaskRunRequested) {
+      break;
+    }
+
     OledLibrary::update();
+
+    if (!updateTaskRunRequested) {
+      break;
+    }
+
     vTaskDelay(pdMS_TO_TICKS(updateIntervalMs > 0 ? updateIntervalMs : 1));
   }
+
+  updateTaskHandle = nullptr;
+  vTaskDelete(nullptr);
 }
 #endif
 }
@@ -58,10 +71,12 @@ bool startBackgroundUpdater(uint32_t intervalMs,
                            int8_t coreId) {
 #if defined(ARDUINO_ARCH_ESP32)
   if (updateTaskHandle != nullptr) {
+    updateTaskRunRequested = true;
     return true;
   }
 
   updateIntervalMs = intervalMs > 0 ? intervalMs : 1;
+  updateTaskRunRequested = true;
 
   const BaseType_t result = xTaskCreatePinnedToCore(updateTask,
                                                      "OledUpdateTask",
@@ -72,6 +87,7 @@ bool startBackgroundUpdater(uint32_t intervalMs,
                                                      coreId);
   if (result != pdPASS) {
     updateTaskHandle = nullptr;
+    updateTaskRunRequested = false;
     return false;
   }
 
@@ -90,8 +106,15 @@ void stopBackgroundUpdater() {
   if (updateTaskHandle == nullptr) {
     return;
   }
-  vTaskDelete(updateTaskHandle);
-  updateTaskHandle = nullptr;
+
+  // Stop cooperatively so the update task can release shared display mutexes.
+  // Force-deleting the task while it owns a mutex can deadlock OTA callbacks.
+  updateTaskRunRequested = false;
+
+  const uint32_t startMs = millis();
+  while (updateTaskHandle != nullptr && (millis() - startMs) < 500) {
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
 #endif
 }
 

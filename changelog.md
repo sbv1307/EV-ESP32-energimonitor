@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V5.0.3] - 2026-08-06
+
+### Changed
+
+- **Sketch version** bumped to `V5.0.3` in `Firmware/lib/config/config.h`.
+- **OLED background updater shutdown** in `Firmware/lib/oled_energy_display/oled_library.cpp` now uses cooperative stop instead of force-deleting the task.
+
+### Fixed
+
+- **OTA upload stall at start**: resolved a potential mutex deadlock during OTA `onStart` when stopping OLED background updates; this could block OTA handling right after upload initialization.
+
 ## [V5.0.2] - 2026-08-05
 
 ### Added
