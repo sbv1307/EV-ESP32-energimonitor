@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [V5.0.4] - 2026-08-23
+
+### Changed
+
+- **Tesla telemetry task stack size** increased from `8750` to `8938` words.
+
 ## [V5.0.3] - 2026-08-06
 
 ### Changed
