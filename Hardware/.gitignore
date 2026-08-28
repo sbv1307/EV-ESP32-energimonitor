@@ -1,8 +1,0 @@
-library/
-Library/
-library/*
-gerbers/
-production/
-
-.history/
-EV-ESP32-energimonitor-backups/
