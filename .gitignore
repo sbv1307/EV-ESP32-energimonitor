@@ -16,6 +16,9 @@ build_timestamp.h
 assistant-format.md
 privateConfig.h
 
+# Hardware versioned separately
+Hardware/
+
 mqtt-trace.log
 mosquitto.log
 mosquitto.db

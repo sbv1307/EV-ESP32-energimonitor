@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.0.4";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.0.5";
 
 /*
  * About NVS (Non-Volatile Storage)

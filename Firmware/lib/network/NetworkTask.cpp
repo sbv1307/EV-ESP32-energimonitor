@@ -17,6 +17,7 @@
 static TaskHandle_t networkTaskHandle = nullptr;
 static TaskHandle_t wifiConnectionTaskHandle = nullptr;
 static constexpr BaseType_t kNetworkTaskCore = 1;
+static constexpr UBaseType_t kNetworkTaskPriority = 2;
 
 static bool isWiFiConnectionActive() {
   wl_status_t status = WiFi.status();
@@ -44,7 +45,7 @@ static void networkTask(void* pvParameters) {
     mqttLoop((TaskParams_t*)pvParameters);
     processPushButtonCommands();
 
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(isOtaInProgress() ? 1 : 10));
 
                                                     #ifdef STACK_WATERMARK
                                                     static uint32_t lastLog = 0;
@@ -120,7 +121,7 @@ static void wifiConnectionTask(void* pvParameters) {
     "NetworkTask",
     NETWORK_TASK_STACK_SIZE,
     params,
-    1,
+    kNetworkTaskPriority,
     &networkTaskHandle,
     kNetworkTaskCore
   );
