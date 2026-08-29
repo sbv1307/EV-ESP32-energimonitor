@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.0.5] - 2026-08-29
+
+### Changed
+
+- **Release**: V5.0.5 is marked as the current released firmware baseline.
+- **Sketch version**: kept at `V5.0.5` in `Firmware/lib/config/config.h`.
+
 ## [Unreleased]
 
 ## [V5.0.4] - 2026-08-23

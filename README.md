@@ -3,6 +3,17 @@ An ESP32 MQTT interface for an energy meter, used when charging your electrical 
 
 The energy meter connected to the ESP32 MQTT interface, will have a pulse output.
 
+## Release: V5.0.5
+
+This release is the current production firmware baseline for the EV charging monitor.
+
+### Included
+- Tesla telemetry and charging-session updates remain wired through the firmware's Google Sheets integration.
+- MQTT discovery and cost metrics remain active for Home Assistant monitoring.
+- OTA and OLED task stability fixes continue to be included in the current build.
+
+---
+
 
 ### The interface will publish the following to the MQTT broker:
 - A configuration, which can be picked up by Home Assistant (HA). HA will then be able to display the data mentioned below.
