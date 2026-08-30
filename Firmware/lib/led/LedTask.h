@@ -3,11 +3,13 @@
 #include <Arduino.h>
 
 /*
- * LED_BUILTIN control task for EV-ESP32-energimonitor.
+ * LED control task for EV-ESP32-energimonitor.
  *
- * The task is command-driven via a FreeRTOS queue.  It is started lazily on
- * the first call to sendLedCommand() and stays alive for the lifetime of the
- * firmware.
+ * Two independently driven LEDs are supported, each backed by its own
+ * FreeRTOS queue/task, started lazily on first use and alive for the
+ * lifetime of the firmware:
+ *  - LedId::Status – boot / WiFi / MQTT connectivity status (GPIO2)
+ *  - LedId::Charge – charging state + per-pulse activity (GPIO16)
  *
  * Supported commands
  * ------------------
@@ -22,10 +24,13 @@
  *  "TurnOff"             – turn LED off.
  *
  * Single API:
- *   sendLedCommand(const char* command);
+ *   sendLedCommand(LedId id, const char* command);
  */
 
-// Start the LED task (if not already running) and enqueue 'command'.
+enum class LedId : uint8_t { Status = 0, Charge = 1 };
+
+// Start the LED task for 'id' (if not already running) and enqueue 'command'.
 // 'command' is copied into the queue; the caller does not need to keep the
 // string alive after the call returns.
-void sendLedCommand(const char* command);
+void sendLedCommand(LedId id, const char* command);
+

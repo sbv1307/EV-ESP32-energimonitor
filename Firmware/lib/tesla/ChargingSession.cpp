@@ -290,7 +290,7 @@ void initChargingSession() {
 
   if (gSnapshot.active) {
     gState = ChargingState::Charging;
-    sendLedCommand("TurnOn");
+    sendLedCommand(LedId::Charge, "TurnOn");
 
                                                                 #ifdef DEBUG_CHARGING_SESSION
                                                                 Serial.println("Chargingsession.cpp: Charging session restored from NVS");
@@ -299,7 +299,7 @@ void initChargingSession() {
     publishMqttLog(MQTT_LOG_SUFFIX, "Charging session restored from NVS", false);
   } else {
     gState = ChargingState::Idle;
-    sendLedCommand("TurnOff");
+    sendLedCommand(LedId::Charge, "TurnOff");
 
                                                                 #ifdef DEBUG_CHARGING_SESSION
                                                                 Serial.println("Chargingsession.cpp: No active charging session in NVS; starting in Idle state");
@@ -470,12 +470,12 @@ void handleChargingSession(TaskParams_t* params) {
 
 
 
-  if (gMqttConnected) {
-    if (gState == ChargingState::Charging) {
-      sendLedCommand("TurnOn");
-    } else {
-      sendLedCommand("TurnOff");
-    }
+  // LED-Charge is a dedicated indicator now, so it reflects charging state
+  // independent of MQTT connectivity (unlike the shared status LED it used to be).
+  if (gState == ChargingState::Charging) {
+    sendLedCommand(LedId::Charge, "TurnOn");
+  } else {
+    sendLedCommand(LedId::Charge, "TurnOff");
   }
 
 }

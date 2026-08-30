@@ -113,7 +113,7 @@ void setup() {
                                                               gInitialFreeHeapSize = xPortGetFreeHeapSize();
                                                               #endif
 
-  sendLedCommand("TurnOn");
+  sendLedCommand(LedId::Status, "TurnOn");
 
   // Initialize reset GPIO pins as early as possible to prevent spurious power-cycle triggers during boot.
   // This must happen before any other task initialization to safely set the output state.
@@ -215,7 +215,7 @@ void loop() {
     
     if (isWifiReconnectNeeded()) {
       gMqttConnected = false;
-      sendLedCommand("TurnOn");
+      sendLedCommand(LedId::Status, "TurnOn");
 
                                                                       #ifdef HEADLESS_DEBUG
                                                                       showBootMonitorMessage("WiFi reconnect");
@@ -226,11 +226,11 @@ void loop() {
                                                                       #endif
       startNetworkTask( &networkParams );
     } else if (WiFi.status() == WL_IDLE_STATUS) {
-      sendLedCommand("TurnOn");
+      sendLedCommand(LedId::Status, "TurnOn");
     } else if (!gMqttConnected) {
-      sendLedCommand("Toggle");      // WiFi OK but MQTT down = blink
+      sendLedCommand(LedId::Status, "Toggle");      // WiFi OK but MQTT down = blink
     } else {
-      sendLedCommand("TurnOff");     // Both OK = off
+      sendLedCommand(LedId::Status, "TurnOff");     // Both OK = off
     }
   }
 

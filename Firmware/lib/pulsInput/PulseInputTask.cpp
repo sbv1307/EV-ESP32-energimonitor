@@ -661,7 +661,7 @@ static void PulseInputTask( void* pvParameters) {
     // Wait for pulse timestamp from ISR
     if (xQueueReceive(PulseInputQueue, &ts, pdMS_TO_TICKS(1000))) {
 
-      sendLedCommand("Blink");
+      sendLedCommand(LedId::Charge, "Blink");
 
                                           #ifdef HEADLESS_DEBUG
                                             OledEnergyDisplay::showMonitorLine("Pulse ts: " + String(ts));

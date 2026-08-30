@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.1.0] - 2026-08-30
+
+### Changed
+
+- **Sketch version** bumped to `V5.1.0` in `Firmware/lib/config/config.h`.
+- **LED status/charging indicators split into two independent LEDs**: `Firmware/lib/led/LedTask.cpp`/`.h` now support two independently driven LEDs via `enum class LedId { Status, Charge }` and `sendLedCommand(LedId, const char*)`, replacing the single shared `LED_BUILTIN` task.
+- **LED GPIO assignments** added to `config.h`: `LED_STATUS_GPIO` (2, boot/WiFi/MQTT connectivity status) and `LED_CHARGE_GPIO` (16, charging state + per-pulse activity blip).
+- **main.cpp** boot/WiFi/MQTT status LED commands now target `LedId::Status`.
+- **ChargingSession.cpp** charging-state LED commands now target `LedId::Charge`, and no longer require `gMqttConnected` to be true (that gate was only needed while the LED was shared with the connectivity indicator).
+- **PulseInputTask.cpp** per-pulse LED blink now targets `LedId::Charge`, blipping against the charge LED's current steady state.
+
 ## [V5.0.6] - 2026-08-30
 
 ### Changed

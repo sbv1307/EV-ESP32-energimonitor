@@ -1,4 +1,5 @@
 #include "LedTask.h"
+#include "config.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -40,23 +41,34 @@ typedef struct {
 //  Module-level state
 // ---------------------------------------------------------------------------
 
-static QueueHandle_t sLedQueue      = nullptr;
-static TaskHandle_t  sLedTaskHandle = nullptr;
+struct LedInstance {
+    uint8_t      gpio;
+    QueueHandle_t queue      = nullptr;
+    TaskHandle_t  taskHandle = nullptr;
+};
+
+static LedInstance sLeds[2] = {
+    { static_cast<uint8_t>(LED_STATUS_GPIO) },
+    { static_cast<uint8_t>(LED_CHARGE_GPIO) },
+};
 
 // ---------------------------------------------------------------------------
 //  LED task body
 // ---------------------------------------------------------------------------
 
-static void ledTask(void* /* pvParams */) {
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW);
+static void ledTask(void* pvParams) {
+    LedInstance* inst = static_cast<LedInstance*>(pvParams);
+    const uint8_t gpio = inst->gpio;
+
+    pinMode(gpio, OUTPUT);
+    digitalWrite(gpio, LOW);
     bool ledState = false;   // tracks the current logical LED state
 
     LedCommand_t item;
 
     while (true) {
         // Wait indefinitely for the next command.
-        if (xQueueReceive(sLedQueue, &item, portMAX_DELAY) != pdTRUE) {
+        if (xQueueReceive(inst->queue, &item, portMAX_DELAY) != pdTRUE) {
             continue;
         }
 
@@ -68,10 +80,10 @@ static void ledTask(void* /* pvParams */) {
         //  is updated and the while-condition re-evaluates it.
         // ---------------------------------------------------------------
         while (strcmp(item.cmd, "Toggle") == 0) {
-            if (xQueueReceive(sLedQueue, &item, pdMS_TO_TICKS(LED_TOGGLE_HALF_MS)) != pdTRUE) {
+            if (xQueueReceive(inst->queue, &item, pdMS_TO_TICKS(LED_TOGGLE_HALF_MS)) != pdTRUE) {
                 // Timeout – half period elapsed: flip LED.
                 ledState = !ledState;
-                digitalWrite(LED_BUILTIN, ledState ? HIGH : LOW);
+                digitalWrite(gpio, ledState ? HIGH : LOW);
             }
             // If a command was received, the while condition is re-checked.
             // A non-Toggle command exits the loop; another "Toggle" keeps it going.
@@ -93,12 +105,12 @@ static void ledTask(void* /* pvParams */) {
             for (int i = 0; i < count; i++) {
                 // Toggle away from current state.
                 ledState = !ledState;
-                digitalWrite(LED_BUILTIN, ledState ? HIGH : LOW);
+                digitalWrite(gpio, ledState ? HIGH : LOW);
                 vTaskDelay(pdMS_TO_TICKS(LED_BLINK_ON_MS));
 
                 // Toggle back.
                 ledState = !ledState;
-                digitalWrite(LED_BUILTIN, ledState ? HIGH : LOW);
+                digitalWrite(gpio, ledState ? HIGH : LOW);
 
                 // Inter-blink gap (omitted after the last blink).
                 if (i < count - 1) {
@@ -112,11 +124,11 @@ static void ledTask(void* /* pvParams */) {
         // ---------------------------------------------------------------
         else if (strcmp(item.cmd, "TurnOn") == 0) {
             ledState = true;
-            digitalWrite(LED_BUILTIN, HIGH);
+            digitalWrite(gpio, HIGH);
         }
         else if (strcmp(item.cmd, "TurnOff") == 0) {
             ledState = false;
-            digitalWrite(LED_BUILTIN, LOW);
+            digitalWrite(gpio, LOW);
         }
         // Unknown commands are silently ignored.
     }
@@ -128,17 +140,19 @@ static void ledTask(void* /* pvParams */) {
 //  Public API
 // ---------------------------------------------------------------------------
 
-void sendLedCommand(const char* command) {
+void sendLedCommand(LedId id, const char* command) {
     if (!command) return;
 
+    LedInstance& inst = sLeds[static_cast<uint8_t>(id)];
+
     // Lazily create the queue and start the task on the very first call.
-    if (sLedQueue == nullptr) {
-        sLedQueue = xQueueCreate(LED_QUEUE_DEPTH, sizeof(LedCommand_t));
+    if (inst.queue == nullptr) {
+        inst.queue = xQueueCreate(LED_QUEUE_DEPTH, sizeof(LedCommand_t));
     }
-    if (sLedTaskHandle == nullptr || eTaskGetState(sLedTaskHandle) == eDeleted) {
-        xTaskCreate(ledTask, "LedTask",
-                    LED_TASK_STACK_SIZE, nullptr,
-                    LED_TASK_PRIORITY, &sLedTaskHandle);
+    if (inst.taskHandle == nullptr || eTaskGetState(inst.taskHandle) == eDeleted) {
+        xTaskCreate(ledTask, id == LedId::Status ? "LedTaskStatus" : "LedTaskCharge",
+                    LED_TASK_STACK_SIZE, &inst,
+                    LED_TASK_PRIORITY, &inst.taskHandle);
     }
 
     LedCommand_t item;
@@ -147,5 +161,5 @@ void sendLedCommand(const char* command) {
 
     // Non-blocking send; if the queue is full the command is dropped rather
     // than blocking the caller (which may be called from a time-sensitive context).
-    xQueueSend(sLedQueue, &item, 0);
+    xQueueSend(inst.queue, &item, 0);
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.0.6";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.1.0";
 
 /*
  * About NVS (Non-Volatile Storage)
@@ -76,3 +76,7 @@ constexpr int DIRECT_RESET_GPIO = 32; // Input GPIO for power-fail signal; trigg
                                        // GPIO 32: ADC1, interrupt-capable, internal pull-up supported (unlike GPIO 34-39).
                                        // Requires PCB trace routed to GPIO 32 (not GPIO 35).
 constexpr uint32_t UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES = 10; // Delay before forcing RESET_HARD after uncontrolled boot.
+
+// LED GPIO assignments
+constexpr int LED_STATUS_GPIO = 2;  // Boot / WiFi / MQTT connectivity status
+constexpr int LED_CHARGE_GPIO = 16; // Charging state (steady) and per-pulse activity (blip)
