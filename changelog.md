@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.0.6] - 2026-08-30
+
+### Changed
+
+- **Sketch version** bumped to `V5.0.6` in `Firmware/lib/config/config.h`.
+- **Pulse input interrupt mode** changed from `FALLING` to `RISING` edge detection in `Firmware/lib/config/config.h` to match the inverted output of the 74HC14 Schmitt trigger signal conditioning circuit.
+- **Pulse input GPIO configuration** now uses plain `INPUT` mode (no internal pull-up/down) since the 74HC14 output is push-pull and hardware provides 4.7kΩ external pull-up and 100nF filtering.
+- **PulseInputTask.cpp**: `attachPulseInputInterrupt()` now accepts `pinInputMode` parameter instead of auto-selecting based on edge mode, allowing hardware-specific pin configuration.
+- **Hardware signal chain documentation**: improved comments in `config.h` explaining the complete 74HC14 inverting Schmitt trigger circuit (U2A with R17 pull-up and C18 filter).
+
+### Updated
+
+- **platformio.ini**: OTA upload configuration network addresses updated to current test environment (changed from 192.168.22.x to 192.168.11.x).
+
 ## [V5.0.5] - 2026-08-29
 
 ### Changed
