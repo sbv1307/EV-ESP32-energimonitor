@@ -12,7 +12,7 @@ bool isPulseInputReady();
 
 bool waitForPulseInputReady(uint32_t timeoutMs);
 
-bool attachPulseInputInterrupt(int gpio, int mode);
+bool attachPulseInputInterrupt(int gpio, int mode, int pinInputMode = INPUT);
 
 void suspendPulseInputISR(); // Detach pulse interrupt (call during OTA)
 void resumePulseInputISR();  // Re-attach pulse interrupt (call after OTA)

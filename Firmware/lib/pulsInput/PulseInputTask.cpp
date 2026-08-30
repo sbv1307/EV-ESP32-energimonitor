@@ -402,19 +402,12 @@ bool waitForPulseInputReady(uint32_t timeoutMs) {
 static int sPulseInputGpio = -1;
 static int sPulseInputMode = -1;
 
-bool attachPulseInputInterrupt(int gpio, int mode) {
+bool attachPulseInputInterrupt(int gpio, int mode, int pinInputMode) {
   if (gpio < 0 || PulseInputQueue == nullptr) {
     return false;
   }
   sPulseInputGpio = gpio;
   sPulseInputMode = mode;
-  // Bias input according to edge/level trigger so the idle state is stable.
-  int pinInputMode = INPUT;
-  if (mode == FALLING || mode == LOW) {
-    pinInputMode = INPUT_PULLUP;
-  } else if (mode == RISING || mode == HIGH) {
-    pinInputMode = INPUT_PULLDOWN;
-  }
   pinMode(gpio, pinInputMode);
   attachInterrupt(digitalPinToInterrupt(gpio), PulseInputISR, mode);
   return true;

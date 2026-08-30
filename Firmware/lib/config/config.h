@@ -26,10 +26,12 @@ constexpr char CHARGE_NVS_NAMESPACE[] = "charging"; // ChargingSession.cpp: Char
 constexpr char TESLA_PREF_NVS_NAMESPACE[] = "tesla"; // TeslaApi.cpp: GPIO and thresholds for pulse input (energy meter)
 
 constexpr int PULSE_INPUT_GPIO = 33; /* PULSE_INPUT_GPIO = 33
-                                        Open-collector output requires an internal (or external) pull-up. 
-                                        GPIO 33 is interrupt-capable, ADC1, and has internal pull-up support — perfect 
-                                        for this. Configure as INPUT_PULLUP.*/
-constexpr int PULSE_INPUT_INTERRUPT_MODE = FALLING;
+                                        Driven by 74HC14 inverting Schmitt trigger (U2A) with 4.7kΩ pull-up (R17)
+                                        and 100nF filter capacitor (C18) on input (τ ≈ 470 µs).
+                                        Meter open-collector pulse (LOW) is inverted to active-HIGH on GPIO 33.
+                                        Configure as INPUT with RISING edge interrupt (no internal pull-up/down needed). */
+constexpr int PULSE_INPUT_INTERRUPT_MODE = RISING;
+constexpr int PULSE_INPUT_PIN_MODE = INPUT; // 74HC14 output is push-pull; no internal pull-up/down needed
 
 // Charging session trigger (analog input based)
 /*

@@ -136,7 +136,7 @@ void setup() {
   */
   waitForPulseInputReady(0);
   if (PULSE_INPUT_GPIO >= 0) {
-    while (!attachPulseInputInterrupt(PULSE_INPUT_GPIO, PULSE_INPUT_INTERRUPT_MODE)) {
+    while (!attachPulseInputInterrupt(PULSE_INPUT_GPIO, PULSE_INPUT_INTERRUPT_MODE, PULSE_INPUT_PIN_MODE)) {
       vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
