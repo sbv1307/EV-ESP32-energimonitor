@@ -43,13 +43,13 @@ typedef struct {
 
 struct LedInstance {
     uint8_t      gpio;
-    QueueHandle_t queue      = nullptr;
-    TaskHandle_t  taskHandle = nullptr;
+    QueueHandle_t queue;
+    TaskHandle_t  taskHandle;
 };
 
 static LedInstance sLeds[2] = {
-    { static_cast<uint8_t>(LED_STATUS_GPIO) },
-    { static_cast<uint8_t>(LED_CHARGE_GPIO) },
+    { static_cast<uint8_t>(LED_STATUS_GPIO), nullptr, nullptr },
+    { static_cast<uint8_t>(LED_CHARGE_GPIO), nullptr, nullptr },
 };
 
 // ---------------------------------------------------------------------------
