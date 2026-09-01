@@ -1,12 +1,31 @@
 #pragma once
 #include <Arduino.h>
 
+#ifndef CONFIG_PROFILE
+#define CONFIG_PROFILE CONFIG_PROD
+#endif
+
+#ifndef GOOGLE_SHEETS_ENABLED
+#define GOOGLE_SHEETS_ENABLED 1
+#endif
+
+#define CONFIG_PROD 1
+#define CONFIG_TEST 2
+
 // Example configuration for privateConfig.h
 // Copy to privateConfig.h and replace placeholder values.
+#if CONFIG_PROFILE == CONFIG_PROD
+constexpr char SSID[] = "YOUR_PROD_WIFI_SSID";
+constexpr char PASS[] = "YOUR_PROD_WIFI_PASSWORD";
+constexpr char MQTT_BROKER[] = "YOUR_PROD_MQTT_BROKER_IP_OR_HOSTNAME";
+#elif CONFIG_PROFILE == CONFIG_TEST
+constexpr char SSID[] = "YOUR_TEST_WIFI_SSID";
+constexpr char PASS[] = "YOUR_TEST_WIFI_PASSWORD";
+constexpr char MQTT_BROKER[] = "YOUR_TEST_MQTT_BROKER_IP_OR_HOSTNAME";
+#else
+#error "Unsupported CONFIG_PROFILE. Use -D CONFIG_PROFILE=CONFIG_PROD or -D CONFIG_PROFILE=CONFIG_TEST"
+#endif
 
-constexpr char SSID[] = "YOUR_WIFI_SSID";
-constexpr char PASS[] = "YOUR_WIFI_PASSWORD";
-constexpr char MQTT_BROKER[] = "YOUR_MQTT_BROKER_IP_OR_HOSTNAME";
 constexpr int MQTT_PORT = YOUR_MQTT_BROKER_PORT; // e.g. 1883
 constexpr char MQTT_USER[] = "";
 constexpr char MQTT_PASS[] = "";

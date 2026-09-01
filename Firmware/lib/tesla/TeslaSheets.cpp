@@ -122,6 +122,9 @@ static bool urlEncodeQueryValue(const char* input, char* output, size_t outputLe
 bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget target, const char* payload) {
   (void)params;
 
+#if GOOGLE_SHEETS_ENABLED == 0
+  return false;
+#else
   if (isOtaInProgress()) {
     return false;
   }
@@ -217,9 +220,13 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
 
   http.end();
   return true;
+#endif
 }
 
 bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment) {
+#if GOOGLE_SHEETS_ENABLED == 0
+  return false;
+#else
   if (isOtaInProgress()) {
     return false;
   }
