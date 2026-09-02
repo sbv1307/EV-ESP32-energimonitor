@@ -28,17 +28,23 @@ extern volatile UBaseType_t gPulseInputTaskStackHighWater;
 extern volatile UBaseType_t gTeslaTaskStackHighWater; // TOBE REMOVED. Only used for testing ISR pulse counting with a task that generates pulses in a loop. Not needed for actual pulse counting from the energy meter, which is handled by an interrupt service routine (ISR) and the Pulse Input Task.
 extern volatile UBaseType_t gConfigurationTaskStackHighWater;
 extern volatile UBaseType_t gButtonPublishTaskStackHighWater;
+extern volatile UBaseType_t gLedStatusTaskStackHighWater;
+extern volatile UBaseType_t gLedChargeTaskStackHighWater;
+extern volatile UBaseType_t gDirectResetTaskStackHighWater;
+extern volatile UBaseType_t gOledUpdateTaskStackHighWater;
 
 extern volatile size_t  gInitialFreeHeapSize;
 
 // Task stack sizes (in words)
 constexpr int NETWORK_TASK_STACK_SIZE = 4608; // MQTT + OTA + button command handling share this task; raised headroom to avoid edge-case stack pressure.
 constexpr int TESLA_TELEMETRY_TASK_STACK_SIZE = 8938; // Observed target around 8938 words; keep larger margin for HTTP/TLS and payload formatting.
-constexpr int CONFIGURATION_TASK_STACK_SIZE = 3739; // Observed target around 3724 words; one-shot MQTT discovery publish path.
+constexpr int CONFIGURATION_TASK_STACK_SIZE = 5854; // Observed target around 3724 words; one-shot MQTT discovery publish path.
 constexpr int WIFI_CONNECTION_TASK_STACK_SIZE = 2688; // Raised from 2007 because observed target is around 2517 words.
 constexpr int PULSE_INPUT_TASK_STACK_SIZE = 3072; // Raised for added cost-tracking/reset/NVS paths; continue monitoring watermark.
 constexpr int BUTTON_PUBLISH_TASK_STACK_SIZE = 2304; // Raised from 2130 because observed target is around 2145 words.
-// OledUpdateTaskStackSize is defined in oled_library.h since it's only used for the OLED update task, which is defined in that library.
+constexpr int LED_TASK_STACK_SIZE = 900; // Shared by both the Status and Charge LED tasks.
+constexpr int DIRECT_RESET_TASK_STACK_SIZE = 2048; // Highest-priority task; handles emergency NVS save on direct-reset GPIO trigger.
+constexpr int OLED_UPDATE_TASK_STACK_SIZE = 1424; // Background OLED redraw/touch-wake task.
 
 // Global variables for display update
 extern bool gDisplayUpdateAvailable; // Flag to indicate if a display update is needed

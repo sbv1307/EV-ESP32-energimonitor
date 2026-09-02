@@ -15,6 +15,10 @@ volatile UBaseType_t gPulseInputTaskStackHighWater = 0;
 volatile UBaseType_t gTeslaTaskStackHighWater = 0;
 volatile UBaseType_t gConfigurationTaskStackHighWater = 0;
 volatile UBaseType_t gButtonPublishTaskStackHighWater = 0;
+volatile UBaseType_t gLedStatusTaskStackHighWater = 0;
+volatile UBaseType_t gLedChargeTaskStackHighWater = 0;
+volatile UBaseType_t gDirectResetTaskStackHighWater = 0;
+volatile UBaseType_t gOledUpdateTaskStackHighWater = 0;
 volatile size_t gInitialFreeHeapSize = 0;
 
 // Initialize global variables for display update and smart charging status

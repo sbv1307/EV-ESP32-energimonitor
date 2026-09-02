@@ -297,6 +297,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
   }
 
   return sendTeslaPayloadToGoogleSheets(params, TeslaSheetTarget::TeslaLog, payload);
+#endif
 }
 
 /*

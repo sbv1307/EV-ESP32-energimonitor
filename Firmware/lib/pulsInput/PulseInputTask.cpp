@@ -306,6 +306,10 @@ static void directResetTask(void* pvParameters) {
     saveToNVS(pc, sc);
     saveCostToNVS(lc, dc, mc, qc);
     saveControlledPowerCycleToNVS(true);
+
+    #ifdef STACK_WATERMARK
+    gDirectResetTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+    #endif
   }
 }
 
@@ -323,7 +327,7 @@ void startDirectResetISR(int gpio) {
   if (!sDirectResetSemaphore) {
     return;
   }
-  xTaskCreate(directResetTask, "direct_rst", 2048, nullptr, configMAX_PRIORITIES - 1, nullptr);
+  xTaskCreate(directResetTask, "direct_rst", DIRECT_RESET_TASK_STACK_SIZE, nullptr, configMAX_PRIORITIES - 1, nullptr);
   // Open-collector input requires pull-up bias to keep idle level stable.
   pinMode(gpio, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(gpio), DirectResetISR, RISING);

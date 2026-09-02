@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Fixed
+
+- **OLED energy display update lag**: `main.cpp`'s `calculateNextDelayMs()` could let `loop()` sleep up to ~5s (from the WiFi-check/stack-log schedule) before re-checking `gDisplayUpdateAvailable`, delaying the OLED refresh well after a pulse's LED blink. Capped the loop's sleep at 200ms so pending display updates and the MQTT RX queue are polled promptly.
+
+### Added
+
+- **Stack high-water tracking for previously unmonitored tasks**: added `LED_TASK_STACK_SIZE`, `DIRECT_RESET_TASK_STACK_SIZE`, and `OLED_UPDATE_TASK_STACK_SIZE` constants plus matching watermark globals (`gLedStatusTaskStackHighWater`, `gLedChargeTaskStackHighWater`, `gDirectResetTaskStackHighWater`, `gOledUpdateTaskStackHighWater`) in `globals.h`/`.cpp`. `LedTask.cpp`, `PulseInputTask.cpp` (`direct_rst` task), and `oled_library.cpp` now record `uxTaskGetStackHighWaterMark()`, and `main.cpp`'s periodic `STACK_WATERMARK` block logs suggested size changes for all three via `log/stack/ledStatus`, `log/stack/ledCharge`, `log/stack/directReset`, and `log/stack/oledUpdate`.
+
 ## [V5.0.4] - 2026-08-23
 
 ### Changed

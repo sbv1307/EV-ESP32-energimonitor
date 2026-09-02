@@ -1,5 +1,8 @@
+#define STACK_WATERMARK
+
 #include "LedTask.h"
 #include "config.h"
+#include "globals.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -24,7 +27,6 @@ constexpr uint32_t LED_TOGGLE_HALF_MS = 500;
 //  Task / queue configuration
 // ---------------------------------------------------------------------------
 
-constexpr uint32_t LED_TASK_STACK_SIZE = 1536;  // words
 constexpr UBaseType_t LED_TASK_PRIORITY = 1;
 constexpr UBaseType_t LED_QUEUE_DEPTH   = 8;
 constexpr size_t   LED_CMD_MAX_LEN      = 12;   // "Blink" (5) + up to 6 digits + NUL
@@ -131,6 +133,14 @@ static void ledTask(void* pvParams) {
             digitalWrite(gpio, LOW);
         }
         // Unknown commands are silently ignored.
+
+        #ifdef STACK_WATERMARK
+        if (inst == &sLeds[0]) {
+            gLedStatusTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+        } else {
+            gLedChargeTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+        }
+        #endif
     }
 
     vTaskDelete(nullptr);

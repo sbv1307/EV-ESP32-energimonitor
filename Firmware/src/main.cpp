@@ -158,7 +158,7 @@ void setup() {
   oledSettings.energyDisplay.initialMode = OledEnergyDisplay::Mode::Monitor;
   oledSettings.energyDisplay.monitor.lineCapacity = 10;
   OledLibrary::begin(oledSettings);
-  OledLibrary::startBackgroundUpdater(20, 1424, 1, 1);
+  OledLibrary::startBackgroundUpdater(20, OLED_UPDATE_TASK_STACK_SIZE, 1, 1);
   showBootMonitorMessage(gControlledPowerCycle ? "Ctrl Boot OK" : "UN--ctrl Boot OK");
 
   /*
@@ -303,6 +303,10 @@ void loop() {
                                                                           static uint32_t maxOptimalTeslaTaskStackSize = 0;
                                                                           static uint32_t maxOptimalConfigurationTaskStackSize = 0;
                                                                           static uint32_t maxOptimalButtonPublishTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalLedStatusTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalLedChargeTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalDirectResetTaskStackSize = 0;
+                                                                          static uint32_t maxOptimalOledUpdateTaskStackSize = 0;
                                                                           static UBaseType_t minLoopTaskStackHighWater = 0;
 
                                                                           UBaseType_t loopTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
@@ -405,6 +409,66 @@ void loop() {
                                                                                        (unsigned)BUTTON_PUBLISH_TASK_STACK_SIZE,
                                                                                        (unsigned)optimalButtonPublishTaskStackSize);
                                                                               publishMqttLog("log/stack/buttonPublish", logMsg, false);
+                                                                            }
+                                                                          }
+                                                                          if (gLedStatusTaskStackHighWater > 0) {
+                                                                            uint32_t usedStack = LED_TASK_STACK_SIZE - gLedStatusTaskStackHighWater;
+                                                                            uint32_t optimalLedStatusTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
+                                                                            bool significantDiff = abs((int)LED_TASK_STACK_SIZE - (int)optimalLedStatusTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalLedStatusTaskStackSize > maxOptimalLedStatusTaskStackSize) {
+                                                                              maxOptimalLedStatusTaskStackSize = optimalLedStatusTaskStackSize;
+                                                                              char logMsg[160] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change LED_TASK_STACK_SIZE (status) from: %u to: %u words",
+                                                                                       (unsigned)LED_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalLedStatusTaskStackSize);
+                                                                              publishMqttLog("log/stack/ledStatus", logMsg, false);
+                                                                            }
+                                                                          }
+                                                                          if (gLedChargeTaskStackHighWater > 0) {
+                                                                            uint32_t usedStack = LED_TASK_STACK_SIZE - gLedChargeTaskStackHighWater;
+                                                                            uint32_t optimalLedChargeTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
+                                                                            bool significantDiff = abs((int)LED_TASK_STACK_SIZE - (int)optimalLedChargeTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalLedChargeTaskStackSize > maxOptimalLedChargeTaskStackSize) {
+                                                                              maxOptimalLedChargeTaskStackSize = optimalLedChargeTaskStackSize;
+                                                                              char logMsg[160] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change LED_TASK_STACK_SIZE (charge) from: %u to: %u words",
+                                                                                       (unsigned)LED_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalLedChargeTaskStackSize);
+                                                                              publishMqttLog("log/stack/ledCharge", logMsg, false);
+                                                                            }
+                                                                          }
+                                                                          if (gDirectResetTaskStackHighWater > 0) {
+                                                                            uint32_t usedStack = DIRECT_RESET_TASK_STACK_SIZE - gDirectResetTaskStackHighWater;
+                                                                            uint32_t optimalDirectResetTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
+                                                                            bool significantDiff = abs((int)DIRECT_RESET_TASK_STACK_SIZE - (int)optimalDirectResetTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalDirectResetTaskStackSize > maxOptimalDirectResetTaskStackSize) {
+                                                                              maxOptimalDirectResetTaskStackSize = optimalDirectResetTaskStackSize;
+                                                                              char logMsg[160] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change DIRECT_RESET_TASK_STACK_SIZE from: %u to: %u words",
+                                                                                       (unsigned)DIRECT_RESET_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalDirectResetTaskStackSize);
+                                                                              publishMqttLog("log/stack/directReset", logMsg, false);
+                                                                            }
+                                                                          }
+                                                                          if (gOledUpdateTaskStackHighWater > 0) {
+                                                                            uint32_t usedStack = OLED_UPDATE_TASK_STACK_SIZE - gOledUpdateTaskStackHighWater;
+                                                                            uint32_t optimalOledUpdateTaskStackSize = (usedStack * 5 + 3) / 4; // Multiply by 1.25
+                                                                            bool significantDiff = abs((int)OLED_UPDATE_TASK_STACK_SIZE - (int)optimalOledUpdateTaskStackSize) > 100;
+                                                                            if (significantDiff && optimalOledUpdateTaskStackSize > maxOptimalOledUpdateTaskStackSize) {
+                                                                              maxOptimalOledUpdateTaskStackSize = optimalOledUpdateTaskStackSize;
+                                                                              char logMsg[160] = {0};
+                                                                              snprintf(logMsg,
+                                                                                       sizeof(logMsg),
+                                                                                       "Change OLED_UPDATE_TASK_STACK_SIZE from: %u to: %u words",
+                                                                                       (unsigned)OLED_UPDATE_TASK_STACK_SIZE,
+                                                                                       (unsigned)optimalOledUpdateTaskStackSize);
+                                                                              publishMqttLog("log/stack/oledUpdate", logMsg, false);
                                                                             }
                                                                           }
                                                                           /*
@@ -564,6 +628,12 @@ static unsigned long calculateNextDelayMs(unsigned long wifiCheckInterval,
   } else {
     nextDelayMs = 0;
   }
+
+  // Cap the sleep so loop() keeps polling gDisplayUpdateAvailable/mqttProcessRxQueue
+  // frequently; otherwise a pulse arriving just after loop() sleeps can wait up to
+  // ~5s (the WiFi/stack-log schedule above) before the OLED reflects it.
+  const unsigned long maxResponsiveDelayMs = 200;
+  nextDelayMs = min(nextDelayMs, maxResponsiveDelayMs);
 
   return nextDelayMs;
 }

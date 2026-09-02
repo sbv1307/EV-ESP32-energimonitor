@@ -1,5 +1,9 @@
 #include "oled_library.h"
 
+#define STACK_WATERMARK
+
+#include "globals.h"
+
 /*
  *  ARDUINO_ARCH_ESP32 is not defined in the project source:
  * it’s injected as a compiler define by the ESP32 Arduino build environment in PlatformIO.
@@ -25,6 +29,10 @@ void updateTask(void* /*pvParameters*/) {
     }
 
     OledLibrary::update();
+
+    #ifdef STACK_WATERMARK
+    gOledUpdateTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
+    #endif
 
     if (!updateTaskRunRequested) {
       break;
