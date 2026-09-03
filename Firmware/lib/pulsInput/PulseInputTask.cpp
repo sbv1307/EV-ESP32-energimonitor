@@ -16,12 +16,43 @@
 
 #define SAVE_INTERVAL_MS 60000  // Save to NVS every 60 seconds
 
+// TEMPORARY: direct-reset detection hardware is confirmed defective. Disabled to rule out
+// directResetTask/NVS contention as the cause of the pulse-count stall. Set to 1 to re-enable.
+#define ENABLE_DIRECT_RESET 0
+
 static TaskHandle_t PulseInputTaskHandle = nullptr;
 static QueueHandle_t PulseInputQueue = nullptr;
 static volatile bool PulseInputTaskReady = false;
 static portMUX_TYPE PulseCounterMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool PulseCounterUpdatePending = false;
 static volatile uint32_t PendingPulseCounter = 0;
+static portMUX_TYPE PulseDiagnosticsMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile uint32_t PulseIsrEdges = 0;
+static volatile uint32_t PulseQueuedEvents = 0;
+static volatile uint32_t PulseDroppedEvents = 0;
+static volatile uint32_t PulseProcessedEvents = 0;
+static volatile uint32_t PulseTaskHeartbeats = 0;
+// Marks the last reached point in the PulseInputTask loop, to pinpoint where the task stalls.
+enum PulseInputStage_t : uint32_t {
+  STAGE_LOOP_TOP = 1,
+  STAGE_RESET_CHECK = 2,
+  STAGE_PENDING_COUNTER = 3,
+  STAGE_SUBTOTAL_RESET = 4,
+  STAGE_COST_RESET = 5,
+  STAGE_QUEUE_WAIT = 6,
+  STAGE_PULSE_PROCESSED = 7,
+  STAGE_POWER_DECAY_CHECK = 8,
+  STAGE_PERIODIC_SAVE_START = 9,
+  STAGE_PERIODIC_SAVE_DONE = 10,
+  STAGE_LOOP_END = 11,
+};
+static volatile uint32_t PulseTaskStage = 0;
+static volatile uint32_t DirectResetTriggerCount = 0;
+static volatile bool DirectResetActive = false;
+
+static inline void setPulseTaskStage(PulseInputStage_t stage) {
+  PulseTaskStage = stage;
+}
 static portMUX_TYPE EnergyKwhMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile float LatestEnergyKwh = 0.0f;
 static volatile float LatestPowerW = 0.0f;
@@ -51,7 +82,9 @@ static volatile float gEmergencyDailyCost = 0.0f;
 static volatile float gEmergencyMonthlyCost = 0.0f;
 static volatile float gEmergencyQuarterlyCost = 0.0f;
 
+#if ENABLE_DIRECT_RESET
 static SemaphoreHandle_t sDirectResetSemaphore = nullptr;
+#endif
 
 static inline void updateLatestEnergySnapshot(float powerW, float energyKwh, float subtotalKwh) {
   portENTER_CRITICAL(&EnergyKwhMux);
@@ -284,10 +317,12 @@ void requestReset(ResetType_t type) {
   portEXIT_CRITICAL(&ResetMux);
 }
 
+#if ENABLE_DIRECT_RESET
 static void directResetTask(void* pvParameters) {
   (void)pvParameters;
   while (true) {
     xSemaphoreTake(sDirectResetSemaphore, portMAX_DELAY);
+    DirectResetTriggerCount++;
     // Skip NVS write during OTA: OTA is actively writing to flash on the same
     // SPI bus. A concurrent NVS (Preferences) write at max priority would
     // stall the OTA TCP receive task and cause upload timeouts.  The device
@@ -295,6 +330,7 @@ static void directResetTask(void* pvParameters) {
     if (isOtaInProgress()) {
       continue;
     }
+    DirectResetActive = true;
     portENTER_CRITICAL(&EmergencyCounterMux);
     uint32_t pc = gEmergencyPulseCounter;
     uint16_t sc = gEmergencySubtotalPulseCounter;
@@ -306,6 +342,7 @@ static void directResetTask(void* pvParameters) {
     saveToNVS(pc, sc);
     saveCostToNVS(lc, dc, mc, qc);
     saveControlledPowerCycleToNVS(true);
+    DirectResetActive = false;
 
     #ifdef STACK_WATERMARK
     gDirectResetTaskStackHighWater = uxTaskGetStackHighWaterMark(nullptr);
@@ -344,6 +381,35 @@ void resumeDirectResetISR() {
     attachInterrupt(digitalPinToInterrupt(DIRECT_RESET_GPIO), DirectResetISR, RISING);
   }
 }
+#else
+// Direct-reset hardware confirmed defective; ISR/task fully disabled (see ENABLE_DIRECT_RESET above).
+void startDirectResetISR(int) {}
+void suspendDirectResetISR() {}
+void resumeDirectResetISR() {}
+#endif // ENABLE_DIRECT_RESET
+
+void savePulseInputStateToNVS() {
+  // Give PulseInputTask a brief window to drain any already-queued pulses so the
+  // emergency counters reflect the latest processed count before this save.
+  if (PulseInputQueue != nullptr) {
+    uint32_t waitedMs = 0;
+    while (uxQueueMessagesWaiting(PulseInputQueue) > 0 && waitedMs < 200) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+      waitedMs += 10;
+    }
+  }
+
+  portENTER_CRITICAL(&EmergencyCounterMux);
+  uint32_t pc = gEmergencyPulseCounter;
+  uint16_t sc = gEmergencySubtotalPulseCounter;
+  float lc = gEmergencyLastChargeCost;
+  float dc = gEmergencyDailyCost;
+  float mc = gEmergencyMonthlyCost;
+  float qc = gEmergencyQuarterlyCost;
+  portEXIT_CRITICAL(&EmergencyCounterMux);
+  saveToNVS(pc, sc);
+  saveCostToNVS(lc, dc, mc, qc);
+}
 
 void initResetGpioPins() {
   // Initialize HARD_RESET_GPIO as early as possible in boot to prevent spurious power-cycle triggers.
@@ -380,7 +446,14 @@ void IRAM_ATTR PulseInputISR() {
   }
   unsigned long ts = micros();
   BaseType_t higherPriorityTaskWoken = pdFALSE;
-  xQueueSendFromISR(PulseInputQueue, &ts, &higherPriorityTaskWoken);
+  portENTER_CRITICAL_ISR(&PulseDiagnosticsMux);
+  PulseIsrEdges++;
+  if (xQueueSendFromISR(PulseInputQueue, &ts, &higherPriorityTaskWoken) == pdTRUE) {
+    PulseQueuedEvents++;
+  } else {
+    PulseDroppedEvents++;
+  }
+  portEXIT_CRITICAL_ISR(&PulseDiagnosticsMux);
   portYIELD_FROM_ISR(higherPriorityTaskWoken);
 }
 
@@ -401,6 +474,23 @@ bool waitForPulseInputReady(uint32_t timeoutMs) {
     vTaskDelay(pdMS_TO_TICKS(1));
   }
   return true;
+}
+
+void getPulseInputDiagnostics(PulseInputDiagnostics_t* diagnostics) {
+  if (!diagnostics) {
+    return;
+  }
+
+  portENTER_CRITICAL(&PulseDiagnosticsMux);
+  diagnostics->isrEdges = PulseIsrEdges;
+  diagnostics->queuedEvents = PulseQueuedEvents;
+  diagnostics->droppedEvents = PulseDroppedEvents;
+  diagnostics->processedEvents = PulseProcessedEvents;
+  diagnostics->taskHeartbeats = PulseTaskHeartbeats;
+  portEXIT_CRITICAL(&PulseDiagnosticsMux);
+  diagnostics->taskStage = PulseTaskStage;
+  diagnostics->directResetTriggers = DirectResetTriggerCount;
+  diagnostics->directResetActive = DirectResetActive;
 }
 
 static int sPulseInputGpio = -1;
@@ -511,7 +601,13 @@ static void PulseInputTask( void* pvParameters) {
 
   // Main task loop
   while (true) {
+    portENTER_CRITICAL(&PulseDiagnosticsMux);
+    PulseTaskHeartbeats++;
+    portEXIT_CRITICAL(&PulseDiagnosticsMux);
+    setPulseTaskStage(STAGE_LOOP_TOP);
+
     // ---- Reset check ----
+    setPulseTaskStage(STAGE_RESET_CHECK);
     bool shouldReset = false;
     ResetType_t resetType = RESET_SOFT;
     portENTER_CRITICAL(&ResetMux);
@@ -534,6 +630,7 @@ static void PulseInputTask( void* pvParameters) {
       while (true) { vTaskDelay(portMAX_DELAY); } // Should not reach here
     }
 
+    setPulseTaskStage(STAGE_PENDING_COUNTER);
     if (PulseCounterUpdatePending) {
       portENTER_CRITICAL(&PulseCounterMux);
       uint32_t previousPulseCounter = pulseCounter;
@@ -567,6 +664,7 @@ static void PulseInputTask( void* pvParameters) {
       }
     }
 
+    setPulseTaskStage(STAGE_SUBTOTAL_RESET);
     bool shouldResetSubtotal = false;
     portENTER_CRITICAL(&SubtotalResetMux);
     if (SubtotalResetPending) {
@@ -605,6 +703,7 @@ static void PulseInputTask( void* pvParameters) {
       publishMqttEnergy(0.0f, energyKwh, subtotalKwh);
     }
 
+    setPulseTaskStage(STAGE_COST_RESET);
     bool resetLastChargeCost = false;
     bool resetDailyCost = false;
     bool resetMonthlyCost = false;
@@ -663,7 +762,13 @@ static void PulseInputTask( void* pvParameters) {
     }
 
     // Wait for pulse timestamp from ISR
+    setPulseTaskStage(STAGE_QUEUE_WAIT);
     if (xQueueReceive(PulseInputQueue, &ts, pdMS_TO_TICKS(1000))) {
+
+      portENTER_CRITICAL(&PulseDiagnosticsMux);
+      PulseProcessedEvents++;
+      portEXIT_CRITICAL(&PulseDiagnosticsMux);
+      setPulseTaskStage(STAGE_PULSE_PROCESSED);
 
       sendLedCommand(LedId::Charge, "Blink");
 
@@ -723,6 +828,7 @@ static void PulseInputTask( void* pvParameters) {
     }
 
     // ---- 3. Power calculation even if no new pulse (to update power to 0 if pulses stop) ----
+    setPulseTaskStage(STAGE_POWER_DECAY_CHECK);
     if (lastTs > 0 && powerW > 0.5f && micros() > lastTs) { // If micros < lastTs, micros has overrrun. In that case we keep the last power until next pulse to avoid incorrect 0 reading.
         uint32_t deltaUs = micros() - lastTs; // Time since last pulse in microseconds
         float possiblePowerW = calculatePower( (TaskParams_t*)pvParameters, deltaUs);
@@ -749,6 +855,7 @@ static void PulseInputTask( void* pvParameters) {
                                                           #endif  
 
     // ---- 4. Periodic NVS save ----
+    setPulseTaskStage(STAGE_PERIODIC_SAVE_START);
     if (millis() - lastSaveMs >= SAVE_INTERVAL_MS) {
       bool hasCounterChanges = (pulseCounter != lastSavedPulseCounter) ||
                                (subtotalPulseCounter != lastSavedSubtotalPulseCounter);
@@ -775,6 +882,7 @@ static void PulseInputTask( void* pvParameters) {
                      saveDeferredDuringOta);
       }
     }
+    setPulseTaskStage(STAGE_PERIODIC_SAVE_DONE);
 
                                                             #ifdef STACK_WATERMARK
                                                             static uint32_t lastLog = 0;
@@ -784,6 +892,7 @@ static void PulseInputTask( void* pvParameters) {
                                                             }
                                                             #endif
 
+    setPulseTaskStage(STAGE_LOOP_END);
   }
 
 }

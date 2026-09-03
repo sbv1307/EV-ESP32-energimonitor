@@ -6,7 +6,7 @@
 #define GOOGLE_SHEETS_ENABLED 1
 #endif
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.1.2";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.1.3";
 
 /*
  * About NVS (Non-Volatile Storage)
@@ -81,6 +81,12 @@ constexpr int DIRECT_RESET_GPIO = 32; // Input GPIO for power-fail signal; trigg
                                        // GPIO 32: ADC1, interrupt-capable, internal pull-up supported (unlike GPIO 34-39).
                                        // Requires PCB trace routed to GPIO 32 (not GPIO 35).
 constexpr uint32_t UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES = 10; // Delay before forcing RESET_HARD after uncontrolled boot.
+// TEMPORARY: the only writer of the "controlled_pwr" NVS flag is directResetTask, which is
+// currently disabled (ENABLE_DIRECT_RESET=0 in PulseInputTask.cpp) because its GPIO is defective.
+// With that flag permanently false, this check would fire ~10 min after every boot and hang
+// PulseInputTask forever if HARD_RESET_GPIO's power-cycle circuit doesn't actually reset the board.
+// Keep this false until controlled_pwr has another writer or the hard-reset hardware is verified.
+constexpr bool UNCONTROLLED_BOOT_HARD_RESET_ENABLED = false;
 
 // LED GPIO assignments
 constexpr int LED_STATUS_GPIO = 2;  // Boot / WiFi / MQTT connectivity status

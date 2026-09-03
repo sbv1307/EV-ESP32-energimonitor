@@ -12,6 +12,24 @@ bool isPulseInputReady();
 
 bool waitForPulseInputReady(uint32_t timeoutMs);
 
+// Immediately persists the latest pulse/cost counters to NVS, bypassing the periodic
+// save interval. Call before any reboot not driven by PulseInputTask's own reset path
+// (e.g. before an OTA-triggered restart) to avoid losing recently counted pulses.
+void savePulseInputStateToNVS();
+
+struct PulseInputDiagnostics_t {
+  uint32_t isrEdges;
+  uint32_t queuedEvents;
+  uint32_t droppedEvents;
+  uint32_t processedEvents;
+  uint32_t taskHeartbeats;
+  uint32_t taskStage;          // Last PulseInputTask loop stage reached (see PulseInputStage_t)
+  uint32_t directResetTriggers; // Number of direct-reset ISR triggers since boot
+  bool     directResetActive;   // true while directResetTask is mid NVS-write
+};
+
+void getPulseInputDiagnostics(PulseInputDiagnostics_t* diagnostics);
+
 bool attachPulseInputInterrupt(int gpio, int mode, int pinInputMode = INPUT);
 
 void suspendPulseInputISR(); // Detach pulse interrupt (call during OTA)

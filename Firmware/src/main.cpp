@@ -194,6 +194,7 @@ void loop() {
   const unsigned long wifiCheckInterval = 5000; // Check every 5 seconds
   const unsigned long uncontrolledBootHardResetDelayMs = UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES * 60UL * 1000UL;
   static unsigned long lastStackLog = 0;
+  static unsigned long lastPulseDiagnosticsLog = 0;
   static int lastDateKey = -1;
   static uint32_t nextCheckMs = 0;
   static bool bootTelemetryToSend = true;
@@ -243,7 +244,28 @@ void loop() {
     mqttProcessRxQueue();
   }
 
-  if (!isOtaInProgress() &&
+  if (!isOtaInProgress() && currentMillis - lastPulseDiagnosticsLog >= 60000UL) {
+    lastPulseDiagnosticsLog = currentMillis;
+    PulseInputDiagnostics_t diagnostics{};
+    getPulseInputDiagnostics(&diagnostics);
+    char message[200] = {0};
+    snprintf(message,
+             sizeof(message),
+             "PULSE_DIAG isr=%lu queued=%lu dropped=%lu processed=%lu heartbeats=%lu ready=%u stage=%lu drTriggers=%lu drActive=%u",
+             (unsigned long)diagnostics.isrEdges,
+             (unsigned long)diagnostics.queuedEvents,
+             (unsigned long)diagnostics.droppedEvents,
+             (unsigned long)diagnostics.processedEvents,
+             (unsigned long)diagnostics.taskHeartbeats,
+             isPulseInputReady() ? 1U : 0U,
+             (unsigned long)diagnostics.taskStage,
+             (unsigned long)diagnostics.directResetTriggers,
+             diagnostics.directResetActive ? 1U : 0U);
+    publishMqttLog(MQTT_PULSE_DIAGNOSTICS_SUFFIX, message, false);
+  }
+
+  if (UNCONTROLLED_BOOT_HARD_RESET_ENABLED &&
+      !isOtaInProgress() &&
       !uncontrolledBootHardResetRequested &&
       !gControlledPowerCycle &&
       currentMillis >= uncontrolledBootHardResetDelayMs) {

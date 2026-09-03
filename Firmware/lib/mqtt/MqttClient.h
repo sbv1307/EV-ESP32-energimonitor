@@ -14,6 +14,7 @@ constexpr char MQTT_ONLINE[]                    = "/online";            // MQTT 
 constexpr char MQTT_LOG_SUFFIX[]                = "/log";               // MQTT topic suffix for log messages. Include leading '/'
 constexpr char MQTT_LOG_STATUS_SUFFIX[]         = "/log/status";        // MQTT topic suffix for status logs. Include leading '/'
 constexpr char MQTT_LOG_EMAIL_SUFFIX[]          = "/log/email";         // MQTT topic suffix for email-routed logs. Include leading '/'
+constexpr char MQTT_PULSE_DIAGNOSTICS_SUFFIX[]  = "/pulse/diagnostics";  // Dedicated pulse input health diagnostics topic.
 constexpr char MQTT_SENSOR_ENERGY_ENTITYNAME[]  = "2. Subtotal:";           // Name shown in HA. Spaces/special chars are supported.
 constexpr char MQTT_SENSOR_POWER_ENTITYNAME[]   = "3. Forbrug:";            // Name shown in HA. Spaces/special chars are supported.
 constexpr char MQTT_NUMBER_ENERGY_ENTITYNAME[]  = "1. Total:";              // Name shown in HA. Spaces/special chars are supported.
