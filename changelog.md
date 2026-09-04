@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.1.6] - 2026-09-04
+
+### Changed
+
+- **Sketch version** bumped to `V5.1.6` in `Firmware/lib/config/config.h`.
+- **Direct Reset functionality** re-enabled in `Firmware/lib/pulsInput/PulseInputTask.cpp` after the hardware fix, restoring emergency NVS persistence for pulse and cost data on the Direct Reset signal.
+- **Uncontrolled-boot hard-reset fallback** enabled via `UNCONTROLLED_BOOT_HARD_RESET_ENABLED` in `Firmware/lib/config/config.h`; boots preceded by a Direct Reset are recognized as controlled, while boots without the controlled-power-cycle marker are treated as possible power outages after the configured delay.
+
 ## [V5.1.4] - 2026-09-04
 
 ### Changed

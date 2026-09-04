@@ -18,7 +18,7 @@
 
 // TEMPORARY: direct-reset detection hardware is confirmed defective. Disabled to rule out
 // directResetTask/NVS contention as the cause of the pulse-count stall. Set to 1 to re-enable.
-#define ENABLE_DIRECT_RESET 0
+#define ENABLE_DIRECT_RESET 1
 
 static TaskHandle_t PulseInputTaskHandle = nullptr;
 static QueueHandle_t PulseInputQueue = nullptr;

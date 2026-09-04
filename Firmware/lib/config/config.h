@@ -6,7 +6,7 @@
 #define GOOGLE_SHEETS_ENABLED 1
 #endif
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.1.5";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.1.6";
 
 /*
  * About NVS (Non-Volatile Storage)
@@ -86,7 +86,7 @@ constexpr uint32_t UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES = 10; // Delay bef
 // With that flag permanently false, this check would fire ~10 min after every boot and hang
 // PulseInputTask forever if HARD_RESET_GPIO's power-cycle circuit doesn't actually reset the board.
 // Keep this false until controlled_pwr has another writer or the hard-reset hardware is verified.
-constexpr bool UNCONTROLLED_BOOT_HARD_RESET_ENABLED = false;
+constexpr bool UNCONTROLLED_BOOT_HARD_RESET_ENABLED = true;
 
 // TEMPORARY diagnostic logging; set to false to stop publishing PULSE_DIAG to MQTT.
 constexpr bool PULSE_DIAGNOSTICS_MQTT_ENABLED = false;
