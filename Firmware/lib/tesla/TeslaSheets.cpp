@@ -271,7 +271,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
   const int payloadLen = snprintf(
       payload,
       sizeof(payload),
-      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f,%s,%.3f,%.3f,%.3f,%.3f",
+      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%s",
       dateBuf,
       timeBuf,
       telemetry.batteryLevelPercent,
@@ -280,11 +280,11 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
       energyKwh,
       telemetry.latitude,
       telemetry.longitude,
-      telemetryComment,
       lastChargeCost,
       dailyCost,
       monthlyCost,
-      quarterlyCost);
+      quarterlyCost,
+      telemetryComment);
 
   if (payloadLen < 0 || static_cast<size_t>(payloadLen) >= sizeof(payload)) {
     OledEnergyDisplay::showMonitorLine("GS payload ovf");

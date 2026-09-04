@@ -173,6 +173,12 @@ static String buildTeslaDataPayload(const TeslaTelemetry& endTelemetry, float en
 
   gChargeEnergyKwh = endEnergyKwh - gSnapshot.startEnergyKwh;
 
+  float lastChargeCost = 0.0f;
+  float dailyCost = 0.0f;
+  float monthlyCost = 0.0f;
+  float quarterlyCost = 0.0f;
+  getLatestCostSnapshot(&lastChargeCost, &dailyCost, &monthlyCost, &quarterlyCost);
+
   float standbyEnergyKwh = 0.0f;
   bool standbyKnown = false;
   if (gHasLastEndEnergy) {
@@ -205,6 +211,7 @@ static String buildTeslaDataPayload(const TeslaTelemetry& endTelemetry, float en
                    String(endEnergyKwh, 2) + "," +
                    standbyField + "," +
                    String(gChargeEnergyKwh, 2) + "," +
+                   String(lastChargeCost, 2) + "," +
                    String(gSnapshot.startBatteryLevelPercent, 1) + "," +
                    String(endTelemetry.batteryLevelPercent, 1) + "," +
                    String(endRangeKm, 2) + "," +
