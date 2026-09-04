@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.1.4] - 2026-09-04
+
+### Changed
+
+- **Sketch version** bumped to `V5.1.4` in `Firmware/lib/config/config.h`.
+- **Task stack watermark monitoring** added for LED, direct-reset, OLED, and related tasks in `Firmware/lib/globals/globals.h`/`.cpp`, with larger task stack sizes configured to match observed runtime usage.
+- **Pulse input task diagnostics** expanded in `Firmware/lib/pulsInput/PulseInputTask.cpp` with stage tracking and counters to make pulse-count stalls easier to isolate during debugging.
+
+### Fixed
+
+- **Pulse-count stall / data loss recovery**: `PulseInputTask.cpp` now keeps a more resilient emergency snapshot of pulse and cost totals, drains pending counter updates more defensively, and preserves state across restarts and reset-related edge cases.
+- **Direct-reset path safety**: the direct-reset emergency save path remains disabled until the hardware issue is resolved, preventing the code from triggering a false reset loop while still keeping the emergency NVS snapshot logic available for safe re-enable.
+- **Display responsiveness**: `Firmware/src/main.cpp` and `Firmware/lib/oled_energy_display/oled_touch_wake.cpp` now avoid long scheduling delays that could defer OLED wake/refresh handling behind WiFi stack checks.
+
 ## [V5.1.0] - 2026-08-30
 
 ### Changed

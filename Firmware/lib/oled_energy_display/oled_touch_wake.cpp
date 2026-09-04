@@ -69,11 +69,12 @@ void update() {
   if (touchValue > computeTouchThreshold(touchBaseline)) {
     consecutiveTouchHits = 0;
     touchEventLatched = false;
-    touchBaseline = static_cast<uint16_t>((touchBaseline * 15U + touchValue) / 16U);
+    // Do NOT update baseline here; baseline tracks resting capacitance (else branch).
   } else {
     if (consecutiveTouchHits < activeSettings.debounceCount) {
       consecutiveTouchHits++;
     }
+    touchBaseline = static_cast<uint16_t>((touchBaseline * 15U + touchValue) / 16U);
 
     if (!touchEventLatched && consecutiveTouchHits >= activeSettings.debounceCount) {
       touchEventLatched = true;

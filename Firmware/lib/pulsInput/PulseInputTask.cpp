@@ -53,6 +53,7 @@ static volatile bool DirectResetActive = false;
 static inline void setPulseTaskStage(PulseInputStage_t stage) {
   PulseTaskStage = stage;
 }
+static uint16_t sPulsePerKwh = 0; // Initialized in startPulseInputTask() from TaskParams_t.
 static portMUX_TYPE EnergyKwhMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile float LatestEnergyKwh = 0.0f;
 static volatile float LatestPowerW = 0.0f;
@@ -170,9 +171,13 @@ bool getLatestEnergyKwh(float* energyKwh) {
     return false;
   }
 
-  portENTER_CRITICAL(&EnergyKwhMux);
-  *energyKwh = LatestEnergyKwh;
-  portEXIT_CRITICAL(&EnergyKwhMux);
+  // Energy is derived from the ISR-updated emergency counters, which are always current,
+  // rather than LatestEnergyKwh (only updated by PulseInputTask after draining its queue).
+  portENTER_CRITICAL(&EmergencyCounterMux);
+  *energyKwh = (sPulsePerKwh > 0)
+                 ? (float)gEmergencyPulseCounter / (float)sPulsePerKwh
+                 : 0.0f;
+  portEXIT_CRITICAL(&EmergencyCounterMux);
   return true;
 }
 
@@ -181,10 +186,17 @@ bool getLatestEnergySnapshot(float* powerW, float* energyKwh, float* subtotalKwh
     return false;
   }
 
+  portENTER_CRITICAL(&EmergencyCounterMux);
+  *energyKwh = (sPulsePerKwh > 0)
+                 ? (float)gEmergencyPulseCounter / (float)sPulsePerKwh
+                 : 0.0f;
+  *subtotalKwh = (sPulsePerKwh > 0)
+                   ? (float)gEmergencySubtotalPulseCounter / (float)sPulsePerKwh
+                   : 0.0f;
+  portEXIT_CRITICAL(&EmergencyCounterMux);
+
   portENTER_CRITICAL(&EnergyKwhMux);
   *powerW = LatestPowerW;
-  *energyKwh = LatestEnergyKwh;
-  *subtotalKwh = LatestSubtotalKwh;
   portEXIT_CRITICAL(&EnergyKwhMux);
   return true;
 }
@@ -908,6 +920,10 @@ void startPulseInputTask(TaskParams_t* params) {
   }
 
   PulseInputTaskReady = false;
+
+  if (params != nullptr) {
+    sPulsePerKwh = params->pulse_per_kWh;
+  }
 
   // HARD_RESET_GPIO is already initialized safely in initResetGpioPins() during boot.
   // Verify it is still in safe state during task startup.

@@ -244,7 +244,8 @@ void loop() {
     mqttProcessRxQueue();
   }
 
-  if (!isOtaInProgress() && currentMillis - lastPulseDiagnosticsLog >= 60000UL) {
+  if (PULSE_DIAGNOSTICS_MQTT_ENABLED &&
+      !isOtaInProgress() && currentMillis - lastPulseDiagnosticsLog >= 60000UL) {
     lastPulseDiagnosticsLog = currentMillis;
     PulseInputDiagnostics_t diagnostics{};
     getPulseInputDiagnostics(&diagnostics);
