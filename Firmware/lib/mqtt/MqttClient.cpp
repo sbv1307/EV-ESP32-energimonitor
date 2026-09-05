@@ -29,6 +29,7 @@ static PubSubClient mqttClient(wifiClient);
 static QueueHandle_t mqttQueue = nullptr;
 static QueueHandle_t mqttRxQueue = nullptr;
 static volatile bool mqttPaused = false;
+static volatile bool mqttOfflineStatusPending = false;
 static TaskParams_t* mqttParams = nullptr;
 static char bootTimestamp[32] = {0};
 static TaskHandle_t mqttPublishConfigTaskHandle = nullptr;
@@ -431,6 +432,19 @@ bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain) {
   return xQueueSend(mqttQueue, &msg, 0) == pdTRUE;
 }
 
+bool publishMqttOnlineStatus(bool online) {
+  if (!mqttClient.connected()) {
+    return false;
+  }
+
+  String topic = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_ONLINE;
+  return mqttClient.publish(topic.c_str(), online ? "True" : "False", RETAINED);
+}
+
+void requestMqttOfflineStatus() {
+  mqttOfflineStatusPending = true;
+}
+
 bool publishMqttLog(const char* topicSuffix, const char* message, bool retain) {
   if (!topicSuffix || !message || !mqttQueue) {
     return false;
@@ -506,6 +520,10 @@ void mqttLoop(TaskParams_t* params) {
   }
 
   mqttClient.loop();
+
+  if (mqttOfflineStatusPending && publishMqttOnlineStatus(false)) {
+    mqttOfflineStatusPending = false;
+  }
 
   // Process outgoing messages
   MqttMessage msg;
@@ -719,8 +737,10 @@ void mqttProcessRxQueue() {
         } else if (strcmp(key, MQTT_RESET_CMD) == 0) {
           if (valueText) {
             if (strcmp(valueText, "soft") == 0) {
+              publishMqttOnlineStatus(false);
               requestReset(RESET_SOFT);
             } else if (strcmp(valueText, "hard") == 0) {
+              publishMqttOnlineStatus(false);
               requestReset(RESET_HARD);
             }
           }

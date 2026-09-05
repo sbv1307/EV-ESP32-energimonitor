@@ -70,6 +70,8 @@ constexpr char MQTT_MONETARY_DEVICECLASS[]  = "monetary";
 void publish_sketch_version(TaskParams_t* params);
 void initializeMQTTGlobals();
 bool mqttEnqueuePublish(const char* topic, const char* payload, bool retain);
+bool publishMqttOnlineStatus(bool online);
+void requestMqttOfflineStatus();
 void mqttInit( TaskParams_t* params );
 void mqttLoop( TaskParams_t* params );
 void mqttProcessRxQueue();

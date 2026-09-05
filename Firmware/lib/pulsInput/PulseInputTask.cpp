@@ -16,8 +16,7 @@
 
 #define SAVE_INTERVAL_MS 60000  // Save to NVS every 60 seconds
 
-// TEMPORARY: direct-reset detection hardware is confirmed defective. Disabled to rule out
-// directResetTask/NVS contention as the cause of the pulse-count stall. Set to 1 to re-enable.
+// Direct-reset detection is enabled after the hardware fix.
 #define ENABLE_DIRECT_RESET 1
 
 static TaskHandle_t PulseInputTaskHandle = nullptr;
@@ -354,6 +353,8 @@ static void directResetTask(void* pvParameters) {
     saveToNVS(pc, sc);
     saveCostToNVS(lc, dc, mc, qc);
     saveControlledPowerCycleToNVS(true);
+    // MQTT notification is best effort and must never delay emergency NVS persistence.
+    requestMqttOfflineStatus();
     DirectResetActive = false;
 
     #ifdef STACK_WATERMARK
