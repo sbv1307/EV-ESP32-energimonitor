@@ -271,7 +271,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
   const int payloadLen = snprintf(
       payload,
       sizeof(payload),
-      "%s,%s,%.1f,%.2f,%.0f,%.2f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%s",
+      "%s,%s,%.1f,%.0f,%.0f,%.2f,%.6f,%.6f,%.2f,%.2f,%.2f,%s",
       dateBuf,
       timeBuf,
       telemetry.batteryLevelPercent,
@@ -280,7 +280,6 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
       energyKwh,
       telemetry.latitude,
       telemetry.longitude,
-      lastChargeCost,
       dailyCost,
       monthlyCost,
       quarterlyCost,

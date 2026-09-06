@@ -6,7 +6,7 @@
 #define GOOGLE_SHEETS_ENABLED 1
 #endif
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.1.7";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.1.8";
 
 /*
  * About NVS (Non-Volatile Storage)
@@ -20,9 +20,13 @@ constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5
  * NOTE: NVS and data stored will not be cleared on OTA updates, so it is important to manage stored data carefully and 
  * consider versioning if the structure of stored data changes in future updates.
  * Do not change the namespace names lightly, as they are used in multiple places across the codebase for reading and writing data.
- * If you need to change a namespace, ensure you update all references to it in the codebase and consider how to handle existing stored data (e.g., migration or clearing).
- * For example, if you change CHARGE_NVS_NAMESPACE, you would need to update the namespace used in both saveSessionToNvs() and loadSessionFromNvs() functions in ChargingSession.cpp, as well as any other place where this namespace is referenced for reading or writing charging session data.
- * If you need to clear stored data for testing or development purposes, you can use the "Erase Flash" option in the Arduino IDE before uploading new firmware, but be cautious as this will clear all stored data across all namespaces.
+ * If you need to change a namespace, ensure you update all references to it in the codebase and consider how to handle existing 
+ * stored data (e.g., migration or clearing).
+ * For example, if you change CHARGE_NVS_NAMESPACE, you would need to update the namespace used in both saveSessionToNvs() and
+ *  loadSessionFromNvs() functions in ChargingSession.cpp, as well as any other place where this namespace is referenced for reading 
+ * or writing charging session data.
+ * If you need to clear stored data for testing or development purposes, you can use the "Erase Flash" option in the Arduino IDE 
+ * before uploading new firmware, but be cautious as this will clear all stored data across all namespaces.
  * In production use, consider implementing a versioning system for stored data to allow for smooth transitions
  */
 constexpr char CONFIG_NVS_NAMESPACE[] = "config"; // globals.cpp: Namespace for NVS storage
@@ -90,6 +94,8 @@ constexpr bool UNCONTROLLED_BOOT_HARD_RESET_ENABLED = true;
 
 // TEMPORARY diagnostic logging; set to false to stop publishing PULSE_DIAG to MQTT.
 constexpr bool PULSE_DIAGNOSTICS_MQTT_ENABLED = false;
+// TEMPORARY OLED touch diagnostics; disable after touch wake has been investigated.
+constexpr bool OLED_TOUCH_DIAGNOSTICS_MQTT_ENABLED = true;
 
 // LED GPIO assignments
 constexpr int LED_STATUS_GPIO = 2;  // Boot / WiFi / MQTT connectivity status

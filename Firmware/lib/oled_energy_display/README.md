@@ -172,7 +172,7 @@ void setup() {
   settings.touchWake.displayOnTimeMs = 30000;
   settings.touchWake.sampleIntervalMs = 50;
   settings.touchWake.minDelta = 12;
-  settings.touchWake.debounceCount = 2;
+  settings.touchWake.debounceCount = 4;
 
   // Optional boot splash
   settings.showSplashOnBoot = true;
@@ -274,7 +274,7 @@ void setup() {
   settings.touchWake.displayOnTimeMs = 30000;
   settings.touchWake.sampleIntervalMs = 50;
   settings.touchWake.minDelta = 12;
-  settings.touchWake.debounceCount = 2;
+  settings.touchWake.debounceCount = 4;
 
   settings.showSplashOnBoot = true;
   settings.splashText = "OLED test - V1.0.0";

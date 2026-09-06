@@ -195,6 +195,7 @@ void loop() {
   const unsigned long uncontrolledBootHardResetDelayMs = UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES * 60UL * 1000UL;
   static unsigned long lastStackLog = 0;
   static unsigned long lastPulseDiagnosticsLog = 0;
+  static unsigned long lastOledTouchDiagnosticsLog = 0;
   static int lastDateKey = -1;
   static uint32_t nextCheckMs = 0;
   static bool bootTelemetryToSend = true;
@@ -252,7 +253,7 @@ void loop() {
     char message[200] = {0};
     snprintf(message,
              sizeof(message),
-             "PULSE_DIAG isr=%lu queued=%lu dropped=%lu processed=%lu heartbeats=%lu ready=%u stage=%lu drTriggers=%lu drActive=%u",
+         "PULSE_DIAG isr=%lu queued=%lu dropped=%lu processed=%lu heartbeats=%lu ready=%u stage=%lu drTriggers=%lu drActive=%u",
              (unsigned long)diagnostics.isrEdges,
              (unsigned long)diagnostics.queuedEvents,
              (unsigned long)diagnostics.droppedEvents,
@@ -263,6 +264,27 @@ void loop() {
              (unsigned long)diagnostics.directResetTriggers,
              diagnostics.directResetActive ? 1U : 0U);
     publishMqttLog(MQTT_PULSE_DIAGNOSTICS_SUFFIX, message, false);
+  }
+
+  if (OLED_TOUCH_DIAGNOSTICS_MQTT_ENABLED &&
+      !isOtaInProgress() && currentMillis - lastOledTouchDiagnosticsLog >= 60000UL) {
+    lastOledTouchDiagnosticsLog = currentMillis;
+    OledTouchWake::Diagnostics touchDiagnostics{};
+    OledTouchWake::getDiagnostics(&touchDiagnostics);
+    char message[220] = {0};
+    snprintf(message,
+             sizeof(message),
+             "OLED_TOUCH value=%u baseline=%u threshold=%u samples=%lu hits=%lu debounce=%u latched=%u on=%u wakes=%lu",
+             (unsigned)touchDiagnostics.lastValue,
+             (unsigned)touchDiagnostics.baseline,
+             (unsigned)touchDiagnostics.threshold,
+             (unsigned long)touchDiagnostics.samples,
+             (unsigned long)touchDiagnostics.thresholdHits,
+             (unsigned)touchDiagnostics.consecutiveHits,
+             touchDiagnostics.eventLatched ? 1U : 0U,
+             touchDiagnostics.displayOn ? 1U : 0U,
+             (unsigned long)touchDiagnostics.wakeEvents);
+    publishMqttLog(MQTT_OLED_TOUCH_DIAGNOSTICS_SUFFIX, message, false);
   }
 
   if (UNCONTROLLED_BOOT_HARD_RESET_ENABLED &&
