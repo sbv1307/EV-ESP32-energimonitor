@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.2.0] - 2026-09-06
+
+### Changed
+
+- **Sketch version** bumped to `V5.2.0` in `Firmware/lib/config/config.h`.
+- **OLED touch diagnostics** disabled (`OLED_TOUCH_DIAGNOSTICS_MQTT_ENABLED = false`) after the touch-wake investigation concluded.
+
+### Fixed
+
+- **Touch wake stopped working after hours of uptime**: `Firmware/lib/oled_energy_display/oled_touch_wake.cpp` previously adapted the touch baseline *only while touched*, so every short noise dip (~100-150 ms, a few samples) permanently ratcheted the baseline down (observed 31 -> 27 -> 25 over ~2 h) until the threshold fell below what a real finger touch can reach. The baseline now tracks **untouched** readings only, via a slow bidirectional fixed-point EMA (1/128 per sample), so it follows environmental drift and self-recovers after noise; a continuous >60 s "touch" triggers re-calibration (covers the opposite lockout), and the default debounce was raised from 2 to 4 samples (200 ms) to reject the observed noise bursts before they can fire spurious wakes.
+
+### Remarks on the 2026-09-02 investigation
+
+- The "pulse count stops, works after reboot" root cause was confirmed as the uncontrolled-boot safety net firing `RESET_HARD` ~10 min after boot while the only `controlled_pwr` writer (directResetTask) was disabled: PulseInputTask drove `HARD_RESET_GPIO` and parked forever in `vTaskDelay(portMAX_DELAY)` because the physical power-cycle circuit did not reset the board at the time.
+- The Q1/Direct Reset defect was a **grounding-topology issue, not radiated EMI**: Q1's base was referenced to supply GND while its emitter sat on the ESP32 GND-by-Vin; ground bounce between the two GND paths pulled the emitter below the base and held Q1 on (matching the scope reading of GPIO32 solid LOW - i.e. the GPIO32 investigation *disproved* spurious edges rather than proving EMI).
+- **Still open**: if the hard-reset hardware fails to power-cycle, the firmware has no software fallback (task parks forever). Proposed hardening: `esp_restart()` fallback after a ~15 s grace period (NVS is already saved by then), plus an optional fast-path that fires the hard reset as soon as MQTT connects after an uncontrolled boot instead of waiting 10 min. Strategy not yet decided.
+
 ## [V5.1.6] - 2026-09-04
 
 ### Changed
