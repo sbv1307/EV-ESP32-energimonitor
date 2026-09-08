@@ -21,6 +21,7 @@ constexpr size_t TESLA_COMMENT_BUFFER_SIZE = 48;
 struct TeslaTelemetryQueueItem {
   TaskParams_t* params = nullptr;
   float energyKwh = 0.0f;
+  TeslaCostSnapshot cost;
   char comment[TESLA_COMMENT_BUFFER_SIZE] = {0};
 };
 
@@ -34,7 +35,7 @@ constexpr size_t TESLA_URL_BUFFER_SIZE = 640;
 static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
   TeslaTelemetryQueueItem* item = static_cast<TeslaTelemetryQueueItem*>(pvParameters);
   if (item != nullptr) {
-    sendTeslaTelemetryToGoogleSheets(item->params, item->energyKwh, item->comment);
+    sendTeslaTelemetryToGoogleSheets(item->params, item->energyKwh, item->cost, item->comment);
     delete item;
   }
 
@@ -223,7 +224,7 @@ bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarget targe
 #endif
 }
 
-bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment) {
+bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const TeslaCostSnapshot& cost, const char* comment) {
 #if GOOGLE_SHEETS_ENABLED == 0
   return false;
 #else
@@ -261,12 +262,6 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
   char telemetryComment[TESLA_COMMENT_BUFFER_SIZE] = {0};
   snprintf(telemetryComment, sizeof(telemetryComment), "%s", (comment != nullptr) ? comment : "");
 
-    float lastChargeCost = 0.0f;
-    float dailyCost = 0.0f;
-    float monthlyCost = 0.0f;
-    float quarterlyCost = 0.0f;
-    getLatestCostSnapshot(&lastChargeCost, &dailyCost, &monthlyCost, &quarterlyCost);
-
   char payload[TESLA_PAYLOAD_BUFFER_SIZE] = {0};
   const int payloadLen = snprintf(
       payload,
@@ -280,9 +275,9 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
       energyKwh,
       telemetry.latitude,
       telemetry.longitude,
-      dailyCost,
-      monthlyCost,
-      quarterlyCost,
+      cost.dailyCost,
+      cost.monthlyCost,
+      cost.quarterlyCost,
       telemetryComment);
 
   if (payloadLen < 0 || static_cast<size_t>(payloadLen) >= sizeof(payload)) {
@@ -303,7 +298,7 @@ bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
  * NOTE: const char* comment has a limit in number of characters defined by TESLA_COMMENT_BUFFER_SIZE.
  * Further comment does not accept spaces or any special characters! Use e.g. BootTelemetrty or Boot_Telemetry instead
 */
-bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment) {
+bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const TeslaCostSnapshot& cost, const char* comment) {
   if (isOtaInProgress()) {
     return false;
   }
@@ -340,6 +335,7 @@ bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, con
 
   item->params = params;
   item->energyKwh = energyKwh;
+  item->cost = cost;
   snprintf(item->comment, sizeof(item->comment), "%s", (comment != nullptr) ? comment : "");
 
   BaseType_t result = xTaskCreate(

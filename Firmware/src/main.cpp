@@ -77,7 +77,8 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
                                  uint32_t &nextCheckMs,
                                  bool &bootTelemetryToSend,
                                  bool &pendingTelemetryToSend,
-                                 float &pendingEnergyKwh);
+                                 float &pendingEnergyKwh,
+                                 TeslaCostSnapshot &pendingCostSnapshot);
 
                                                               #ifdef VERIFY_LOCAL_TIME
                                                               static void verifyLocalTimeHealth(); // TOBE REMOVED: Checks if local time is valid and logs the current time and epoch to MQTT for debugging.
@@ -203,6 +204,7 @@ void loop() {
   static bool bootTelemetryToSend = true;
   static bool pendingTelemetryToSend = false;
   static float pendingEnergyKwh = 0.0f;
+  static TeslaCostSnapshot pendingCostSnapshot;
   static bool uncontrolledBootHardResetRequested = false;
   float energyKwh = 0.0f;
 
@@ -318,7 +320,8 @@ void loop() {
                          nextCheckMs,
                          bootTelemetryToSend,
                          pendingTelemetryToSend,
-                         pendingEnergyKwh);
+                         pendingEnergyKwh,
+                         pendingCostSnapshot);
   }
                        
   if (!isOtaInProgress()) {
@@ -557,7 +560,8 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
                                  uint32_t &nextCheckMs,
                                  bool &bootTelemetryToSend,
                                  bool &pendingTelemetryToSend,
-                                 float &pendingEnergyKwh) {
+                                 float &pendingEnergyKwh,
+                                 TeslaCostSnapshot &pendingCostSnapshot) {
   static uint32_t lastTimeFailLogMs = 0;
   static int lastProcessedDailyTelemetryDateKey = -1;
 
@@ -594,6 +598,8 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   if (bootTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     float energyKwh = 0.0f;
     if (getLatestEnergyKwh(&energyKwh)) {
+      TeslaCostSnapshot costSnapshot;
+      getLatestCostSnapshot(&costSnapshot.lastChargeCost, &costSnapshot.dailyCost, &costSnapshot.monthlyCost, &costSnapshot.quarterlyCost);
 
       esp_reset_reason_t reason = esp_reset_reason();
 
@@ -604,7 +610,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
               "Boot reason: %s",
               bootReasonToString(reason));
       
-      if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, BootTelemetryMsg)) {
+      if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, costSnapshot, BootTelemetryMsg)) {
         bootTelemetryToSend = false;
         publishMqttLog(MQTT_LOG_SUFFIX, "Boot telemetry queued", false);
       }
@@ -612,7 +618,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   }
 
   if (pendingTelemetryToSend && WiFi.status() == WL_CONNECTED) {
-    if (passTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh, "PendingTelemetry")) {
+    if (passTeslaTelemetryToGoogleSheets(networkParams, pendingEnergyKwh, pendingCostSnapshot, "PendingTelemetry")) {
       pendingTelemetryToSend = false;
       publishMqttLog(MQTT_LOG_SUFFIX, "Pending telemetry queued", false);
     }
@@ -628,24 +634,32 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
       if (dayChanged && currentDateKey > lastProcessedDailyTelemetryDateKey) {
         float energyKwh = 0.0f;
         if (getLatestEnergyKwh(&energyKwh)) {
+          // Snapshot the costs now, before requestDailyCostReset()/requestMonthlyCostReset()/
+          // requestQuarterlyCostReset() below can zero them out from under the async send
+          // task, which may not run (and read the live cost) until well after this point
+          // (GitHub issue #26: daily cost was observed as 0 in the sheet).
+          TeslaCostSnapshot costSnapshot;
+          getLatestCostSnapshot(&costSnapshot.lastChargeCost, &costSnapshot.dailyCost, &costSnapshot.monthlyCost, &costSnapshot.quarterlyCost);
+
           if (WiFi.status() == WL_CONNECTED) {
-            if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "DailyTelemetry")) {
+            if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, costSnapshot, "DailyTelemetry")) {
               publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry queued", false);
             } else {
               pendingEnergyKwh = energyKwh;
+              pendingCostSnapshot = costSnapshot;
               pendingTelemetryToSend = true;
               publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry pending (queue busy)", false);
             }
 
             if (timeinfo.tm_mday == 1) {
-              if (sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "MonthlyTelemetry")) {
+              if (sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh, costSnapshot, "MonthlyTelemetry")) {
                 publishMqttLog(MQTT_LOG_SUFFIX, "Monthly telemetry sent", false);
               } else {
                 publishMqttLog(MQTT_LOG_SUFFIX, "Monthly telemetry failed", false);
               }
 
               if (timeinfo.tm_mon == 0 || timeinfo.tm_mon == 3 || timeinfo.tm_mon == 6 || timeinfo.tm_mon == 9) {
-                if (sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh, "QuarterlyTelemetry")) {
+                if (sendTeslaTelemetryToGoogleSheets(networkParams, energyKwh, costSnapshot, "QuarterlyTelemetry")) {
                   publishMqttLog(MQTT_LOG_SUFFIX, "Quarterly telemetry sent", false);
                 } else {
                   publishMqttLog(MQTT_LOG_SUFFIX, "Quarterly telemetry failed", false);
@@ -654,6 +668,7 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
             }
           } else {
             pendingEnergyKwh = energyKwh;
+            pendingCostSnapshot = costSnapshot;
             pendingTelemetryToSend = true;
             publishMqttLog(MQTT_LOG_SUFFIX, "Daily telemetry pending (WiFi offline)", false);
           }

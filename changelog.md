@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.2.3] - 2026-09-08
+
+### Fixed
+
+- **Daily cost reset before Daily Telemetry reached Google Sheets (GitHub issue #26)**: `handleDailyTelemetry()` in `Firmware/src/main.cpp` queued the daily/monthly/quarterly telemetry send via `passTeslaTelemetryToGoogleSheets()`/`sendTeslaTelemetryToGoogleSheets()`, then immediately called `requestDailyCostReset()` (and, on the 1st/quarter-start, `requestMonthlyCostReset()`/`requestQuarterlyCostReset()`). The daily send runs asynchronously in its own task and can take seconds to fetch Tesla telemetry over HTTPS, so by the time it read the live cost via `getLatestCostSnapshot()`, `PulseInputTask` had often already zeroed it - `TeslaLog` in Google Sheets could show `0` for the day's cost. Cost values are now snapshotted in `handleDailyTelemetry()` *before* any reset is requested and passed explicitly through a new `TeslaCostSnapshot` parameter on `sendTeslaTelemetryToGoogleSheets()`/`passTeslaTelemetryToGoogleSheets()` (`Firmware/lib/tesla/TeslaSheets.h`/`.cpp`), removing the internal `getLatestCostSnapshot()` re-read at send time so the reported cost can no longer race the reset. The pending-telemetry retry path (used when WiFi/the send queue is busy) now also carries its own snapshot forward.
+
 ## [V5.2.2] - 2026-09-08
 
 ### Changed

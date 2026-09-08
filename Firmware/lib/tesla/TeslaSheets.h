@@ -14,10 +14,21 @@ inline bool sendTeslaPayloadToGoogleSheets(TaskParams_t* params, TeslaSheetTarge
 	return sendTeslaPayloadToGoogleSheets(params, target, payload.c_str());
 }
 
+// Cost values to embed in the telemetry payload. Callers must capture this snapshot
+// (via getLatestCostSnapshot()) before requesting any cost reset, since the async send
+// path (passTeslaTelemetryToGoogleSheets) may not run until after a reset would otherwise
+// have zeroed the live values (GitHub issue #26).
+struct TeslaCostSnapshot {
+	float lastChargeCost = 0.0f;
+	float dailyCost = 0.0f;
+	float monthlyCost = 0.0f;
+	float quarterlyCost = 0.0f;
+};
+
 // Sends timestamp + Tesla telemetry + energy counter to Google Sheets.
 // Returns true on success.
-bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment = nullptr);
+bool sendTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const TeslaCostSnapshot& cost, const char* comment = nullptr);
 
 // Starts a one-shot task for asynchronous telemetry upload.
 // Returns false if task creation failed.
-bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const char* comment = nullptr);
+bool passTeslaTelemetryToGoogleSheets(TaskParams_t* params, float energyKwh, const TeslaCostSnapshot& cost, const char* comment = nullptr);
