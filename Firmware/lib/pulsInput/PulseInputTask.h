@@ -22,6 +22,10 @@ void savePulseInputStateToNVS();
 // (e.g. the OTA-triggered restart) so the uncontrolled-boot safety net stays quiet after it.
 void markControlledPowerCycleForNextBoot();
 
+// Persists a boot-cause marker (NVS "reset_cause") for callers outside PulseInputTask's own
+// reset handling (e.g. OtaService before its esp_restart()). See BootResetCause_t in globals.h.
+void markBootResetCauseForNextBoot(uint8_t cause);
+
 struct PulseInputDiagnostics_t {
   uint32_t isrEdges;
   uint32_t queuedEvents;

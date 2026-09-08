@@ -572,20 +572,21 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
       esp_reset_reason() == ESP_RST_SW &&
       WiFi.status() == WL_CONNECTED) {
     if (publishMqttError("Hard-reset power-cycle circuit did not respond; software restart fallback was used", true)) {
+      publishMqttLog(MQTT_LOG_SUFFIX, "Hard-reset power-cycle circuit did not respond; software restart fallback was used", false);
       hardResetFallbackErrorPublished = true;
     }
   }
 
   // Auto-clear the retained error above after a SUCCESSFUL real hard reset: HARD marker
   // with a POWERON (not SW) reason means the power-cycle circuit responded this time,
-  // so any stale "did not respond" error is no longer current. Publishing an empty
-  // retained payload deletes the retained message from the broker's /err slot.
+  // so any stale "did not respond" error is no longer current. clearMqttError() publishes
+  // a true zero-length retained payload, deleting the retained message from the broker.
   static bool hardResetErrorCleared = false;
   if (!hardResetErrorCleared &&
       gBootResetCause == BOOT_CAUSE_HARD &&
       esp_reset_reason() == ESP_RST_POWERON &&
       WiFi.status() == WL_CONNECTED) {
-    if (publishMqttError("", true)) {
+    if (clearMqttError()) {
       hardResetErrorCleared = true;
     }
   }
@@ -744,6 +745,8 @@ static const char* resetReasonToString(esp_reset_reason_t reason) {
  *                   fallback fired (also reported once to the MQTT /err topic at boot)
  * - DIRECT_RESET:   the direct-reset (power-fail) path saved state before power was lost
  *                   (external kill switch / outage) without a hard reset being requested
+ * - OTA_UPDATE:     the reboot was triggered by a completed OTA firmware update
+ * - SOFT_RESET:     a soft reset was requested (e.g. MQTT reset command)
  * - otherwise:      the raw ESP reset reason (POWERON = unexpected power on, SW, PANIC, ...)
  */
 static const char* bootReasonToString(esp_reset_reason_t reason) {
@@ -752,6 +755,10 @@ static const char* bootReasonToString(esp_reset_reason_t reason) {
       return (reason == ESP_RST_SW) ? "HARD_RESET(SW fallback)" : "HARD_RESET";
     case BOOT_CAUSE_DIRECT:
       return "DIRECT_RESET";
+    case BOOT_CAUSE_OTA:
+      return "OTA_UPDATE";
+    case BOOT_CAUSE_SOFT:
+      return "SOFT_RESET";
     default:
       return resetReasonToString(reason);
   }

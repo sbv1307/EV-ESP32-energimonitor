@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.2.2] - 2026-09-08
+
+### Changed
+
+- **Sketch version** bumped to `V5.2.2` in `Firmware/lib/config/config.h`.
+
+### Added
+
+- **Boot-cause classification extended to OTA and soft resets**: `bootReasonToString()` in `Firmware/src/main.cpp` now also reports `OTA_UPDATE` (reboot triggered by a completed OTA firmware update) and `SOFT_RESET` (a soft reset was requested, e.g. via MQTT), in addition to the existing `HARD_RESET`/`HARD_RESET(SW fallback)`/`DIRECT_RESET` causes. `OtaService.cpp` now writes `BOOT_CAUSE_OTA` before its `esp_restart()` via a new exported `markBootResetCauseForNextBoot()` (`Firmware/lib/pulsInput/PulseInputTask.h/.cpp`), and `PulseInputTask.cpp` writes `BOOT_CAUSE_SOFT` on a soft-reset request.
+- **MQTT log entries for reset commands**: incoming MQTT `soft`/`hard` reset commands, and the hard-reset software fallback error, are now also mirrored to the `/log` topic (`publishMqttLog()`), not just the retained `/err` topic, making them visible in the regular log stream (`Firmware/lib/mqtt/MqttClient.cpp`, `Firmware/src/main.cpp`).
+
+### Fixed
+
+- **Retained `/err` clear published a non-empty payload**: `publishMqttLog()` always prepends a timestamp, so the previous "clear" call (`publishMqttError("", true)`) never actually produced a zero-length payload and did not delete the retained message from the broker. New `clearMqttError()` helper (`Firmware/lib/mqtt/MqttClient.cpp/.h`) publishes a true zero-length retained payload instead, and `Firmware/src/main.cpp` now calls it after a successful real hard reset.
+
 ## [V5.2.1] - 2026-09-08
 
 ### Fixed

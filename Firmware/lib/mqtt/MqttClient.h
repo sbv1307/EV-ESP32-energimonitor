@@ -87,6 +87,7 @@ bool publishMqttLog(const char* topicSuffix, const char* message, bool retain = 
 bool publishMqttLogStatus(const char* message, bool retain = false);
 bool publishMqttLogEmail(const char* message, bool retain = false);
 bool publishMqttError(const char* message, bool retain = false);
+bool clearMqttError(); // Publishes a true zero-length retained payload to delete the retained /err message
 bool publishMqttSetCommand(const char* jsonPayload, bool retain = false);
 
 #ifdef BOOT_DIAGNOSTICS_LOGGING

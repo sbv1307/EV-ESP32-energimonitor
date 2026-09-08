@@ -479,6 +479,17 @@ bool publishMqttError(const char* message, bool retain) {
   return publishMqttLog(MQTT_ERROR_SUFFIX, message, retain);
 }
 
+bool clearMqttError() {
+  // publishMqttLog always prepends a timestamp, so an "empty" message still produces a
+  // non-empty payload (e.g. "2026-09-08 13:54:36 - ") that neither clears the broker's
+  // retained flag nor reads sensibly. Publish a real zero-length payload instead.
+  if (!mqttQueue) {
+    return false;
+  }
+  String topic = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_ERROR_SUFFIX;
+  return mqttEnqueuePublish(topic.c_str(), "", true);
+}
+
 bool publishMqttSetCommand(const char* jsonPayload, bool retain) {
   if (!jsonPayload || !mqttQueue || mqttDeviceNameWithMac.length() == 0) {
     return false;
@@ -741,9 +752,11 @@ void mqttProcessRxQueue() {
         } else if (strcmp(key, MQTT_RESET_CMD) == 0) {
           if (valueText) {
             if (strcmp(valueText, "soft") == 0) {
+              publishMqttLog(MQTT_LOG_SUFFIX, "MQTT command: soft reset requested", false);
               publishMqttOnlineStatus(false);
               requestReset(RESET_SOFT);
             } else if (strcmp(valueText, "hard") == 0) {
+              publishMqttLog(MQTT_LOG_SUFFIX, "MQTT command: hard reset requested", false);
               publishMqttOnlineStatus(false);
               requestReset(RESET_HARD);
             }

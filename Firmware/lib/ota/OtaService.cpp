@@ -37,6 +37,7 @@ void otaInit() {
       suspendPulseInputISR();    // Stop pulse ISR to avoid unnecessary work during OTA
       savePulseInputStateToNVS(); // Flush latest pulse/cost counters now; periodic 60s save won't run before the OTA reboot
       markControlledPowerCycleForNextBoot(); // OTA reboot is intentional: the uncontrolled-boot safety net must not fire after it
+      markBootResetCauseForNextBoot(BOOT_CAUSE_OTA); // Report next boot as OTA-triggered, not plain SW
       publishMqttOnlineStatus(false); // Mark the device offline before the intentional MQTT disconnect.
       suspendDirectResetISR();   // Stop direct-reset ISR: GPIO 35 has no pull-up and
                                  // generates noise-triggered interrupts during Wi-Fi OTA,

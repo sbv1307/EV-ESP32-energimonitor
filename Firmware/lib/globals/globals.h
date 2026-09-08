@@ -67,5 +67,7 @@ enum BootResetCause_t : uint8_t {
   BOOT_CAUSE_NONE = 0,   // No marker stored: unexpected power-on or plain software reset
   BOOT_CAUSE_HARD = 1,   // RESET_HARD was requested; written right before HARD_RESET_GPIO is driven
   BOOT_CAUSE_DIRECT = 2, // Direct-reset (power-fail) task saved state before the power loss
+  BOOT_CAUSE_OTA = 3,    // OTA update in progress; written before ArduinoOTA's own esp_restart()
+  BOOT_CAUSE_SOFT = 4,   // RESET_SOFT was requested (e.g. MQTT reset command)
 };
 extern volatile uint8_t gBootResetCause;

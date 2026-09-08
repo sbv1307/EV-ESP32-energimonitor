@@ -299,6 +299,10 @@ static void markBootResetCause(uint8_t cause, bool yieldToHard) {
   pref.end();
 }
 
+void markBootResetCauseForNextBoot(uint8_t cause) {
+  markBootResetCause(cause, false);
+}
+
 static bool trySaveToNVS(uint32_t pulseCounter,
                          uint16_t subtotalPulseCounter,
                          float lastChargeCost,
@@ -669,6 +673,8 @@ static void PulseInputTask( void* pvParameters) {
           vTaskDelay(pdMS_TO_TICKS(HARD_RESET_FALLBACK_TIMEOUT_MS));
           digitalWrite(HARD_RESET_GPIO, LOW); // Still alive: hardware did not respond.
         }
+      } else {
+        markBootResetCause(BOOT_CAUSE_SOFT, false); // RESET_SOFT was requested (e.g. MQTT command)
       }
       esp_restart();
       while (true) { vTaskDelay(portMAX_DELAY); } // Should not reach here
