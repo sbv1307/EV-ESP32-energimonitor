@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.2.1] - 2026-09-08
+
+### Fixed
+
+- **RESET_HARD could hang forever (GitHub issue #24)**: `PulseInputTask.cpp` drove `HARD_RESET_GPIO` HIGH and then parked forever in `while(true) vTaskDelay(portMAX_DELAY)`, relying on the external power-cycle circuit to physically reset the board. If that circuit does not respond, the task now falls back to `esp_restart()` after a grace period (`HARD_RESET_FALLBACK_TIMEOUT_MS`, default 15 s, in `Firmware/lib/config/config.h`), so a RESET_HARD request can never stall the device again.
+
+### Added
+
+- **Boot-cause classification in boot telemetry**: the "Boot reason: ..." message sent to Google Sheets (and the boot-diagnostics MQTT log) now distinguishes `HARD_RESET` (a hard reset was requested and the board was actually power-cycled), `HARD_RESET(SW fallback)` (a hard reset was requested but the power-cycle hardware did not respond within the grace period, so the software fallback fired), and `DIRECT_RESET` (the direct-reset/power-fail path saved state before power was lost - e.g. external kill switch or outage - without a hard reset being requested) from the raw ESP reset reasons (`POWERON` = unexpected power on, `SW`, `PANIC`, ...). Implemented via a new NVS `reset_cause` key (`BOOT_CAUSE_*` in `Firmware/lib/globals/globals.h`) written by `PulseInputTask.cpp` before the reset/power loss and read-and-cleared at boot in `initializeGlobals()`; a requested hard reset takes precedence over the direct-reset observation of the same power cut.
+- **MQTT error topic `ev-e-monitor/<device-mac>/err`**: when the hard-reset software fallback fired (power-cycle circuit did not respond), an error is published once to the retained `/err` topic at the next boot, as soon as WiFi is connected. (Published at next boot rather than when the fallback fires, because the queued MQTT publish would not drain before the fallback's `esp_restart()`.) The retained error auto-clears: after a *successful* real hard reset (HARD marker + POWERON reason, i.e. the circuit responded), an empty retained message is published to `/err`, deleting the stale error from the broker. New `publishMqttError()` helper in `Firmware/lib/mqtt/MqttClient.cpp`.
+- **Intentional reboots mark the next boot as controlled**: the `requestReset()` handling (soft and hard) and the OTA `onStart()` path now write `controlled_pwr=true` before rebooting, so the uncontrolled-boot safety net no longer fires a follow-up RESET_HARD after MQTT-commanded resets, OTA updates, or the new software fallback itself (which would otherwise have caused a repeating 10-minute reset loop while the power-cycle hardware is unresponsive).
+
 ## [V5.2.0] - 2026-09-06
 
 ### Changed

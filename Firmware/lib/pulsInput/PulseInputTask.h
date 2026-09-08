@@ -17,6 +17,11 @@ bool waitForPulseInputReady(uint32_t timeoutMs);
 // (e.g. before an OTA-triggered restart) to avoid losing recently counted pulses.
 void savePulseInputStateToNVS();
 
+// Marks the next boot as a controlled power cycle (NVS "controlled_pwr" = true). Call before
+// any intentional reboot that does not pass through PulseInputTask's own reset handling
+// (e.g. the OTA-triggered restart) so the uncontrolled-boot safety net stays quiet after it.
+void markControlledPowerCycleForNextBoot();
+
 struct PulseInputDiagnostics_t {
   uint32_t isrEdges;
   uint32_t queuedEvents;

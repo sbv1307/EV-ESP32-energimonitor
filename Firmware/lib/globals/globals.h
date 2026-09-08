@@ -58,3 +58,14 @@ extern float gEnergyPriceLimit;
 // MQTT connection status flag
 extern bool gMqttConnected; // Flag to indicate MQTT connection status, set by the WiFi Connection Task and used by other tasks to determine if they can publish or need to wait for a connection. This can help prevent failed publish attempts when MQTT is not connected. Tasks that need to publish can check this flag before attempting to publish, and if it's false, they can either skip publishing or queue the data for later publishing when the connection is restored.
 extern volatile bool gControlledPowerCycle;
+
+// Boot-cause classification persisted in NVS (key "reset_cause" in COUNT_NVS_NAMESPACE) so the
+// next boot can tell why it started. Writers live in PulseInputTask.cpp (reset handling and
+// directResetTask); the value is read and cleared in initializeGlobals() and reported via
+// main.cpp's boot telemetry.
+enum BootResetCause_t : uint8_t {
+  BOOT_CAUSE_NONE = 0,   // No marker stored: unexpected power-on or plain software reset
+  BOOT_CAUSE_HARD = 1,   // RESET_HARD was requested; written right before HARD_RESET_GPIO is driven
+  BOOT_CAUSE_DIRECT = 2, // Direct-reset (power-fail) task saved state before the power loss
+};
+extern volatile uint8_t gBootResetCause;

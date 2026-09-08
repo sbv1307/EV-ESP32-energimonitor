@@ -6,7 +6,7 @@
 #define GOOGLE_SHEETS_ENABLED 1
 #endif
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.2.0";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.2.1";
 
 /*
  * About NVS (Non-Volatile Storage)
@@ -84,13 +84,17 @@ constexpr int HARD_RESET_GPIO   = 13; // Output GPIO driven HIGH to trigger exte
 constexpr int DIRECT_RESET_GPIO = 32; // Input GPIO for power-fail signal; triggers emergency NVS save before power loss
                                        // GPIO 32: ADC1, interrupt-capable, internal pull-up supported (unlike GPIO 34-39).
                                        // Requires PCB trace routed to GPIO 32 (not GPIO 35).
+constexpr uint32_t HARD_RESET_FALLBACK_TIMEOUT_MS = 15000; // Grace period after driving HARD_RESET_GPIO HIGH.
+                                                            // If the external power-cycle hardware has not reset the board
+                                                            // within this time, PulseInputTask falls back to esp_restart()
+                                                            // so a RESET_HARD request can never hang forever (issue #24).
 constexpr uint32_t UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES = 10; // Delay before forcing RESET_HARD after uncontrolled boot.
 // The Direct Reset hardware (Q1 circuit) was fixed 2026-09-06 and directResetTask is
 // re-enabled (ENABLE_DIRECT_RESET=1), so "controlled_pwr" has a live writer again and this
-// safety net is intentionally active. OPEN ISSUE: if the hard-reset hardware ever fails to
-// power-cycle the board, PulseInputTask parks forever after driving HARD_RESET_GPIO (no
-// software esp_restart() fallback yet) - see changelog.md V5.2.0 for the Sept 2 investigation
-// remarks and the proposed hardening (fallback + optional fast-path). Strategy not yet decided.
+// safety net is intentionally active. A RESET_HARD request can no longer hang the device:
+// PulseInputTask falls back to esp_restart() when the power-cycle hardware does not respond
+// within HARD_RESET_FALLBACK_TIMEOUT_MS, and intentional reboots (requestReset, OTA) mark
+// the next boot as controlled so this net does not re-fire after them.
 constexpr bool UNCONTROLLED_BOOT_HARD_RESET_ENABLED = true;
 
 // TEMPORARY diagnostic logging; set to false to stop publishing PULSE_DIAG to MQTT.

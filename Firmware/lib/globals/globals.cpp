@@ -31,6 +31,7 @@ float gEnergyPriceRef = 0.0f;
 float gEnergyPriceLimit = 0.0f;
 bool gMqttConnected = false;
 volatile bool gControlledPowerCycle = false;
+volatile uint8_t gBootResetCause = BOOT_CAUSE_NONE;
 
 void initializeGlobals( TaskParams_t* params ) {
 
@@ -45,6 +46,11 @@ void initializeGlobals( TaskParams_t* params ) {
   countPref.begin(COUNT_NVS_NAMESPACE, false);
   gControlledPowerCycle = countPref.getBool("controlled_pwr", false);
   countPref.putBool("controlled_pwr", false);
+  // Read-and-clear the boot cause so it is reported exactly once, by the boot that followed it.
+  gBootResetCause = countPref.getUChar("reset_cause", BOOT_CAUSE_NONE);
+  if (gBootResetCause != BOOT_CAUSE_NONE) {
+    countPref.putUChar("reset_cause", BOOT_CAUSE_NONE);
+  }
   countPref.end();
 
   static String sketchVersion = String(SKETCH_VERSION) + ". Build at: " + BUILD_TIMESTAMP;

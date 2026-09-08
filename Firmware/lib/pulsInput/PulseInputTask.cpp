@@ -282,6 +282,23 @@ static void saveControlledPowerCycleToNVS(bool controlledPowerCycle) {
   pref.end();
 }
 
+void markControlledPowerCycleForNextBoot() {
+  saveControlledPowerCycleToNVS(true);
+}
+
+// Persists the boot-cause classification for the next boot (NVS key "reset_cause").
+// yieldToHard=true refuses to overwrite an already-recorded BOOT_CAUSE_HARD: a requested
+// hard reset drives the same power cut that the direct-reset task reacts to, and the
+// initiator of the reset must win the boot-reason label over the power-fail observer.
+static void markBootResetCause(uint8_t cause, bool yieldToHard) {
+  Preferences pref;
+  pref.begin(COUNT_NVS_NAMESPACE, false); // false = read/write
+  if (!yieldToHard || pref.getUChar("reset_cause", BOOT_CAUSE_NONE) != BOOT_CAUSE_HARD) {
+    pref.putUChar("reset_cause", cause);
+  }
+  pref.end();
+}
+
 static bool trySaveToNVS(uint32_t pulseCounter,
                          uint16_t subtotalPulseCounter,
                          float lastChargeCost,
@@ -353,6 +370,7 @@ static void directResetTask(void* pvParameters) {
     saveToNVS(pc, sc);
     saveCostToNVS(lc, dc, mc, qc);
     saveControlledPowerCycleToNVS(true);
+    markBootResetCause(BOOT_CAUSE_DIRECT, true); // Yield to a requested hard reset: it initiated this power cut
     // MQTT notification is best effort and must never delay emergency NVS persistence.
     requestMqttOfflineStatus();
     DirectResetActive = false;
@@ -633,13 +651,26 @@ static void PulseInputTask( void* pvParameters) {
     if (shouldReset) {
       saveToNVS(pulseCounter, subtotalPulseCounter);
       saveCostToNVS(lastChargeCost, dailyCost, monthlyCost, quarterlyCost);
+      // Any requested reset is intentional: mark the next boot as controlled so the
+      // uncontrolled-boot safety net does not fire again after it (also prevents a
+      // reset loop when the hard-reset hardware fails and the fallback below fires).
+      saveControlledPowerCycleToNVS(true);
       if (resetType == RESET_HARD) {
+        // Record the cause before power-cycling so the next boot reports HARD_RESET even
+        // though a real power cycle comes back as ESP_RST_POWERON.
+        markBootResetCause(BOOT_CAUSE_HARD, false);
         if (HARD_RESET_GPIO >= 0) {
           digitalWrite(HARD_RESET_GPIO, HIGH); // Trigger external power-cycle hardware
+          // Grace period: give the external circuit time to physically reset the board.
+          // If this task is still running when it expires (circuit not wired, faulty
+          // transistor, ...), fall back to esp_restart() so a RESET_HARD request can
+          // never park here forever. Pulses arriving during the grace period stay queued
+          // unprocessed and are lost either way (by the power cut or by the fallback).
+          vTaskDelay(pdMS_TO_TICKS(HARD_RESET_FALLBACK_TIMEOUT_MS));
+          digitalWrite(HARD_RESET_GPIO, LOW); // Still alive: hardware did not respond.
         }
-      } else {
-        esp_restart();
       }
+      esp_restart();
       while (true) { vTaskDelay(portMAX_DELAY); } // Should not reach here
     }
 

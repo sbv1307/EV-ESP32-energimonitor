@@ -91,6 +91,8 @@ static void showBootMonitorMessage(const char* text);
 
 static const char* resetReasonToString(esp_reset_reason_t reason);
 
+static const char* bootReasonToString(esp_reset_reason_t reason);
+
                                                               #ifdef BOOT_DIAGNOSTICS_LOGGING
                                                               static void publishBootDiagnosticsOnce();
                                                               #endif
@@ -559,18 +561,47 @@ static void handleDailyTelemetry(TaskParams_t *networkParams,
   static uint32_t lastTimeFailLogMs = 0;
   static int lastProcessedDailyTelemetryDateKey = -1;
 
+  // If the hard-reset software fallback fired on the previous run (the external power-cycle
+  // circuit did not respond), report it once to the MQTT error topic as soon as WiFi is up.
+  // Detection: BOOT_CAUSE_HARD marker + ESP_RST_SW reason = esp_restart() fallback fired.
+  // (Published at next boot because the MQTT publish queue would not drain before the
+  // fallback's esp_restart() if we tried to publish at the time it fires.)
+  static bool hardResetFallbackErrorPublished = false;
+  if (!hardResetFallbackErrorPublished &&
+      gBootResetCause == BOOT_CAUSE_HARD &&
+      esp_reset_reason() == ESP_RST_SW &&
+      WiFi.status() == WL_CONNECTED) {
+    if (publishMqttError("Hard-reset power-cycle circuit did not respond; software restart fallback was used", true)) {
+      hardResetFallbackErrorPublished = true;
+    }
+  }
+
+  // Auto-clear the retained error above after a SUCCESSFUL real hard reset: HARD marker
+  // with a POWERON (not SW) reason means the power-cycle circuit responded this time,
+  // so any stale "did not respond" error is no longer current. Publishing an empty
+  // retained payload deletes the retained message from the broker's /err slot.
+  static bool hardResetErrorCleared = false;
+  if (!hardResetErrorCleared &&
+      gBootResetCause == BOOT_CAUSE_HARD &&
+      esp_reset_reason() == ESP_RST_POWERON &&
+      WiFi.status() == WL_CONNECTED) {
+    if (publishMqttError("", true)) {
+      hardResetErrorCleared = true;
+    }
+  }
+
   if (bootTelemetryToSend && WiFi.status() == WL_CONNECTED) {
     float energyKwh = 0.0f;
     if (getLatestEnergyKwh(&energyKwh)) {
 
       esp_reset_reason_t reason = esp_reset_reason();
 
-      char BootTelemetryMsg[32] = {0};
+      char BootTelemetryMsg[48] = {0};
       
       snprintf(BootTelemetryMsg,
               sizeof(BootTelemetryMsg),
               "Boot reason: %s",
-              resetReasonToString(reason));
+              bootReasonToString(reason));
       
       if (passTeslaTelemetryToGoogleSheets(networkParams, energyKwh, BootTelemetryMsg)) {
         bootTelemetryToSend = false;
@@ -704,6 +735,28 @@ static const char* resetReasonToString(esp_reset_reason_t reason) {
   }
 }
 
+/*
+ * Classifies why this boot happened by combining the NVS boot-cause marker (written before
+ * intentional resets / power-fail saves, see PulseInputTask.cpp) with the ROM reset reason:
+ * - HARD_RESET:     a hard reset was requested and the external circuit power-cycled the board
+ * - HARD_RESET(SW fallback): a hard reset was requested, but the power-cycle hardware did not
+ *                   respond within HARD_RESET_FALLBACK_TIMEOUT_MS, so the esp_restart()
+ *                   fallback fired (also reported once to the MQTT /err topic at boot)
+ * - DIRECT_RESET:   the direct-reset (power-fail) path saved state before power was lost
+ *                   (external kill switch / outage) without a hard reset being requested
+ * - otherwise:      the raw ESP reset reason (POWERON = unexpected power on, SW, PANIC, ...)
+ */
+static const char* bootReasonToString(esp_reset_reason_t reason) {
+  switch (gBootResetCause) {
+    case BOOT_CAUSE_HARD:
+      return (reason == ESP_RST_SW) ? "HARD_RESET(SW fallback)" : "HARD_RESET";
+    case BOOT_CAUSE_DIRECT:
+      return "DIRECT_RESET";
+    default:
+      return resetReasonToString(reason);
+  }
+}
+
                                                     #ifdef BOOT_DIAGNOSTICS_LOGGING
 
                                                     static void publishBootDiagnosticsOnce() {
@@ -722,11 +775,12 @@ static const char* resetReasonToString(esp_reset_reason_t reason) {
                                                       char logMsg[180] = {0};
                                                       snprintf(logMsg,
                                                               sizeof(logMsg),
-                                                              "Boot diagnostics: reset_reason=%s(%d), boot_count=%lu, uptime_s=%lu",
+                                                              "Boot diagnostics: reset_reason=%s(%d), boot_count=%lu, uptime_s=%lu, boot_cause=%s",
                                                               resetReasonToString(reason),
                                                               (int)reason,
                                                               (unsigned long)sBootCount,
-                                                              uptimeSeconds);
+                                                              uptimeSeconds,
+                                                              bootReasonToString(reason));
 
                                                       char resetReasonPayload[96] = {0};
                                                       snprintf(resetReasonPayload,

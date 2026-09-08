@@ -14,6 +14,7 @@ constexpr char MQTT_ONLINE[]                    = "/online";            // MQTT 
 constexpr char MQTT_LOG_SUFFIX[]                = "/log";               // MQTT topic suffix for log messages. Include leading '/'
 constexpr char MQTT_LOG_STATUS_SUFFIX[]         = "/log/status";        // MQTT topic suffix for status logs. Include leading '/'
 constexpr char MQTT_LOG_EMAIL_SUFFIX[]          = "/log/email";         // MQTT topic suffix for email-routed logs. Include leading '/'
+constexpr char MQTT_ERROR_SUFFIX[]              = "/err";               // MQTT topic suffix for error reports. Include leading '/'
 constexpr char MQTT_PULSE_DIAGNOSTICS_SUFFIX[]  = "/pulse/diagnostics";  // Dedicated pulse input health diagnostics topic.
 constexpr char MQTT_OLED_TOUCH_DIAGNOSTICS_SUFFIX[] = "/oled/touch/diagnostics";
 constexpr char MQTT_SENSOR_ENERGY_ENTITYNAME[]  = "2. Subtotal:";           // Name shown in HA. Spaces/special chars are supported.
@@ -85,6 +86,7 @@ void publishMqttEnergy(float, float, float);
 bool publishMqttLog(const char* topicSuffix, const char* message, bool retain = false);
 bool publishMqttLogStatus(const char* message, bool retain = false);
 bool publishMqttLogEmail(const char* message, bool retain = false);
+bool publishMqttError(const char* message, bool retain = false);
 bool publishMqttSetCommand(const char* jsonPayload, bool retain = false);
 
 #ifdef BOOT_DIAGNOSTICS_LOGGING

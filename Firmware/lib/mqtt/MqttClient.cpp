@@ -475,6 +475,10 @@ bool publishMqttLogEmail(const char* message, bool retain) {
   return publishMqttLog(MQTT_LOG_EMAIL_SUFFIX, message, retain);
 }
 
+bool publishMqttError(const char* message, bool retain) {
+  return publishMqttLog(MQTT_ERROR_SUFFIX, message, retain);
+}
+
 bool publishMqttSetCommand(const char* jsonPayload, bool retain) {
   if (!jsonPayload || !mqttQueue || mqttDeviceNameWithMac.length() == 0) {
     return false;
