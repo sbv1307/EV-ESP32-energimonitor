@@ -1,48 +1,160 @@
-# EV ESP32 Energy monitor
-An ESP32 MQTT interface for an energy meter, used when charging your electrical vehicle at home.
+# EV ESP32 Energy Monitor
 
-The energy meter connected to the ESP32 MQTT interface, will have a pulse output.
+An ESP32-based MQTT interface for a pulse-output energy meter used to monitor
+home EV charging. The firmware counts meter pulses, calculates instantaneous
+power, detects charging sessions, and publishes energy, cost, Tesla, and device
+status data.
 
-## Release: V5.0.5
+## Current Release: V5.2.3
 
-This release is the current production firmware baseline for the EV charging monitor.
+V5.2.3 is the current production firmware baseline. See [changelog.md](changelog.md)
+for the release history.
 
-### Included
-- Tesla telemetry and charging-session updates remain wired through the firmware's Google Sheets integration.
-- MQTT discovery and cost metrics remain active for Home Assistant monitoring.
-- OTA and OLED task stability fixes continue to be included in the current build.
+### Features
 
----
+- Pulse-based total and subtotal energy measurement, with persistent storage in
+   ESP32 NVS.
+- Analog charging detection using an AC current sensor, with configurable
+   threshold, hysteresis, and five-second start/end confirmation.
+- Charging-session snapshots that survive reboot or power loss. Completed
+   sessions are sent to the `TeslaData` Google Sheet, including energy, battery
+   level, range, odometer, location, and Wh/km where available.
+- Daily Tesla telemetry to the `TeslaLog` Google Sheet, plus daily, monthly, and
+   quarterly cost tracking.
+- Home Assistant MQTT discovery for total energy, subtotal energy, power, and
+   latest, daily, monthly, and quarterly charging cost.
+- Smart-charging state, charging start time, current energy price, three-hour
+   low-price reference, and configurable price limit.
+- OLED energy display with monitor mode, touch wake, charging state, smart
+   charging state, price information, and background updates.
+- Separate status and charging LEDs.
+- MQTT soft reset and hard reset commands, boot-cause reporting, persistent
+   reset diagnostics, and a software fallback if the external hard-reset
+   circuit does not power-cycle the board.
+- OTA updates through PlatformIO. MQTT, relevant interrupts, OLED updates, and
+   persistent pulse/cost state are coordinated during an update.
 
+## MQTT
 
-### The interface will publish the following to the MQTT broker:
-- A configuration, which can be picked up by Home Assistant (HA). HA will then be able to display the data mentioned below.
-- Energy meter reading (kWh), which also can be set by the HA integration.
-- A calculated energy consumption (W)<sup class="fn"><span id="a1">[1](#f1)</span></sup>
-- A daily energy usage (kWh)
+The device publishes below `ev-e-monitor/<device-name>`, where the device name
+is `esp32-doit_<MAC>`.
 
-### The following will be published to Google Sheets:
-- A daily update containing: Date, Time, , Battery range, Odometer, Energy meter reading, Latitude and Longitude
-- An update for each charge containing: Date, Start Time, Energy meter reading, KWh used onn Standby, KWh used on charging, Battery level in % at Start, Battery level in % at Stop, range, Odometer, Wh / Km
+Home Assistant discovery is published below `homeassistant/`. The main state
+payload contains total energy, subtotal energy, power, current price, and the
+four cost values. The device also publishes online status, firmware version,
+logs, and errors on their corresponding topics:
 
-### An OLED Desplay will show:
-- Energy meter reading
-- charge start time / No charge plannde
-- Smart charging activated
-- Charging active.
-- Highest price in a 3 hour block having the lowest prices (useful to set electricity price limit)
-- Smart Charging Electricity price limit
+- `/online`
+- `/sketch_version`
+- `/log`, `/log/status`, and `/log/email`
+- `/err`
 
+Commands are JSON payloads sent to `/set`. The supported keys are:
 
-### Commands 
-- stop / start charge
-- enable / disable smart charge
-- set electricity price limit
+```json
+{"1. Total:": 1234.5}
+{"smartChg": "on"}
+{"chgStartTime": "22:00"}
+{"currEPrice": 1.25}
+{"maxEPrice": 2.10}
+{"ePriceLimit": 1.50}
+{"reset": "soft"}
+{"reset": "hard"}
+```
 
-### Configuration
-- Initial configuration via Bluetooth.<br>**Can not be implemented because bluetooth library is too large.**
-- Pushbutton funktion til reset ig initial bluetooth configuration
-- Online Configuration WEB link og/eller MQTT?
+The total-energy command sets the meter reading in kWh. `smartChg` accepts
+`on` or `off`; `reset` accepts `soft` or `hard`. Price values use the configured
+currency and are normally supplied by the Home Assistant/Tesla integration.
+
+## Physical Controls
+
+The four active-low, debounced pushbuttons use the following GPIOs:
+
+| GPIO | Action |
+| --- | --- |
+| 14 | Toggle EV charging start/stop |
+| 25 | Toggle smart charging |
+| 26 | Increase the price limit by 0.10 |
+| 27 | Decrease the price limit by 0.10 |
+
+Other default GPIO assignments are:
+
+| GPIO | Function |
+| --- | --- |
+| 33 | Pulse input from the 74HC14 signal conditioner |
+| 34 | AC current sensor for charging detection |
+| 13 | External hard-reset output |
+| 32 | Direct-reset/power-fail input |
+| 2 | Status LED |
+| 16 | Charging LED |
+
+Charging detection uses an ADC1 pin because ADC2 cannot be used reliably while
+Wi-Fi is active. Tune the analog threshold and hysteresis in
+`Firmware/lib/config/config.h` for the installed current sensor.
+
+## Google Sheets and Tesla Authentication
+
+The firmware sends two kinds of telemetry:
+
+- `TeslaLog`: daily data including date/time, battery range, odometer, meter
+   reading, latitude, longitude, and cost snapshots.
+- `TeslaData`: one row per detected charging session, including start/end
+   times, energy used while charging, standby energy when known, battery levels,
+   range, odometer, location, and Wh/km.
+
+Tesla token refresh normally uses the local proxy in
+`Software/tesla-auth-proxy/`. Deploy it on an always-on Raspberry Pi and set
+the following values in the uncommitted
+`Firmware/lib/config/privateConfig.h`:
+
+- `TESLA_AUTH_PROXY_URL`, normally `http://<pi-ip>:8787`
+- `TESLA_AUTH_PROXY_SHARED_SECRET`, matching the proxy `.env` file
+
+Expose port `8787` to the LAN, not only to `127.0.0.1`, when the ESP32 is on a
+different host. See [OTA_SETUP_GUIDE.md](OTA_SETUP_GUIDE.md) and the
+[Tesla Auth Proxy README](Software/tesla-auth-proxy/README.md) for deployment
+details.
+
+## Build, Upload, and OTA
+
+The firmware is a PlatformIO Arduino project in `Firmware/`. It targets an
+`esp32doit-devkit-v1` board and uses the production configuration by default.
+Google Sheets integration is enabled by default.
+
+From the `Firmware` directory:
+
+```bash
+# USB build
+pio run -e esp32doit-devkit-v1
+
+# USB upload
+pio run -e esp32doit-devkit-v1 -t upload
+
+# OTA upload using the configured production target
+pio run -e esp32doit-devkit-v1_ota -t upload
+```
+
+The current OTA environment targets the device at `192.168.11.19` and uses
+`3232` on the ESP32 and callback port `8266` on the host. Update the addresses
+in `Firmware/platformio.ini` when using another network or the test profile.
+The first installation, recovery, or a board with no working OTA firmware must
+be uploaded over USB.
+
+## Configuration
+
+Network, MQTT, Tesla, Google Sheets, and secret values are kept in
+`Firmware/lib/config/privateConfig.h`, which should not be committed. Start
+from `privateConfigExample.h` and select the desired configuration profile in
+`Firmware/platformio.ini` (`CONFIG_PROD` or `CONFIG_TEST`).
+
+The firmware does not provide Bluetooth or web-based initial configuration.
+Hardware and runtime settings are currently configured in the source and
+private configuration files.
+
+## Release Checklist
+
+Before a release, search for `TEST_ONLY_PULSE_ISR_INTERVAL` and remove any
+temporary test-only code blocks.
 
 ### Tesla Token Refresh Setup (v4.7.0+)
 
