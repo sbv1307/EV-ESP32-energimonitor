@@ -5,9 +5,9 @@ home EV charging. The firmware counts meter pulses, calculates instantaneous
 power, detects charging sessions, and publishes energy, cost, Tesla, and device
 status data.
 
-## Current Release: V5.2.3
+## Current Release: V5.2.5
 
-V5.2.3 is the current production firmware baseline. See [changelog.md](changelog.md)
+V5.2.5 is the current production firmware baseline. See [changelog.md](changelog.md)
 for the release history.
 
 ### Features
@@ -21,6 +21,8 @@ for the release history.
    level, range, odometer, location, and Wh/km where available.
 - Daily Tesla telemetry to the `TeslaLog` Google Sheet, plus daily, monthly, and
    quarterly cost tracking.
+- Email-routed MQTT notifications when `TeslaLog` or `TeslaData` is successfully
+   updated, including successful pending-upload retries.
 - Home Assistant MQTT discovery for total energy, subtotal energy, power, and
    latest, daily, monthly, and quarterly charging cost.
 - Smart-charging state, charging start time, current energy price, three-hour
@@ -41,13 +43,36 @@ is `esp32-doit_<MAC>`.
 
 Home Assistant discovery is published below `homeassistant/`. The main state
 payload contains total energy, subtotal energy, power, current price, and the
-four cost values. The device also publishes online status, firmware version,
-logs, and errors on their corresponding topics:
+four cost values. The expected device publications are:
 
-- `/online`
-- `/sketch_version`
-- `/log`, `/log/status`, and `/log/email`
-- `/err`
+| Topic | Payload | Retained |
+| --- | --- | --- |
+| `/online` | `True` or `False` connection status | Yes |
+| `/sketch_version` | Firmware version, Wi-Fi/MQTT connection details, and boot time | Yes |
+| `/state` | JSON state payload described below | Yes |
+| `/log` and log subtopics | Timestamped text in the form `YYYY-MM-DD HH:MM:SS - message` | No |
+| `/log/email` | Plain text notification without a timestamp, for example `TeslaData updated` or `TeslaLog updated` | No |
+| `/err` | Timestamped error text; an empty retained payload clears the error | Yes for errors |
+
+The `/state` JSON payload contains these keys:
+
+```json
+{
+   "1. Total:": 1234.5,
+   "2. Subtotal:": 12.3,
+   "3. Forbrug:": 3456.7,
+   "currEPrice": 1.25,
+   "7. Last Charge:": 4.56,
+   "6. Daily Cost:": 7.89,
+   "5. Monthly Cost:": 23.45,
+   "4. Quarterly Cost:": 67.89
+}
+```
+
+The device also publishes Home Assistant discovery configuration below
+`homeassistant/<component>/<device-name>/<entity>/config`. The discovery
+entities represent total energy, subtotal energy, power, and last, daily,
+monthly, and quarterly charging cost.
 
 Commands are JSON payloads sent to `/set`. The supported keys are:
 

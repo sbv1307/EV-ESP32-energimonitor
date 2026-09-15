@@ -35,7 +35,13 @@ constexpr size_t TESLA_URL_BUFFER_SIZE = 640;
 static void sendTeslaTelemetryToGoogleSheetsTask(void* pvParameters) {
   TeslaTelemetryQueueItem* item = static_cast<TeslaTelemetryQueueItem*>(pvParameters);
   if (item != nullptr) {
-    sendTeslaTelemetryToGoogleSheets(item->params, item->energyKwh, item->cost, item->comment);
+    const bool uploadSucceeded = sendTeslaTelemetryToGoogleSheets(
+        item->params, item->energyKwh, item->cost, item->comment);
+    if (uploadSucceeded &&
+        (strcmp(item->comment, "DailyTelemetry") == 0 ||
+         strcmp(item->comment, "PendingTelemetry") == 0)) {
+      publishMqttLogEmail("TeslaLog updated", false);
+    }
     delete item;
   }
 

@@ -255,6 +255,7 @@ static bool finalizeChargingSession(TaskParams_t* params) {
                                                                 #endif
 
     publishMqttLog(MQTT_LOG_SUFFIX, "TeslaData upload sent", false);
+    publishMqttLogEmail("TeslaData updated", false);
   }
 
   gLastEndEnergyKwh = endEnergyKwh;
@@ -279,6 +280,7 @@ static void trySendPendingTeslaData(TaskParams_t* params) {
     gPendingTeslaDataUpload = false;
     gPendingTeslaDataPayload = "";
     publishMqttLog(MQTT_LOG_SUFFIX, "Pending TeslaData upload sent", false);
+    publishMqttLogEmail("TeslaData updated", false);
   }
 }
 } // namespace

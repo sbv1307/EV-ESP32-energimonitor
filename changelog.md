@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.2.5] - 2026-09-09
+
+### Changed
+
+- **Sketch version** bumped to `V5.2.5` in `Firmware/lib/config/config.h`.
+- **MQTT publication documentation** added to `README.md`, including the
+  expected device topics and payload formats.
+
+### Fixed
+
+- **Email-routed MQTT notifications no longer include a timestamp**:
+  `publishMqttLogEmail()` now publishes the original message unchanged, such
+  as `TeslaData updated` or `TeslaLog updated`. Regular `/log` and `/err`
+  messages continue to include their timestamp.
+
+## [V5.2.4] - 2026-09-09
+
+### Changed
+
+- **Sketch version** bumped to `V5.2.4` in `Firmware/lib/config/config.h`.
+
+### Added
+
+- **Email-routed Google Sheets update notifications**: successful `TeslaLog`
+  uploads now publish `TeslaLog updated` to `/log/email`, and successful
+  `TeslaData` uploads publish `TeslaData updated`. The notifications are also
+  emitted when queued or pending uploads succeed on retry.
+
 ## [V5.2.3] - 2026-09-08
 
 ### Fixed

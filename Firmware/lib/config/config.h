@@ -6,7 +6,7 @@
 #define GOOGLE_SHEETS_ENABLED 1
 #endif
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.2.3";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.2.5";
 
 /*
  * About NVS (Non-Volatile Storage)

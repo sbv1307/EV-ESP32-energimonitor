@@ -472,7 +472,12 @@ bool publishMqttLogStatus(const char* message, bool retain) {
 }
 
 bool publishMqttLogEmail(const char* message, bool retain) {
-  return publishMqttLog(MQTT_LOG_EMAIL_SUFFIX, message, retain);
+  if (!message || !mqttQueue) {
+    return false;
+  }
+
+  String topic = String(MQTT_PREFIX) + mqttDeviceNameWithMac + MQTT_LOG_EMAIL_SUFFIX;
+  return mqttEnqueuePublish(topic.c_str(), message, retain);
 }
 
 bool publishMqttError(const char* message, bool retain) {
