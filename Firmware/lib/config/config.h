@@ -6,7 +6,7 @@
 #define GOOGLE_SHEETS_ENABLED 1
 #endif
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.2.5";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.2.6";
 
 /*
  * About NVS (Non-Volatile Storage)
@@ -88,6 +88,7 @@ constexpr uint32_t HARD_RESET_FALLBACK_TIMEOUT_MS = 15000; // Grace period after
                                                             // If the external power-cycle hardware has not reset the board
                                                             // within this time, PulseInputTask falls back to esp_restart()
                                                             // so a RESET_HARD request can never hang forever (issue #24).
+constexpr uint32_t CHARGING_STOP_RESET_DELAY_MS = 60000; // Wait 60s after charging stops before a queued reset is allowed to fire.
 constexpr uint32_t UNCONTROLLED_BOOT_HARD_RESET_DELAY_MINUTES = 10; // Delay before forcing RESET_HARD after uncontrolled boot.
 // The Direct Reset hardware (Q1 circuit) was fixed 2026-09-06 and directResetTask is
 // re-enabled (ENABLE_DIRECT_RESET=1), so "controlled_pwr" has a live writer again and this

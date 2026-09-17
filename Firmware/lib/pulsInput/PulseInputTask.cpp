@@ -73,6 +73,10 @@ static volatile bool QuarterlyCostResetPending = false;
 static portMUX_TYPE ResetMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile ResetType_t gResetType = RESET_SOFT;
 static volatile bool gResetRequested = false;
+static portMUX_TYPE ResetDelayMux = portMUX_INITIALIZER_UNLOCKED;
+static volatile bool gDeferredResetPending = false;
+static volatile ResetType_t gDeferredResetType = RESET_SOFT;
+static volatile uint32_t gChargingStopResetStartMs = 0;
 
 static portMUX_TYPE EmergencyCounterMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile uint32_t gEmergencyPulseCounter = 0;
@@ -342,7 +346,59 @@ static bool trySaveToNVS(uint32_t pulseCounter,
  *               R E S E T   F U N C T I O N A L I T Y
  * ###################################################################################################
  */
+static void evaluateDeferredResetRequest() {
+  bool charging = isChargingSessionCharging();
+  bool deferredPending = false;
+  ResetType_t deferredType = RESET_SOFT;
+
+  portENTER_CRITICAL(&ResetDelayMux);
+  deferredPending = gDeferredResetPending;
+  deferredType = gDeferredResetType;
+  portEXIT_CRITICAL(&ResetDelayMux);
+
+  if (!deferredPending) {
+    return;
+  }
+
+  if (charging) {
+    portENTER_CRITICAL(&ResetDelayMux);
+    gChargingStopResetStartMs = 0;
+    portEXIT_CRITICAL(&ResetDelayMux);
+    return;
+  }
+
+  uint32_t chargeIdleStartMs = 0;
+  portENTER_CRITICAL(&ResetDelayMux);
+  if (gChargingStopResetStartMs == 0) {
+    gChargingStopResetStartMs = millis();
+  }
+  chargeIdleStartMs = gChargingStopResetStartMs;
+  portEXIT_CRITICAL(&ResetDelayMux);
+
+  if ((millis() - chargeIdleStartMs) >= CHARGING_STOP_RESET_DELAY_MS) {
+    portENTER_CRITICAL(&ResetMux);
+    gResetType = deferredType;
+    gResetRequested = true;
+    portEXIT_CRITICAL(&ResetMux);
+
+    portENTER_CRITICAL(&ResetDelayMux);
+    gDeferredResetPending = false;
+    gChargingStopResetStartMs = 0;
+    portEXIT_CRITICAL(&ResetDelayMux);
+  }
+}
+
 void requestReset(ResetType_t type) {
+  if (isChargingSessionCharging()) {
+    portENTER_CRITICAL(&ResetDelayMux);
+    gDeferredResetPending = true;
+    gDeferredResetType = type;
+    gChargingStopResetStartMs = 0;
+    portEXIT_CRITICAL(&ResetDelayMux);
+    publishMqttLog(MQTT_LOG_SUFFIX, "Reset deferred while charging; waiting 60s after charge stop", false);
+    return;
+  }
+
   portENTER_CRITICAL(&ResetMux);
   gResetType = type;
   gResetRequested = true;
@@ -643,6 +699,7 @@ static void PulseInputTask( void* pvParameters) {
 
     // ---- Reset check ----
     setPulseTaskStage(STAGE_RESET_CHECK);
+    evaluateDeferredResetRequest();
     bool shouldReset = false;
     ResetType_t resetType = RESET_SOFT;
     portENTER_CRITICAL(&ResetMux);

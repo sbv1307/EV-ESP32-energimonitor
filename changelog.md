@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.2.6] - 2026-09-15
+
+### Changed
+
+- **Sketch version** bumped to `V5.2.6` in `Firmware/lib/config/config.h`.
+- **Self-recovery watchdog for MQTT connectivity**: the firmware now monitors MQTT state and escalates WiFi/MQTT recovery after a sustained failure instead of waiting indefinitely for a manual power cycle.
+- **Charging-aware reset delay**: a queued reset is now deferred while charging is active and only executes after charging has remained stopped for 60 seconds.
+
+### Fixed
+
+- **MQTT disconnects no longer leave the device stuck offline**: if WiFi is still up but MQTT cannot reconnect, the network layer now attempts a stronger recovery routine and can trigger a safe reset path when the connection remains dead.
+- **Reset requests during active charging no longer interrupt an ongoing charge**: `requestReset()` now defers hard/soft reset actions until the charger has been idle for at least 60 seconds, reducing unnecessary interruptions during active charging.
+
 ## [V5.2.5] - 2026-09-09
 
 ### Changed

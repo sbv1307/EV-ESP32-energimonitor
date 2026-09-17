@@ -33,6 +33,13 @@ static volatile bool mqttOfflineStatusPending = false;
 static TaskParams_t* mqttParams = nullptr;
 static char bootTimestamp[32] = {0};
 static TaskHandle_t mqttPublishConfigTaskHandle = nullptr;
+static uint32_t mqttLastConnectedMs = 0;
+static uint32_t mqttRecoveryAttemptCount = 0;
+static uint32_t mqttLastRecoveryTriggerMs = 0;
+
+static constexpr uint32_t MQTT_RECOVERY_TIMEOUT_MS = 30000UL;
+static constexpr uint32_t MQTT_RECOVERY_COOLDOWN_MS = 15000UL;
+static constexpr uint8_t MQTT_MAX_RECOVERY_ATTEMPTS = 3;
 
 static const char* mqttStateToText(int state) {
   switch (state) {
@@ -271,6 +278,38 @@ static void formatLogTimestamp(char* buffer, size_t bufferSize) {
   *  
   */  
 
+static void forceMqttRecovery(TaskParams_t* params) {
+  if (!params || mqttPaused) {
+    return;
+  }
+
+  const uint32_t now = millis();
+  if (now - mqttLastRecoveryTriggerMs < MQTT_RECOVERY_COOLDOWN_MS) {
+    return;
+  }
+  mqttLastRecoveryTriggerMs = now;
+
+  if (mqttRecoveryAttemptCount >= MQTT_MAX_RECOVERY_ATTEMPTS) {
+    publishMqttError("MQTT self-recovery failed; restarting device", false);
+    publishMqttLogStatus("MQTT self-recovery failed; forcing restart", false);
+    requestReset(RESET_SOFT);
+    return;
+  }
+
+  mqttRecoveryAttemptCount++;
+  WiFi.disconnect(false);
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(params->wifiSSID, params->wifiPassword);
+  vTaskDelay(pdMS_TO_TICKS(500));
+  publishMqttLogStatus("MQTT disconnected; forced WiFi reconnect", false);
+
+  #ifdef DEBUG
+  Serial.println("MqttClient: MQTT recovery triggered; forced WiFi reconnect attempt " +
+                 String(mqttRecoveryAttemptCount) + "/" + String(MQTT_MAX_RECOVERY_ATTEMPTS));
+  #endif
+}
+
 static void reconnect(TaskParams_t* params) {
   // Try to connect only once per call to avoid blocking
   if (!mqttClient.connected()) {
@@ -307,6 +346,9 @@ static void reconnect(TaskParams_t* params) {
     {
 
       gMqttConnected = true;
+      mqttLastConnectedMs = millis();
+      mqttRecoveryAttemptCount = 0;
+      mqttLastRecoveryTriggerMs = 0;
 
       // Once connected, publish will message and 
       mqttEnqueuePublish(will.c_str(), "True", RETAINED);
@@ -338,6 +380,13 @@ static void reconnect(TaskParams_t* params) {
       OledEnergyDisplay::showMonitorLine("MQT fail rc:" + String(state));
       OledEnergyDisplay::showMonitorLine(String("MQT ") + mqttStateToCompactText(state) + " " + buildCompactBrokerLabel(params->mqttBrokerIP, params->mqttBrokerPort));
 
+      if (WiFi.status() == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0)) {
+        const uint32_t now = millis();
+        if (now - mqttLastConnectedMs >= MQTT_RECOVERY_TIMEOUT_MS) {
+          forceMqttRecovery(params);
+        }
+      }
+
                                                               #ifdef DEBUG
                                                               Serial.print("MqttClient: MQTT failed, rc=");
                                                               Serial.print(state);
@@ -366,6 +415,9 @@ static void reconnect(TaskParams_t* params) {
  */
 void mqttInit(TaskParams_t* params) {
   mqttParams = params;
+  mqttLastConnectedMs = 0;
+  mqttRecoveryAttemptCount = 0;
+  mqttLastRecoveryTriggerMs = 0;
   
   initializeMQTTGlobals();
   OledEnergyDisplay::showMonitorLine("MQT IP:" + String(params->mqttBrokerIP));
@@ -531,12 +583,27 @@ void mqttLoop(TaskParams_t* params) {
   if (mqttPaused) {
     return;  // Skip all MQTT operations when paused
   }
-  
+
   if (!mqttClient.connected()) {
     if (WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
+      mqttLastConnectedMs = 0;
       return;  // Do not attempt MQTT reconnect while WiFi is down or DHCP is not yet complete
     }
+
+    if (mqttLastConnectedMs == 0 && mqttRecoveryAttemptCount == 0) {
+      mqttLastConnectedMs = millis();
+    }
+
+    if (millis() - mqttLastConnectedMs >= MQTT_RECOVERY_TIMEOUT_MS) {
+      forceMqttRecovery(params);
+      return;
+    }
+
     reconnect(params);
+  } else {
+    mqttLastConnectedMs = millis();
+    mqttRecoveryAttemptCount = 0;
+    mqttLastRecoveryTriggerMs = 0;
   }
 
   mqttClient.loop();
@@ -678,6 +745,10 @@ void mqttProcessRxQueue() {
     }
 
     if (topicString.startsWith(MQTT_PREFIX) && topicString.endsWith(MQTT_SUFFIX_SET)) {
+      // Always-on (not gated behind DEBUG) so unexpected set commands (e.g. stale/incorrect
+      // values overwriting the total or triggering a subtotal reset) can be traced after the fact.
+      publishMqttLog(MQTT_LOG_SUFFIX, (String("Set command received: ") + msg.payload).c_str(), false);
+
       DeserializationError error = deserializeJson(doc, msg.payload, msg.length);
       if (error) {
         OledEnergyDisplay::showMonitorLine("JSON fail: " + String(error.c_str()));
