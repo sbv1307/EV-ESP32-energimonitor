@@ -24,7 +24,6 @@ constexpr char MQTT_SMART_CHG[]                 = "smartChg";           // JSON 
 constexpr char MQTT_CHG_START_TIME[]            = "chgStartTime";       // JSON key for charging start time
 constexpr char MQTT_CURR_E_PRICE[]              = "currEPrice";         // JSON key for current energy price
 constexpr char MQTT_MAX_E_PRICE[]               = "maxEPrice";          // JSON key for maximum energy price in a 3 hour block with the lowest energy price, used for smart charging activation
-constexpr char MQTT_E_PRICE_LIMIT[]             = "ePriceLimit";         // JSON key for energy price limit for smart charging activation
 constexpr char MQTT_LAST_CHARGE_COST[]          = "7. Last Charge:";     // JSON key for latest charging session cost
 constexpr char MQTT_DAILY_COST[]                = "6. Daily Cost:";    // JSON key for daily accumulated energy cost
 constexpr char MQTT_MONTHLY_COST[]              = "5. Monthly Cost:";    // JSON key for monthly accumulated energy cost

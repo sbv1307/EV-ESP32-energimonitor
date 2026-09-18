@@ -333,7 +333,7 @@ void loop() {
     lastChargingSessionCharging = isChargingSessionCharging();
     if (getLatestEnergyKwh(&energyKwh)) {
       OledEnergyDisplay::showEnergy(energyKwh, isChargingSessionCharging(), gChargeEnergyKwh,
-                                  gSmartChargingActivated, gChargingStartTime, gEnergyPriceRef, gEnergyPriceLimit);
+                                  gSmartChargingActivated, gChargingStartTime, gEnergyPriceRef, gEnergyLowPriceLimit);
     }
   } 
 

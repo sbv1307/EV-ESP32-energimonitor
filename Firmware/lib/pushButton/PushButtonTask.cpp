@@ -16,10 +16,10 @@
 //  Command enum – one value per physical button action.
 // ---------------------------------------------------------------------------
 typedef enum : uint8_t {
-  BTN_CMD_EV_CHARGING_TOGGLE    = 0,
-  BTN_CMD_SMART_CHARGING_TOGGLE = 1,
-  BTN_CMD_PRICE_LIMIT_INCREASE  = 2,
-  BTN_CMD_PRICE_LIMIT_DECREASE  = 3,
+  BTN_CMD_EV_CHARGING_TOGGLE       = 0,
+  BTN_CMD_SMART_CHARGING_TOGGLE    = 1,
+  BTN_CMD_LOW_PRICE_LIMIT_INCREASE = 2,
+  BTN_CMD_LOW_PRICE_LIMIT_DECREASE = 3,
 } ButtonCommand;
 
 static QueueHandle_t sButtonQueue = nullptr;
@@ -57,7 +57,7 @@ static void IRAM_ATTR onPriceLimitIncreaseButton() {
   int64_t now = esp_timer_get_time();
   if (now - lastUs < (int64_t)BUTTON_DEBOUNCE_MS * 1000LL) return;
   lastUs = now;
-  ButtonCommand cmd = BTN_CMD_PRICE_LIMIT_INCREASE;
+  ButtonCommand cmd = BTN_CMD_LOW_PRICE_LIMIT_INCREASE;
   BaseType_t woken = pdFALSE;
   xQueueSendFromISR(sButtonQueue, &cmd, &woken);
   if (woken) portYIELD_FROM_ISR();
@@ -68,7 +68,7 @@ static void IRAM_ATTR onPriceLimitDecreaseButton() {
   int64_t now = esp_timer_get_time();
   if (now - lastUs < (int64_t)BUTTON_DEBOUNCE_MS * 1000LL) return;
   lastUs = now;
-  ButtonCommand cmd = BTN_CMD_PRICE_LIMIT_DECREASE;
+  ButtonCommand cmd = BTN_CMD_LOW_PRICE_LIMIT_DECREASE;
   BaseType_t woken = pdFALSE;
   xQueueSendFromISR(sButtonQueue, &cmd, &woken);
   if (woken) portYIELD_FROM_ISR();
@@ -99,17 +99,21 @@ static void publishButtonCommandTask(void* param) {
                gSmartChargingActivated ? "off" : "on");
       break;
 
-    case BTN_CMD_PRICE_LIMIT_INCREASE:
-      snprintf(payload, sizeof(payload),
-               "{\"%s\":%.3f}",
-               BUTTON_PRICE_LIMIT,
-               gEnergyPriceLimit + BUTTON_PRICE_LIMIT_STEP);
-      break;
-
-    case BTN_CMD_PRICE_LIMIT_DECREASE: {
-      float newLimit = gEnergyPriceLimit - BUTTON_PRICE_LIMIT_STEP;
-      if (newLimit < 0.0f) newLimit = 0.0f;
-      snprintf(payload, sizeof(payload), "{\"%s\":%.3f}", BUTTON_PRICE_LIMIT, newLimit);
+    case BTN_CMD_LOW_PRICE_LIMIT_INCREASE:
+    case BTN_CMD_LOW_PRICE_LIMIT_DECREASE: {
+      float newLimit;
+      if (gEnergyLowPriceLimit == INITIAL_LOW_PRICE_LIMIT) {
+        // First adjustment after a reset: seed from the current reference price
+        // regardless of which button was pressed.
+        newLimit = gEnergyPriceRef + 0.01f;
+      } else {
+        float step = (cmd == BTN_CMD_LOW_PRICE_LIMIT_INCREASE) ? BUTTON_PRICE_LIMIT_STEP : -BUTTON_PRICE_LIMIT_STEP;
+        newLimit = gEnergyLowPriceLimit + step; // No lower clamp: energy prices can go negative.
+      }
+      gEnergyLowPriceLimit = newLimit;
+      saveEnergyLowPriceLimitToNvs();
+      gDisplayUpdateAvailable = true; // Trigger display update
+      snprintf(payload, sizeof(payload), "{\"%s\":%.3f}", BUTTON_LOW_PRICE_LIMIT, newLimit);
       break;
     }
 
@@ -170,4 +174,14 @@ void processPushButtonCommands() {
                 1,
                 nullptr);
   }
+}
+
+void resetLowPriceLimitToInitial() {
+  gEnergyLowPriceLimit = INITIAL_LOW_PRICE_LIMIT;
+  saveEnergyLowPriceLimitToNvs();
+
+  char payload[64];
+  snprintf(payload, sizeof(payload), "{\"%s\":%.3f}", BUTTON_LOW_PRICE_LIMIT, gEnergyLowPriceLimit);
+  publishMqttSetCommand(payload, false);
+  gDisplayUpdateAvailable = true;
 }

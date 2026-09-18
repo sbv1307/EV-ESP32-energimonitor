@@ -6,7 +6,7 @@
 #define GOOGLE_SHEETS_ENABLED 1
 #endif
 
-constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.2.6";
+constexpr char SKETCH_VERSION[] = "EV-charging ESP32 MQTT monitor interface - V5.3.0";
 
 /*
  * About NVS (Non-Volatile Storage)
@@ -66,12 +66,16 @@ constexpr uint32_t CHARGING_ANALOG_SAMPLE_INTERVAL_MS = 1000; // Interval in mil
 // Push-button GPIO assignments (-1 = disabled)
 constexpr int BUTTON_EV_CHARGING_TOGGLE_GPIO    = 14;  // GPIO for EV charging start/stop toggle button
 constexpr int BUTTON_SMART_CHARGING_TOGGLE_GPIO = 25;  // GPIO for smart charging on/off toggle button
-constexpr int BUTTON_PRICE_LIMIT_INCREASE_GPIO  = 26;  // GPIO for price-limit increase button
-constexpr int BUTTON_PRICE_LIMIT_DECREASE_GPIO  = 27;  // GPIO for price-limit decrease button
+constexpr int BUTTON_PRICE_LIMIT_INCREASE_GPIO  = 26;  // GPIO for low-price-limit increase button
+constexpr int BUTTON_PRICE_LIMIT_DECREASE_GPIO  = 27;  // GPIO for low-price-limit decrease button
 
 constexpr bool     BUTTON_ACTIVE_LOW      = true;   // true = INPUT_PULLUP, interrupt on FALLING edge
 constexpr uint32_t BUTTON_DEBOUNCE_MS     = 40;     // Minimum ms between accepted button presses
-constexpr float    BUTTON_PRICE_LIMIT_STEP = 0.10f; // Price-limit increment/decrement per button press
+constexpr float    BUTTON_PRICE_LIMIT_STEP = 0.10f; // Low-price-limit increment/decrement per button press
+
+// gEnergyLowPriceLimit (TESLA Smart Charging "Low price charging level") default/reset value.
+// Used at first boot (no NVS value yet) and whenever a charging session ends.
+constexpr float INITIAL_LOW_PRICE_LIMIT = 0.01f;
 
 // Reset GPIO assignments (-1 = disabled)
 constexpr int HARD_RESET_GPIO   = 13; // Output GPIO driven HIGH to trigger external power-cycle hardware.

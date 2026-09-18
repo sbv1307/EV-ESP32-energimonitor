@@ -5,9 +5,9 @@ home EV charging. The firmware counts meter pulses, calculates instantaneous
 power, detects charging sessions, and publishes energy, cost, Tesla, and device
 status data.
 
-## Current Release:  V5.2.5
+## Current Release:  V5.3.0
 
-V5.2.5 is the current production firmware baseline. See [changelog.md](changelog.md)
+V5.3.0 is the current production firmware baseline. See [changelog.md](changelog.md)
 for the release history.
 
 ### Features
@@ -26,7 +26,8 @@ for the release history.
 - Home Assistant MQTT discovery for total energy, subtotal energy, power, and
    latest, daily, monthly, and quarterly charging cost.
 - Smart-charging state, charging start time, current energy price, three-hour
-   low-price reference, and configurable price limit.
+   low-price reference, and a button-adjustable, NVS-persisted low-price
+   charging level that resets to its initial value when a charging session ends.
 - OLED energy display with monitor mode, touch wake, charging state, smart
    charging state, price information, and background updates.
 - Separate status and charging LEDs.
@@ -82,7 +83,6 @@ Commands are JSON payloads sent to `/set`. The supported keys are:
 {"chgStartTime": "22:00"}
 {"currEPrice": 1.25}
 {"maxEPrice": 2.10}
-{"ePriceLimit": 1.50}
 {"reset": "soft"}
 {"reset": "hard"}
 ```
@@ -90,6 +90,23 @@ Commands are JSON payloads sent to `/set`. The supported keys are:
 The total-energy command sets the meter reading in kWh. `smartChg` accepts
 `on` or `off`; `reset` accepts `soft` or `hard`. Price values use the configured
 currency and are normally supplied by the Home Assistant/Tesla integration.
+
+Button-driven changes (EV charging toggle, smart-charging toggle, and the
+low-price charging level) are published as JSON payloads to
+`homeassistant/<device-name>/ev-e-monitor/button`:
+
+```json
+{"ev_charging": "start"}
+{"ev_charging": "stop"}
+{"smart_charging_activated": "on"}
+{"smart_charging_activated": "off"}
+{"low_price_limit": 1.500}
+```
+
+`low_price_limit` mirrors `gEnergyLowPriceLimit`, the TESLA Smart Charging
+"Low price charging level". It is persisted in NVS, defaults to
+`INITIAL_LOW_PRICE_LIMIT` (0.01) on first boot, and resets to that value when
+a charging session ends.
 
 ## Physical Controls
 
@@ -99,8 +116,8 @@ The four active-low, debounced pushbuttons use the following GPIOs:
 | --- | --- |
 | 14 | Toggle EV charging start/stop |
 | 25 | Toggle smart charging |
-| 26 | Increase the price limit by 0.10 |
-| 27 | Decrease the price limit by 0.10 |
+| 26 | Increase the low-price charging level by 0.10 (first press after a reset seeds it from the reference price + 0.01) |
+| 27 | Decrease the low-price charging level by 0.10 (can go negative; first press after a reset seeds it from the reference price + 0.01) |
 
 Other default GPIO assignments are:
 

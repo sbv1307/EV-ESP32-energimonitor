@@ -28,10 +28,17 @@ float gChargeEnergyKwh = 0.0f;
 char gChargingStartTime[6] = {0};
 float gCurrentEnergyPrice = 0.0f;
 float gEnergyPriceRef = 0.0f;
-float gEnergyPriceLimit = 0.0f;
+float gEnergyLowPriceLimit = 0.0f;
 bool gMqttConnected = false;
 volatile bool gControlledPowerCycle = false;
 volatile uint8_t gBootResetCause = BOOT_CAUSE_NONE;
+
+void saveEnergyLowPriceLimitToNvs() {
+  Preferences pref;
+  pref.begin(CONFIG_NVS_NAMESPACE, false);
+  pref.putFloat("lowPriceLim", gEnergyLowPriceLimit);
+  pref.end();
+}
 
 void initializeGlobals( TaskParams_t* params ) {
 
@@ -40,6 +47,14 @@ void initializeGlobals( TaskParams_t* params ) {
   
   static unsigned long ptCorrection = pref.getULong("ptCorrection", 0);
   static uint16_t pulse_per_kWh = pref.getUShort("pulse_per_kWh", 100);
+
+  if (pref.isKey("lowPriceLim")) {
+    gEnergyLowPriceLimit = pref.getFloat("lowPriceLim", INITIAL_LOW_PRICE_LIMIT);
+  } else {
+    gEnergyLowPriceLimit = INITIAL_LOW_PRICE_LIMIT;
+    pref.putFloat("lowPriceLim", gEnergyLowPriceLimit);
+  }
+
   pref.end();
 
   Preferences countPref;

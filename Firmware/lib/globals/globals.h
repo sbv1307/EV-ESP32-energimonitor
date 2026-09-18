@@ -53,7 +53,10 @@ extern float gChargeEnergyKwh; // Energy charged in the current session in kWh, 
 extern char gChargingStartTime[6];
 extern float gCurrentEnergyPrice;
 extern float gEnergyPriceRef;
-extern float gEnergyPriceLimit;
+extern float gEnergyLowPriceLimit; // TESLA Smart Charging "Low price charging level"; persisted in NVS, reset to INITIAL_LOW_PRICE_LIMIT when charging ends.
+
+// Persists gEnergyLowPriceLimit to NVS (CONFIG_NVS_NAMESPACE). Call after changing the value.
+void saveEnergyLowPriceLimitToNvs();
 
 // MQTT connection status flag
 extern bool gMqttConnected; // Flag to indicate MQTT connection status, set by the WiFi Connection Task and used by other tasks to determine if they can publish or need to wait for a connection. This can help prevent failed publish attempts when MQTT is not connected. Tasks that need to publish can check this flag before attempting to publish, and if it's false, they can either skip publishing or queue the data for later publishing when the connection is restored.

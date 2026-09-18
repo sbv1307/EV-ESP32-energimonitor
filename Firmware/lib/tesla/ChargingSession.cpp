@@ -13,6 +13,7 @@
 #include "oled_energy_display.h"
 #include "config.h"
 #include "LedTask.h"
+#include "PushButtonTask.h"
 
 
 namespace {
@@ -266,6 +267,8 @@ static bool finalizeChargingSession(TaskParams_t* params) {
   gSnapshot.startEnergyKwh = 0.0f;
   gSnapshot.startBatteryLevelPercent = 0.0f;
   gSnapshot.startOdometerKm = 0.0f;
+
+  resetLowPriceLimitToInitial();
 
   saveSessionToNvs();
   return true;

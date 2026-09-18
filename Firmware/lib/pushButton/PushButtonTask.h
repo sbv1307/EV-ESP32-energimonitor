@@ -4,7 +4,7 @@
 
 constexpr char BUTTON_EV_CHARGING[] = "ev_charging";
 constexpr char BUTTON_SMART_CHARGING_ACTIVATED[] = "smart_charging_activated";
-constexpr char BUTTON_PRICE_LIMIT[] = "price_limit";
+constexpr char BUTTON_LOW_PRICE_LIMIT[] = "low_price_limit";
 
 /*
  * Push-button library for EV-ESP32-energimonitor.
@@ -24,3 +24,7 @@ void initPushButtons();
 
 // Call from networkTask() to drain the button command queue and spawn publish tasks.
 void processPushButtonCommands();
+
+// Resets gEnergyLowPriceLimit to INITIAL_LOW_PRICE_LIMIT, persists it to NVS, and publishes
+// the new value. Call once a charging session has ended.
+void resetLowPriceLimitToInitial();

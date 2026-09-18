@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.3.0] - 2026-09-18
+
+### Changed
+
+- **Sketch version** bumped to `V5.3.0` in `Firmware/lib/config/config.h`.
+- **Price-limit buttons now control the TESLA Smart Charging "Low price charging level"** entity instead of the "Electricity price limit" entity (issue #28). `gEnergyPriceLimit` is renamed to `gEnergyLowPriceLimit`, and the button-published MQTT payload key changes from `price_limit` to `low_price_limit`.
+- **`gEnergyLowPriceLimit` is now persisted in NVS** (`CONFIG_NVS_NAMESPACE`, key `lowPriceLim`). At boot it is restored from NVS, or initialized to `INITIAL_LOW_PRICE_LIMIT` (0.01) if no value is stored yet.
+- **`gEnergyLowPriceLimit` resets to `INITIAL_LOW_PRICE_LIMIT` when a charging session ends**, is persisted to NVS, and the new value is published to `homeassistant/<device-name>/ev-e-monitor/button` as `{"low_price_limit": ...}`.
+- **First increase/decrease press after a reset** sets `gEnergyLowPriceLimit` to `gEnergyPriceRef + 0.01` (regardless of which button was pressed), rather than applying the usual +/- 0.10 step.
+- **Increase/decrease no longer clamps at zero**: `gEnergyLowPriceLimit` can go negative, since energy prices can be negative.
+- **OLED display** now shows `gEnergyLowPriceLimit` instead of `gEnergyPriceLimit`.
+- **Removed the inbound `ePriceLimit` `/set` command**: since the buttons now derive `gEnergyLowPriceLimit` from `gEnergyPriceRef` and NVS, the old Home Assistant sync path for this value is no longer needed.
+
 ## [V5.2.6] - 2026-09-15
 
 ### Changed
