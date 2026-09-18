@@ -5,9 +5,9 @@ home EV charging. The firmware counts meter pulses, calculates instantaneous
 power, detects charging sessions, and publishes energy, cost, Tesla, and device
 status data.
 
-## Current Release:  V5.3.0
+## Current Release:  V5.3.1
 
-V5.3.0 is the current production firmware baseline. See [changelog.md](changelog.md)
+V5.3.1 is the current production firmware baseline. See [changelog.md](changelog.md)
 for the release history.
 
 ### Features

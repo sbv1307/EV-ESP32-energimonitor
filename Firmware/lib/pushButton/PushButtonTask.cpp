@@ -113,7 +113,7 @@ static void publishButtonCommandTask(void* param) {
       gEnergyLowPriceLimit = newLimit;
       saveEnergyLowPriceLimitToNvs();
       gDisplayUpdateAvailable = true; // Trigger display update
-      snprintf(payload, sizeof(payload), "{\"%s\":%.3f}", BUTTON_LOW_PRICE_LIMIT, newLimit);
+      snprintf(payload, sizeof(payload), "{\"%s\":%.2f}", BUTTON_LOW_PRICE_LIMIT, newLimit);
       break;
     }
 
@@ -181,7 +181,7 @@ void resetLowPriceLimitToInitial() {
   saveEnergyLowPriceLimitToNvs();
 
   char payload[64];
-  snprintf(payload, sizeof(payload), "{\"%s\":%.3f}", BUTTON_LOW_PRICE_LIMIT, gEnergyLowPriceLimit);
+  snprintf(payload, sizeof(payload), "{\"%s\":%.2f}", BUTTON_LOW_PRICE_LIMIT, gEnergyLowPriceLimit);
   publishMqttSetCommand(payload, false);
   gDisplayUpdateAvailable = true;
 }

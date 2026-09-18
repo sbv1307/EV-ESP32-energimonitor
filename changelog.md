@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [V5.3.1] - 2026-09-18
+
+### Fixed
+
+- **Energy prices now use two decimal places consistently** in the OLED display, low-price-limit MQTT payloads, and documentation examples.
+
 ## [V5.3.0] - 2026-09-18
 
 ### Changed
@@ -160,7 +166,7 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
-- **Release**: V5.0.5 is marked as the current released firmware baseline.
+- **Release**: V5.0.5 was marked as the released firmware baseline at that time.
 - **Sketch version**: kept at `V5.0.5` in `Firmware/lib/config/config.h`.
 
 ## [Unreleased]
